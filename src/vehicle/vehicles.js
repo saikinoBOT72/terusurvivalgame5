@@ -8,6 +8,7 @@ import { createStructures } from '../build/structures.js';
 import { circleHitsShape, angleOf } from '../build/grid.js';
 import { raftMotion } from './raftMotion.js';
 import { boatMotion } from './boatMotion.js';
+import { down, release, keyName } from '../input/keymap.js';
 
 const FREEBOARD = 0.15;  // いかだの甲板の水面からの高さ（m）
 const APART = 1.5;       // 新しい乗り物は、ほかの乗り物からこれだけ離す（m）
@@ -19,7 +20,7 @@ const toLocal = (p, x, z) => { const c = Math.cos(p.yaw), s = Math.sin(p.yaw), d
 
 // world: 島（terrain、colliders、group、physics）、st: 島の建築パーツ、player: {state, keys}
 export function createVehicles(world, st, player, { onMessage = () => {} } = {}) {
-  const ps = player.state, keys = player.keys, t = world.terrain, list = [];
+  const ps = player.state, t = world.terrain, list = [];
   const deckY = t.waterLevel + FREEBOARD;
   // 世界の (x, z) で、高さ b〜top の物が岩・木・島のパーツに当たるか
   const hits = (x, z, b, top) => world.colliders(x, z, 0.05).some((c) => c.top > b && (c.bottom ?? -1e9) < top)
@@ -101,18 +102,18 @@ export function createVehicles(world, st, player, { onMessage = () => {} } = {})
     }
     if (ps.ride) ride();
     else if (!carried) push(dt);
-    spaceWas = !!keys.Space;
+    spaceWas = down('jump');
   }
   // 乗っている間: 舵の後ろ・腰かけ板に置き、WASD を乗り物へ渡す。Space で離れる・降りる
   let wWas = false, sWas = false;
   function ride() {
-    const { v, kind, part } = ps.ride, ax = (keys.KeyA ? 1 : 0) - (keys.KeyD ? 1 : 0), ws = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+    const { v, kind, part } = ps.ride, ax = (down('left') ? 1 : 0) - (down('right') ? 1 : 0), ws = (down('forward') ? 1 : 0) - (down('back') ? 1 : 0);
     if (kind === 'helm') {
       [ps.x, ps.z] = v.toWorld(...helmStand(part));
       ps.y = v.y + part.pos.y;
       v.input.turn = ax;
-      if (keys.KeyW && !wWas) setSails(v, true);
-      if (keys.KeyS && !sWas) setSails(v, false);
+      if (down('forward') && !wWas) setSails(v, true);
+      if (down('back') && !sWas) setSails(v, false);
     } else {
       if (v.up < 0.34) { leave(true); onMessage('小舟がひっくり返った'); return; } // 70 度より傾いた
       const p = motions.boat.seat(v);
@@ -120,8 +121,8 @@ export function createVehicles(world, st, player, { onMessage = () => {} } = {})
       v.input.fwd = ws;
       v.input.turn = ax;
     }
-    wWas = !!keys.KeyW; sWas = !!keys.KeyS;
-    if (keys.Space && !spaceWas) leave();
+    wWas = down('forward'); sWas = down('back');
+    if (down('jump') && !spaceWas) leave();
   }
   // 舵の後ろの立つ所（いかだの中の座標）
   const helmStand = (p) => { const a = angleOf(p.rot); return [p.pos.x + 0.7 * Math.sin(a), p.pos.z + 0.7 * Math.cos(a)]; };
@@ -142,7 +143,7 @@ export function createVehicles(world, st, player, { onMessage = () => {} } = {})
     if (r.v.input.fwd !== undefined) r.v.input.fwd = 0;
     ps.ride = null;
     ps.vy = 0;
-    keys.Space = false; // 降りた Space で跳ばない
+    release('jump'); // 降りた Space で跳ばない
   }
   // 小舟のそばの、いかだの甲板の上（降りられる所）
   function deckNear(boat) {
@@ -261,8 +262,8 @@ export function createVehicles(world, st, player, { onMessage = () => {} } = {})
     // 照準の下のヒント: 乗っている間の操作、乗り物のパーツを見ているときの右クリック
     hint(part) {
       if (ps.ride) return ps.ride.kind === 'helm' // 舵: 速さと張っている帆の数も（ui.md「設定と舵の表示」）
-        ? { name: `${PARTS.helm.name} ${Math.hypot(ps.ride.v.state.vx, ps.ride.v.state.vz).toFixed(1)} m/s ・ 帆 ${ps.ride.v.st.list.filter((p) => p.type === 'sail' && p.open).length}/${ps.ride.v.st.list.filter((p) => p.type === 'sail').length}`, key: 'A/D 回る ・ W 帆を張る ・ S たたむ ・ Space 離れる' }
-        : { name: PARTS.boat.name, key: 'W/S こぐ ・ A/D 回る ・ Space 降りる' };
+        ? { name: `${PARTS.helm.name} ${Math.hypot(ps.ride.v.state.vx, ps.ride.v.state.vz).toFixed(1)} m/s ・ 帆 ${ps.ride.v.st.list.filter((p) => p.type === 'sail' && p.open).length}/${ps.ride.v.st.list.filter((p) => p.type === 'sail').length}`, key: `${keyName('left')}/${keyName('right')} 回る ・ ${keyName('forward')} 帆を張る ・ ${keyName('back')} たたむ ・ ${keyName('jump')} 離れる` }
+        : { name: PARTS.boat.name, key: `${keyName('forward')}/${keyName('back')} こぐ ・ ${keyName('left')}/${keyName('right')} 回る ・ ${keyName('jump')} 降りる` };
       if (!part) return null;
       if (part.type === 'helm') return { name: PARTS.helm.name, key: '右クリック 舵を持つ' };
       if (part.type === 'sail') return { name: PARTS.sail.name, key: part.open ? '右クリック 帆をたたむ' : '右クリック 帆を張る' };

@@ -1,7 +1,10 @@
 // 画面表示。色はパレットから CSS 変数に渡す。
 import { P } from '../style/palette.js';
 import { facetsUrl } from './facets.js';
-import { settingsHtml, bindSettings } from './settings.js';
+import { createSettingsWin } from './settingsWin.js';
+import { keysHtml } from './keyBinds.js';
+import { winHead, el } from './uiKit.js';
+import { pressed } from '../input/keymap.js';
 
 export function applyUiColors() {
   const s = document.documentElement.style;
@@ -11,60 +14,52 @@ export function applyUiColors() {
   s.setProperty('--ui-facets-slot', facetsUrl(P.ui.slot, { size: 120, n: 2, seed: 5 }));
 }
 
-function el(html) {
-  const t = document.createElement('template');
-  t.innerHTML = html.trim();
-  const e = t.content.firstChild;
-  document.body.appendChild(e);
-  return e;
-}
-
-
-// 最初の画面（1人称の一時停止中も使う）
-// 操作一覧（docs/rules/ui.md「操作」）
-const KEYS = [
-  ['W A S D', '移動'], ['スペース', 'ジャンプ'], ['マウス', '見回す'],
-  ['左クリック', '叩く・攻撃・パーツの撤去'], ['右クリック', '使う・拾う・食べる・開ける'],
-  ['Tab', '持ち物とクラフト'], ['1〜6・ホイール', '持ち替え'], ['Q', '手に持つ物を投げる'],
-  ['ハンマー', '持った直後は撤去（左クリック） ・ 右クリック 建築メニュー → 選ぶと置く（左クリック・ホイール/R 回す・Q/E 高さ）'],
-  ['Esc', '一時停止'], ['F1', '操作一覧'], ['O', '全画面'],
-];
-const keysHtml = () => `<div class="keys">${KEYS.map(([k, v]) => `<b>${k}</b><span>${v}</span>`).join('')}
-  <span class="dev">開発用: G マス目 ・ H 当たり判定 ・ F 飛ぶ</span></div>`;
-
-// タイトルと一時停止（docs/rules/ui.md「画面の整理」）
+// タイトルと一時停止（docs/rules/ui.md「画面の整理」「設定の窓」）
 // dev: 開発用のボタン { onIsland, onShowcase, onRange }（onShowcase・onRange は開発中だけ）。settings: 設定の値、onSettings(値): 変えたとき
-export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settings, onSettings }) {
+export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settings, onSettings, onTouchEdit }) {
   const box = el(`
     <div class="menu-back">
-      <div class="panel menu">
-        <div class="title">猫の島</div>
-        <div class="titleBtns">
-          <div class="row"><button id="btnStart" type="button">はじめから</button><button id="btnContinue" type="button">つづきから</button></div>
-          <button class="btnSettings" type="button">設定</button>
+      <div class="panel win menu">
+        <div class="win-h1 main">猫の島</div>
+        <div class="titleBtns main">
+          <div class="row"><button class="btn-l" id="btnStart" type="button">はじめから</button><button class="btn-l" id="btnContinue" type="button">つづきから</button></div>
+          <button class="btn-l btnSettings" type="button">設定</button>
           <details><summary>開発用</summary>
             <div class="row"><button id="btnIsland" type="button">墜落島（素材つき）</button></div>
             <div class="row"><button id="btnShowcase" type="button" hidden>モデル確認島</button><button id="btnRange" type="button" hidden>射撃訓練島</button></div>
           </details>
         </div>
-        <div class="pauseBtns">
-          <button id="btnResume" type="button">続ける</button>
-          <div class="row"><button id="btnKeys" type="button">操作一覧</button><button class="btnSettings" type="button">設定</button><button id="btnTitle" type="button">タイトルへ</button></div>
+        <div class="pauseBtns main">
+          <button class="btn-l" id="btnResume" type="button">続ける</button>
+          <div class="row"><button class="btn-l" id="btnKeys" type="button">操作一覧</button><button class="btn-l btnSettings" type="button">設定</button><button class="btn-l" id="btnTitle" type="button">タイトルへ</button></div>
         </div>
-        <div class="settingsBox" hidden>${settingsHtml(settings)}</div>
-        <div class="sub" id="menuMsg"></div>
-        <div class="keysBox" hidden>${keysHtml()}</div>
+        <div class="sub main" id="menuMsg"></div>
+        <div class="winBody keysBox" hidden></div>
       </div>
     </div>`);
   const $ = (id) => box.querySelector(id);
   const on = (id, fn) => $(id).addEventListener('click', fn);
+  const settingsWin = createSettingsWin({ settings, onChange: onSettings, onClose: () => view('main'), onTouchEdit });
+  $('.menu').appendChild(settingsWin.el);
+  // 表示: main（ボタン）/ settings / keys。設定と操作一覧を開くと、メニューのボタンは隠れる
+  let cur = 'main';
+  function view(v) {
+    cur = v;
+    box.querySelectorAll('.main').forEach((n) => { n.hidden = v !== 'main'; });
+    if (v === 'settings') settingsWin.open(); else settingsWin.close();
+    $('.keysBox').hidden = v !== 'keys';
+    if (v === 'keys') $('.keysBox').innerHTML = winHead('操作一覧', true) + keysHtml();
+    if (v === 'main') box.querySelectorAll('.titleBtns, .pauseBtns').forEach((n) => { n.hidden = n.classList.contains('pauseBtns') ? !paused : paused; });
+  }
+  let paused = false;
   on('#btnStart', onStart);
   on('#btnContinue', onContinue);
   on('#btnResume', onResume);
   on('#btnTitle', onTitle);
-  on('#btnKeys', () => { $('.keysBox').hidden = !$('.keysBox').hidden; });
-  box.querySelectorAll('.btnSettings').forEach((b) => b.addEventListener('click', () => { $('.settingsBox').hidden = !$('.settingsBox').hidden; }));
-  bindSettings($('.settingsBox'), settings, onSettings);
+  on('#btnKeys', () => view('keys'));
+  $('.keysBox').addEventListener('click', (e) => { if (e.target.closest('.win-x')) view('main'); });
+  box.querySelectorAll('.btnSettings').forEach((b) => b.addEventListener('click', () => view('settings')));
+  addEventListener('keydown', (e) => { if (e.code === 'Escape' && !box.hidden && cur !== 'main') view('main'); }); // Esc でメニューに戻る
   on('#btnIsland', dev.onIsland);
 
   if (dev.onShowcase) { $('#btnShowcase').hidden = false; on('#btnShowcase', dev.onShowcase); }
@@ -72,23 +67,18 @@ export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settin
   return {
     el: box,
     set hidden(v) { box.hidden = v; },
-    setPaused(v) {
-      $('.titleBtns').hidden = v;
-      $('.pauseBtns').hidden = !v;
-      $('.keysBox').hidden = true;
-      $('.settingsBox').hidden = true;
-    },
+    setPaused(v) { paused = v; view('main'); },
     setCanContinue(v) { $('#btnContinue').disabled = !v; },
     setMessage(t) { $('#menuMsg').textContent = t; },
   };
 }
 
-// F1 の操作一覧（遊びは止めない）
+// F1 の操作一覧（遊びは止めない）。開くたびに今のキーで作り直す
 export function createKeysPanel() {
-  const box = el(`<div class="panel keys-panel" hidden><div class="title">操作一覧</div>${keysHtml()}</div>`);
+  const box = el(`<div class="panel win keys-panel" hidden>${winHead('操作一覧')}<div class="keysBody"></div></div>`);
   return {
     get open() { return !box.hidden; },
-    setOpen(v) { box.hidden = !v; },
+    setOpen(v) { box.hidden = !v; if (v) box.querySelector('.keysBody').innerHTML = keysHtml(); },
   };
 }
 
@@ -100,12 +90,16 @@ export function createPlayHud() {
   return el('<div class="play-hud"><div class="crosshair"></div></div>');
 }
 
-// O キーで全画面表示を切り替える
+// 全画面の切り替え（キー設定の「全画面」）。全画面の間はキーボードをロックして、Ctrl+W なども効かなくする（Esc は一時停止。長押しで抜ける。controls.js）
 export function bindFullscreenKey() {
   addEventListener('keydown', (e) => {
-    if (e.code !== 'KeyO' || e.repeat) return;
+    if (!pressed(e, 'fullscreen') || e.repeat) return;
     if (document.fullscreenElement) document.exitFullscreen?.();
     else document.documentElement.requestFullscreen?.().catch(() => {});
+  });
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) navigator.keyboard?.lock?.().catch(() => {});
+    else navigator.keyboard?.unlock?.();
   });
 }
 

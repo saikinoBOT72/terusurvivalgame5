@@ -1,6 +1,7 @@
 // 描画の準備と、1 フレームの描き方（世界 → 1人称の腕と持つ物を重ねる）
 import * as THREE from 'three';
 import { VIEW_LAYER } from '../player/firstPerson.js';
+import { touch } from '../input/touch.js';
 
 export function createRenderer(camera) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -22,6 +23,7 @@ export function createRenderer(camera) {
     renderer, dom,
     // マウスを固定する。加速なしの生の移動量を使うと視点が飛びにくい（使えないブラウザでは普通に固定）
     lockPointer() {
+      if (touch.on) return; // タッチは固定なしで遊ぶ（input/touch.js）
       const p = dom.requestPointerLock?.({ unadjustedMovement: true });
       p?.catch?.(() => dom.requestPointerLock?.()?.catch?.(() => {}));
     },

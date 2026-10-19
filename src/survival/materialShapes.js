@@ -151,6 +151,22 @@ export const MATERIAL_SHAPES = {
     g.translate(0, 0.05, 0);
     return shape(g, () => pick(r, [P.clay[0], P.clay[1]]), r, { jit: 0.01 });
   },
+  // 砂: 薄い黄色の小さな砂山 3 つ
+  sand: (r) => {
+    const parts = [[0, 0, 0.12], [0.13, 0.05, 0.08], [-0.07, 0.12, 0.07]].map(([x, z, s]) => {
+      const g = new THREE.ConeGeometry(s * 1.5, s * 1.1, 6);
+      g.translate(x, s * 0.55, z);
+      return shape(g, (f) => (f.ny > 0.5 ? pick(r, [P.sand[2], P.sand[3]]) : pick(r, [P.sand[1], P.sand[2]])), r, { jit: s * 0.12 });
+    });
+    return merge(parts);
+  },
+  // ガラス: 青緑がかった厚い板（角をかけてある）。上の面が明るい
+  glass: (r) => {
+    const g = new THREE.BoxGeometry(0.3, 0.06, 0.22, 2, 1, 2), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) if (p.getX(i) > 0.14 && p.getZ(i) > 0.1) { p.setX(i, p.getX(i) - 0.07); p.setZ(i, p.getZ(i) - 0.05); } // 1 つの角をかく
+    g.translate(0, 0.03, 0);
+    return shape(g, (f) => (f.ny > 0.5 ? P.glassItem[2] : pick(r, [P.glassItem[0], P.glassItem[1]])), r, { jit: 0.004 });
+  },
   // 竹: 切った竹。はしの近くに節を 1 つ（少し太い輪）。切り口は明るい
   bamboo: (r) => {
     const g = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 6, 4);

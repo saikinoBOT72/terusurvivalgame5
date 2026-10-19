@@ -12,11 +12,12 @@ for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
   hs += h < 0 ? '.' : 'abcdefghij'[Math.min(9, Math.floor(h / 3))];
 }
 const SP = I.spots.map((s) => [s.n, s.name, s.x, s.z]);
-// 敵の行: [行の番号, 種類, スポット（なければ null）, 数, 動き, x, z]。夜に区域へ出る行は NIGHT
-const OLD = [], NIGHT = [];
+// 固定湧きの行: [行の番号, 種類, スポット（なければ null）, 数, 動き, x, z]
+// 自然湧きの範囲 WILD: [番号, 名前, 区域の字, x, z, 半径, 敵（"drone,dog×2"）, 夜の上限, 昼の上限]
+const OLD = [];
+const WILD = (I.wild ?? []).map((w, i) => [i, w.name, w.zones, w.x, w.z, w.r, w.mobs.map(([k, n]) => k + (n > 1 ? '×' + n : '')).join(','), w.night, w.day]);
 I.spawns.forEach((e, i) => {
-  if (e.zones) { NIGHT.push([i, e.kind, e.zones, e.n, e.group ?? 1]); return; }
   const s = e.spot ? I.spots.find((o) => o.n === e.spot) : null, at = s ?? e.at;
   OLD.push([i, e.kind, e.spot ?? null, e.n ?? 1, e.when === 'night' ? 'visit' : e.mode ?? 'guard', at.x, at.z]);
 });
-JSON.stringify({ name: I.name, size: SIZE, step: STEP, ZR: rle(zs), HR: rle(hs), SP, OLD, NIGHT });
+JSON.stringify({ name: I.name, size: SIZE, step: STEP, ZR: rle(zs), HR: rle(hs), SP, OLD, WILD });

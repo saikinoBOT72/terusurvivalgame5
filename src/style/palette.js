@@ -55,6 +55,7 @@ export const P = {
   plane: ['#B9BEC4', '#DADDE0', '#EEF0F1'], // 白い機体
   planeStripe: ['#B8452E', '#D9603A'], // 機体の帯
   glass: ['#2A3A48', '#3E5466'], // 操縦席の窓
+  glassItem: ['#6FA6A2', '#8FC4BE', '#BEE3DD'], // ガラス（持ち物）: 青緑がかった厚い板
   blueprint: ['#2F5E96', '#4C7DB8', '#86ACD8'], // 設計図の青い紙
   foil: ['#9EA5AD', '#BFC5CB', '#DCE0E4'], // 機内食のアルミのふた
   // 炉で作る金属（survival.md「鉱石と炉」）
@@ -96,6 +97,7 @@ export const P = {
     stamina: '#6FBF5A', // スタミナ（weapons.md）
     dmg: '#FFFFFF', // ダメージの数字
     dmgWeak: '#FFD23A', // 弱点のダメージの数字
+    barrier: '#8FD8F2', // 「バリア」の文字（ダメージ 0 のとき）
     hitMark: '#FFFFFF', // 照準の ×
     hitWeak: '#FF4A3A', // 弱点の ×
     hurtArc: '#E0302A', // 攻撃の来た向き
@@ -110,6 +112,7 @@ export const P = {
   // 戦闘の手ごたえ（weapons.md）
   fx: {
     flash: '#FFFFFF', // 当たった敵が白く光る
+    barrier: '#8FD8F2', // 採掘ロボのバリア（遠くから撃つと体のまわりに光る六角の殻）
     spark: ['#FFE08A', '#FFB83A', '#FFF4C8'], // 火花
     smoke: ['#3A3A3E', '#55555A', '#77777C'], // 撃墜の煙
     trail: '#E8E2D0', // 飛ぶ弾の筋

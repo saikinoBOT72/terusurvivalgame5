@@ -1,0 +1,66 @@
+/* 画面の共通部品（docs/rules/ui.md「共通部品」）: 文字 5 段・石の板・窓の題の行・ボタン・タブ・切り替え・キーの札 */
+:root {
+  --fs-h1: 26px; --fs-title: 15px; --fs-body: 13px; --fs-sub: 12px; --fs-xs: 11px; /* 文字は 5 段 */
+  --gap-in: 8px; --gap-sec: 14px; /* 板の中の間・段の間 */
+}
+body { font-size: var(--fs-body); }
+[hidden] { display: none !important; }
+
+/* ---- 石の板: 面の模様、濃い輪郭、斜めに切った角 ---- */
+.panel {
+  background: var(--ui-facets), var(--ui-panel);
+  border: 2px solid var(--ui-edge); border-radius: 10px; corner-shape: bevel; padding: 12px 14px;
+  box-shadow: inset 2px 2px 0 var(--ui-light), inset -2px -2px 0 color-mix(in srgb, var(--ui-edge) 22%, transparent),
+    0 3px 10px color-mix(in srgb, var(--ui-edge) 35%, transparent);
+}
+/* 窓 = 石の板 + 題の行。メニューから開く窓だけ右に × */
+.win { display: flex; flex-direction: column; gap: var(--gap-sec); }
+.win-head { display: flex; align-items: center; gap: var(--gap-in); font-size: var(--fs-title); font-weight: 700; }
+.win-head .win-title { flex: 1; }
+.win-head .win-x { padding: 1px 8px; font-size: var(--fs-body); }
+.win-h1 { font-size: var(--fs-h1); font-weight: 700; }
+.sub { font-size: var(--fs-sub); color: var(--ui-textSub); }
+
+/* 景色の上に直接出す文字（白に濃いふち） */
+.outlined { color: var(--ui-label); text-shadow: 1px 1px 0 var(--ui-edge), -1px -1px 0 var(--ui-edge), 1px -1px 0 var(--ui-edge), -1px 1px 0 var(--ui-edge), 0 2px 3px var(--ui-edge); }
+.lack { color: var(--ui-ng); }
+
+/* ---- ボタン: 大きさ 3 段（.btn-l 大＝メニュー / ふつう / .btn-s 小）× 種類 3 つ（ふつう / .tab / .danger） ---- */
+button {
+  font: inherit; font-size: var(--fs-body); font-weight: 700; color: var(--ui-text); cursor: pointer; padding: 7px 14px;
+  background: var(--ui-facets), var(--ui-panel); border: 2px solid var(--ui-edge); border-radius: 7px; corner-shape: bevel;
+  box-shadow: inset 2px 2px 0 var(--ui-light), inset -2px -2px 0 color-mix(in srgb, var(--ui-edge) 28%, transparent);
+}
+button:hover { background: var(--ui-light); }
+button:active { box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ui-edge) 28%, transparent); }
+button:focus-visible { outline: 2px solid var(--ui-label); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: default; background: var(--ui-panel); }
+button.btn-l { font-size: 16px; padding: 10px 14px; }
+button.btn-s { font-size: var(--fs-sub); padding: 4px 10px; }
+button.danger { color: var(--ui-ng); }
+button.tab { padding: 6px 14px; }
+button.tab.on { background: var(--ui-light); box-shadow: inset 0 -3px 0 var(--ui-hunger); }
+.tabs { display: flex; gap: 6px; }
+
+/* ---- 切り替え: 石のくぼみに丸い石。オンは緑 ---- */
+button.toggle { position: relative; flex: none; width: 44px; height: 24px; padding: 0; background: var(--ui-slot); border-radius: 12px; corner-shape: round;
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ui-edge) 40%, transparent); }
+button.toggle:hover { background: var(--ui-slot); }
+button.toggle i { position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--ui-light);
+  border: 2px solid var(--ui-edge); transition: left .12s; }
+button.toggle[aria-checked=true] { background: var(--ui-ok); }
+button.toggle[aria-checked=true] i { left: 22px; }
+
+/* ---- キーの札: 小さい明るい石の札に太字 ---- */
+.keycap { display: inline-block; box-sizing: border-box; min-width: 1.9em; padding: 0 7px; text-align: center; font: inherit; font-size: var(--fs-sub); font-weight: 800; line-height: 1.7;
+  color: var(--ui-text); background: var(--ui-light); border: 2px solid var(--ui-edge); border-radius: 5px; corner-shape: bevel;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ui-edge) 22%, transparent); white-space: nowrap; }
+.keycap.dim { opacity: .55; }
+button.keycap { cursor: pointer; padding: 0 9px; }
+button.keycap.wait { background: var(--ui-hunger); }
+
+/* ---- 入力: スライダーと数字の欄 ---- */
+.field { display: grid; grid-template-columns: 9em 1fr 5em; align-items: center; gap: var(--gap-in); font-size: var(--fs-body); }
+.field b { text-align: right; font-size: var(--fs-sub); }
+.field input[type=number] { width: 100%; box-sizing: border-box; font: inherit; }
+.field.row2 { grid-template-columns: 1fr auto; }

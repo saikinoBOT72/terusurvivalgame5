@@ -2,6 +2,7 @@
 // hit: 照準の先 {part?, point}、ctx: {world, st, rot, level}
 import { PARTS, localShapes, WALL_H } from './parts.js';
 import { G, SQRT2, snap, angleOf, rotOfDir, edgesOf, makeShape } from './grid.js';
+import { keyName } from '../input/keymap.js';
 
 // 1m 四方の足元の地面の、一番高い所
 export function groundMax(world, x, z) {
@@ -38,7 +39,7 @@ function floorTarget(type, h, { world, st, rot, level }) {
     pos = { x, y: (Math.ceil(groundMax(world, x, z) / G - 1e-6) + level) * G, z };
   }
   const above = groundMax(world, pos.x, pos.z) <= pos.y + 0.001; // 地面に埋まらない
-  return { type, pos, rot: r, ok: above && st.canPlace(type, pos, r), why: above ? null : '地面に埋まる（E で高く）' };
+  return { type, pos, rot: r, ok: above && st.canPlace(type, pos, r), why: above ? null : `地面に埋まる（${keyName('buildUp')} で高く）` };
 }
 
 function wallTarget(type, h, { st, rot }) {

@@ -7,6 +7,7 @@ import { generateIsland, ISLAND, SEA, SNOW } from './islandGen.js';
 import { spotGround } from './spotTerrain.js';
 import { pickSpots } from './zonePlace.js';
 import { placeOres } from './orePlace.js';
+import { placeStone } from './stonePlace.js';
 import { placeWreck, placeLoot } from './wreck.js';
 import { conifer, broadleaf, rock, grassTuft, water, instanced, colliderRings } from './nature.js';
 import { bigWaterfall } from './waterfall.js';
@@ -29,7 +30,7 @@ const NEAR_VIEW = 40;    // マス目・当たり判定の表示を出す範囲
 const CELL = 8;          // 当たり判定の分け方
 const TREE_TOP = 3;      // 木の幹の当たり判定の高さ（上に乗れない）
 // 壊したあと戻る物と秒（islands.md「資源の量」）。ほかの木・岩は戻らない
-const REGROW = { bamboo: DAY_LEN * 2, coal: DAY_LEN * 3, copper: DAY_LEN * 3, iron: DAY_LEN * 3, junk: DAY_LEN * 3 };
+const REGROW = { bamboo: DAY_LEN * 2, coal: DAY_LEN * 3, copper: DAY_LEN * 3, iron: DAY_LEN * 3, junk: DAY_LEN * 3, sand: DAY_LEN * 2 };
 
 // id: 島の名前（islandMap.js の ISLANDS）。島は固定なので、同じ名前なら同じ形になる
 // 滝（スポット 20。waterfall.js）: 崖の面（fall）に、崖の上の高さで立てる。動き（模様・しぶき）は update
@@ -233,6 +234,8 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
   await step(0.92, 'スポットを整えています');
   // ---- スポット（islands.md「スポット」）: 区域の中の、行く理由のある場所 ----
   const spots = placeSpots({ group, terrain, gen, colliders, addCollider, removeCollider, resources, slingTargets, seed });
+  // ---- 石の密集地・石の鉱床・砂の塊・砂の鉱床（登録は島の物の最後。islands.md「鉱石の密集地」） ----
+  const stone = placeStone({ group, terrain, gen, colliders, addCollider, resources, seed });
   const planting = createPlanting({ group, terrain, colliders, addCollider, resources, protos, leafCollider, leaves, treeTop: TREE_TOP });
 
   resources.freeze(); // ここまでが島の最初の姿。あとの変化はセーブで記録する
@@ -257,10 +260,11 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
     spots: gen.def.spots, // スポット（islands.md「スポット」）
     pools: spots.pools, fogAt: spots.fogAt, // 泉の水面（竹筒で汲める）、霧の濃さ（立ち枯れの沼）
     caveDim: deco.caves.caveDim, inCave: deco.caves.inCave, // 洞窟の奥にいる度合い（sky.setDim）・洞窟の上か
-    group, terrain, colliders, spawn, resources, harvest, restoreHidden, dummyAt: gen.def.dummy, spawns: gen.def.spawns,
+    group, terrain, colliders, spawn, resources, harvest, restoreHidden, dummyAt: gen.def.dummy, spawns: gen.def.spawns, wild: gen.def.wild,
     fires: fp ? [fp] : [], // 回復が速くなるたき火（建てたたき火は別に数える）
     slingTargets, // スリングの的（巣の卵、ヤシの実）
     planting, // 苗木を植える・育つ
+    stone, // 石の密集地・砂の鉱床の場所（確認用）
     cover: (boxes, d) => grass.cover(boxes, d),
     catCenter: new THREE.Vector3(spawn.x - 2.5, 0, spawn.z - 3),
     fog: [12, VIEW - 15], // かすみ: 12m から薄くかかり、115m で見えなくなる

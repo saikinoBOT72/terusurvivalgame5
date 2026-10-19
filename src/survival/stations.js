@@ -8,10 +8,10 @@ import { rng, makeMesh } from '../style/lowpoly.js';
 import { campfire } from '../world/props.js';
 import { purifierWater, purifierWaterY, FURNACE_FIRE } from '../build/furniture.js';
 import { itemGeometry } from './itemShapes.js';
-import { ITEMS } from './items.js';
+import { ITEMS, REMOVED } from './items.js';
 
 const COOK = { berry: 'cookedBerry', mushroom: 'cookedMushroom', egg: 'cookedEgg', fish: 'cookedFish', potato: 'cookedPotato', shell: 'cookedShell', clay: 'brick' };
-const SMELT = { copperOre: ['copperIngot', 1], ironOre: ['ironIngot', 1], scrap: ['ironIngot', 2] }; // [できる物, 入れる数]
+const SMELT = { copperOre: ['copperIngot', 1], ironOre: ['ironIngot', 1], scrap: ['ironIngot', 2], sand: ['glass', 2] }; // [できる物, 入れる数]
 
 // recipe(id): 入れる物 id から { out, need, time }（作れなければ null）
 export const STATIONS = {
@@ -141,7 +141,7 @@ export const stationChanged = (part) => showContents(part);
 export const stationData = (p) => (STATIONS[p.type]?.lanes ? { slots: p.slots, burn: p.burn || undefined, prog: p.prog.some(Boolean) ? p.prog : undefined } : {});
 export function loadStation(part, d) {
   if (!part.slots || !d.slots) return;
-  d.slots.forEach((s, i) => { part.slots[i] = s; });
+  d.slots.forEach((s, i) => { part.slots[i] = s && REMOVED.has(s.id) ? null : s; });
   part.burn = d.burn ?? 0;
   if (d.prog) part.prog = d.prog;
   showContents(part);

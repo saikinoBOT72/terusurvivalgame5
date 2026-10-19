@@ -1,0 +1,37 @@
+/* タッチの画面（docs/rules/ui.md「タッチ操作」）: 丸い石のボタン、スティック。色は palette（hud.js の --ui-*） */
+.touch canvas { touch-action: none; }
+.touch body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.touch .hotbar .slot { pointer-events: auto; }
+.touch .hotbar .slot .key { display: none; }
+
+.touch-hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+.tbtn {
+  position: fixed; box-sizing: border-box; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: auto; touch-action: none;
+  display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.1; font-weight: 800; color: var(--ui-text);
+  background: var(--ui-facets), var(--ui-panel); border: 2px solid var(--ui-edge);
+  box-shadow: inset 2px 2px 0 var(--ui-light), inset -2px -2px 0 color-mix(in srgb, var(--ui-edge) 28%, transparent), 0 2px 6px color-mix(in srgb, var(--ui-edge) 35%, transparent);
+}
+.tbtn span { white-space: nowrap; }
+/* 右下の表示（ヒント・知らせ・建築）はボタンと重なるので、タッチでは上の真ん中へ */
+.touch .corner { right: 50%; bottom: auto; top: 12px; transform: translateX(50%); align-items: center; }
+.tbtn.down { background: var(--ui-light); box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ui-edge) 28%, transparent); }
+.tbtn.on { box-shadow: inset 0 0 0 3px var(--ui-hunger), inset 2px 2px 0 var(--ui-light); }
+/* スティック: くぼみの石と、つまみの石。ふちの外まで引くと（走る）つまみが黄 */
+.tbtn.tstick { background: color-mix(in srgb, var(--ui-slot) 70%, transparent); box-shadow: inset 3px 3px 0 color-mix(in srgb, var(--ui-edge) 35%, transparent); }
+.tstick i { position: absolute; left: 50%; top: 50%; width: 44%; height: 44%; transform: translate(-50%, -50%); border-radius: 50%;
+  background: var(--ui-light); border: 2px solid var(--ui-edge); box-sizing: border-box; }
+.tstick.run i { background: var(--ui-hunger); }
+
+.touch-hud:not(.placing) .tbtn.build, .touch-hud.placing .tbtn.nobuild { display: none; }
+.touch-hud.ui .tbtn:not([data-id=inventory]) { display: none; }
+
+/* 配置の編集（touchEdit.js） */
+.touch-edit { position: fixed; inset: 0; z-index: 60; background: color-mix(in srgb, var(--ui-edge) 45%, transparent); touch-action: none; }
+.touch-edit .tbtn { cursor: grab; }
+.touch-edit .tbtn.sel { outline: 3px solid var(--ui-hunger); outline-offset: 3px; }
+.touch-editing .menu-back { visibility: hidden; }
+.touch-edit .edit-panel { position: fixed; left: 50%; top: 8px; transform: translateX(-50%); width: min(340px, calc(100vw - 32px)); box-sizing: border-box; gap: 4px; padding: 8px 12px; }
+.touch-edit .edit-panel .win-head { cursor: move; touch-action: none; }
+.touch-edit .edit-panel .field { grid-template-columns: 8em 1fr 4em; }
+.touch-edit .edit-panel .row { display: flex; gap: var(--gap-in); justify-content: flex-end; }
+.touch .inv .slot, .touch .build-menu { touch-action: none; }

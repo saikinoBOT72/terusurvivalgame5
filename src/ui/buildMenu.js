@@ -5,12 +5,7 @@ import { PARTS, PART_LIST, COSTS, partGeometry } from '../build/parts.js';
 import { ITEMS } from '../survival/items.js';
 import { MAT } from '../style/lowpoly.js';
 import { iconUrl } from './icons.js';
-
-function el(html, parent = document.body) {
-  const t = document.createElement('template');
-  t.innerHTML = html.trim();
-  return parent.appendChild(t.content.firstChild);
-}
+import { el, winHead } from './uiKit.js';
 
 // パーツのアイコン（ドアは枠と扉を合わせて描く）
 export function partIcon(type) {
@@ -25,7 +20,7 @@ export function partIcon(type) {
 
 // 必要な素材の表示「竹 50/3」（持っている数/要る数）。足りない物は赤くする
 export function costHtml(type, inventory) {
-  return Object.entries(COSTS[type]).map(([id, n]) => {
+  return (PARTS[type].bp ? '<span class="bp">設計図 ✓</span>' : '') + Object.entries(COSTS[type]).map(([id, n]) => {
     const have = inventory.count(id);
     return `<span class="${have < n ? 'lack' : ''}">${ITEMS[id].name} ${have}/${n}</span>`;
   }).join('');
@@ -45,12 +40,13 @@ const catOf = (t) => (CATS.find(([, , list]) => list.includes(t)) ?? CATS[3])[0]
 export const canPay = (type, inventory) => Object.entries(COSTS[type]).every(([id, n]) => inventory.count(id) >= n);
 
 // onPick(PART_LIST の番号): パーツを選んだ。onPick(-1): 撤去を選んだ
-// known(bp): その設計図を読んだか（読んでいないパーツは出さない）
+// known(bp): その設計図を持っているか（持っていないパーツは出さない）
 export function createBuildMenu({ inventory, onPick, known = () => true }) {
   const box = el(`
-    <div class="panel build-menu" hidden>
+    <div class="panel win build-menu" hidden>
+      ${winHead('建築')}
       <div class="tabs">${CATS.map(([k, name]) => `<button type="button" class="tab" data-cat="${k}">${name}</button>`).join('')}
-        <button type="button" class="tab remove">撤去</button></div>
+        <button type="button" class="tab remove danger">撤去</button></div>
       <div class="cards">${PART_LIST.map((t, i) => `
         <button type="button" class="card" data-i="${i}" data-cat="${catOf(t)}">
           <img src="${partIcon(t)}" alt="">

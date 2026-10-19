@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
 import { bodyBox } from './combat.js';
+import { createBarrierFx } from './barrierFx.js';
 
 const MAX_SPARK = 220, MAX_BIT = 80, MAX_PUFF = 90, MAX_EMBER = 60, MAX_STAR = 8;
 const STAR_SECS = 0.09, EMBER_SECS = 1.4;
@@ -13,6 +14,7 @@ const col = (arr) => new THREE.Color(arr[Math.floor(Math.random() * arr.length)]
 
 export function createHitFx({ scene, hud = null }) {
   let terrain = null;
+  const barrierFx = createBarrierFx({ scene });
   const ground = (x, z) => (terrain ? Math.max(terrain.groundNear(x, z), terrain.waterLevel) : -Infinity);
 
   // 火花: 短い線。速さの向きにのびる
@@ -95,7 +97,7 @@ export function createHitFx({ scene, hud = null }) {
 
   return {
     counts: () => `火花 ${sparks.length} 破片 ${bits.length} 赤い破片 ${embers.length} 煙 ${puffs.length}`,
-    setWorld(w) { terrain = w?.terrain ?? null; sparks.length = bits.length = puffs.length = smokers.length = embers.length = 0; },
+    setWorld(w) { barrierFx.clear(); terrain = w?.terrain ?? null; sparks.length = bits.length = puffs.length = smokers.length = embers.length = 0; },
     sparks: (p, n, speed) => addSparks(p, n, speed), // 傷みの火花（mobFx.js）
     // 当たった: 星形の閃光・火花（弱点は青白いのも）・赤い破片・金属片・数字・照準の ×
     hit(m, point, dmg, weak) {
@@ -125,7 +127,15 @@ export function createHitFx({ scene, hud = null }) {
       if (!m.meshes) { m.meshes = []; m.model.root.traverse((o) => { if (o.isMesh) m.meshes.push([o, o.material]); }); }
       for (const [o, mat] of m.meshes) o.material = on ? FLASH : mat;
     },
+    // 遠すぎる所から撃たれた（barrier）: 青白い閃光と火花、体のまわりに殻、「バリア」の文字
+    barrier(m, point) {
+      addStar(point, 0.4, true);
+      addSparks(point, 8, 5, P.fx.sparkCool);
+      barrierFx.show(m);
+      hud?.number(point, 'バリア', false, ' barrier');
+    },
     update(dt) {
+      barrierFx.update(dt);
       // 火花
       let n = 0;
       const pos = sparkGeo.attributes.position.array, cl = sparkGeo.attributes.color.array;

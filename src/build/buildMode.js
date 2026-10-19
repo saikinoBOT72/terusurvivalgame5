@@ -1,12 +1,14 @@
 // 建築モード（docs/rules/building.md、ui.md「建築の操作」）: ハンマーを持つと、選んでいるパーツのプレビューがいつも出る
 // 持った直後は撤去（左クリックで撤去、ホイールは持ち替え）、右クリック 建築メニュー（controls.js）で選ぶと置く状態
-// 置く状態: 左クリック 置く、ホイールか R 回す、Q/E 土台の高さ
+// 置く状態: 左クリック 置く、ホイールか「回す」のキー、「高く」「低く」のキーで土台の高さ（input/keymap.js）
 // どこに吸い付くかは snap.js が決める。置けないときは理由（why）を出す
 import * as THREE from 'three';
 import { PARTS, PART_LIST, COSTS, partGeometry, PREVIEW_MAT } from './parts.js';
 import { toI, angleOf, snap } from './grid.js';
 import { findTarget } from './snap.js';
 import { createArrow, arrowYaw, createRemoveMarks } from './buildMarks.js';
+import { pressed } from '../input/keymap.js';
+import { playing } from '../input/touch.js';
 
 const REACH = 6;      // 届く距離（m）
 const MAX_LEVEL = 4;  // 土台の高さの段階（0〜4 段 = 0〜2m）
@@ -123,13 +125,14 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
   const turn = (dir) => { if (sel !== REMOVE) rot = (rot + dir * PARTS[type()].rotStep + 8) % 8; };
   addEventListener('keydown', (e) => {
     if (!active() || e.repeat) return;
-    if (e.code === 'KeyR') turn(1);
-    if ((e.code === 'KeyQ' || e.code === 'KeyE') && sel !== REMOVE) level = Math.max(0, Math.min(MAX_LEVEL, level + (e.code === 'KeyE' ? 1 : -1)));
+    if (pressed(e, 'buildTurn')) turn(1);
+    const up = pressed(e, 'buildUp');
+    if ((up || pressed(e, 'buildDown')) && sel !== REMOVE) level = Math.max(0, Math.min(MAX_LEVEL, level + (up ? 1 : -1)));
   });
   addEventListener('wheel', (e) => { if (active() && document.pointerLockElement === dom) turn(e.deltaY > 0 ? 1 : -1); });
   dom.addEventListener('mousedown', (e) => {
     // 左クリック: 置く・撤去（ほかのクリックの処理には渡さない）。右クリックは controls.js が建築メニューを開く
-    if (!active() || e.button !== 0 || document.pointerLockElement !== dom) return;
+    if (!active() || e.button !== 0 || !playing(dom)) return;
     e.stopImmediatePropagation();
     if (sel === REMOVE) { if (swinging()) return; onSwing(true); removeAimed(); } else { onSwing(false); place(); }
   });

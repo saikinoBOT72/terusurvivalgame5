@@ -8,18 +8,19 @@
 import { space, pickWander, wanderMove } from './spacing.js';
 import { callPack, packRole, packMayAttack, flankSpot } from './pack.js';
 import { pickMelee, inCone, lungeStep } from './melee.js';
+import { awareness } from '../player/gait.js';
 
 const HIT_R = 0.7; // 体当たりが当たる近さ（m、体の中心どうし）
 const FRONT = Math.cos(Math.PI / 3), FACE = Math.cos(35 * Math.PI / 180); // 見える範囲（前 120 度）、攻撃に入れる向き
-const NEAR_SEE = 3, SEE_FIGHT = 2, LOSE = 5, ALERT = 1; // 後ろでも気づく距離、「！」になるまで・あきらめるまでの秒、「！」を出す秒
+const LOSE = 5, ALERT = 1; // あきらめるまでの秒、「！」を出す秒。後ろでも気づく距離・見える距離・「！」になるまでの秒はプレイヤーの動き方で変わる（player/gait.js）
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
-// 見えるか: 距離・向き・間の地面
-function canSee(m, p, terrain) {
+// 見えるか: 距離・向き・間の地面（プレイヤーの動き方で変わる。player.md「動き方」）
+function canSee(m, p, terrain, aw) {
   const dx = p.x - m.x, dz = p.z - m.z, dist = Math.hypot(dx, dz);
-  if (dist > m.def.sight) return false;
-  if (!m.def.disguise && dist > NEAR_SEE && (Math.sin(m.yaw) * dx + Math.cos(m.yaw) * dz) / dist < FRONT) return false;
-  const y0 = m.y + 0.5, y1 = p.y + 0.9;
+  if (dist > m.def.sight * aw.sight) return false;
+  if (!m.def.disguise && dist > aw.back && (Math.sin(m.yaw) * dx + Math.cos(m.yaw) * dz) / dist < FRONT) return false;
+  const y0 = m.y + 0.5, y1 = p.y + (p.eyeH ?? 0.9); // 的の高さは体の高さ（しゃがめば低い）
   for (let k = 1.5; k < dist; k += 1.5) {
     const u = k / dist;
     if (terrain.solidAt(m.x + dx * u, y0 + (y1 - y0) * u, m.z + dz * u)) return false;
@@ -114,13 +115,13 @@ export function think(m, dt, { player, dead, hurt, steer, list, terrain, escape,
 
   // ---- 気づき ----
   if (m.aware !== 'fight' && !dead && !(def.leash && m.state === 'return')) { // leash の敵は戻りきるまで気づかない（戻る・戦うをくり返さない）
-    const see = canSee(m, p, terrain);
+    const aw = awareness(p), see = canSee(m, p, terrain, aw);
     if (m.aware === 'none' && see) {
       if (def.disguise) m.aware = 'fight'; // 岩のふり: 見つけたらすぐ
       else { m.aware = 'sus'; m.seen = m.lost = 0; }
     }
     if (m.aware === 'sus') {
-      if (see) { m.seen += dt; m.lost = 0; m.last = { x: p.x, z: p.z }; if (m.seen >= SEE_FIGHT) m.aware = 'fight'; }
+      if (see) { m.seen += dt; m.lost = 0; m.last = { x: p.x, z: p.z }; if (m.seen >= aw.secs) m.aware = 'fight'; }
       else if ((m.lost += dt) >= LOSE) return calm();
     }
     if (m.aware === 'fight') fight();

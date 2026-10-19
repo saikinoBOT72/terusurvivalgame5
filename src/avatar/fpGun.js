@@ -1,4 +1,4 @@
-// 1人称の銃の動き（docs/rules/weapons.md「武器の動きと演出」の銃）: 撃つと撃鉄が倒れて戻り、弾倉が 1/6 回る。弾切れは撃鉄が倒れたまま
+// 1人称の銃の動き（docs/rules/weapons.md「武器の動きと演出」の銃）: 撃つと撃鉄が倒れて戻り、弾倉が 1/5 回る。弾切れは撃鉄が倒れたまま
 // リロード: 傾けて下げる → 左手で弾倉を抜いて下へ → 新しい弾倉を差し込む → 左手で撃鉄を起こす → 構え直す
 // 銃の形は survival/gunShapes.js の gunRig（userData に hammer・cyl・muzzle）
 import * as THREE from 'three';
@@ -15,7 +15,7 @@ export function createGunMotion() {
   return {
     attach(g) { rig = g?.userData.hammer ? g : null; hammerT = 0; empty = false; spin = spinTo = 0; reload = null; },
     get rig() { return rig; },
-    fire(isEmpty) { if (!rig) return; hammerT = 0.0001; empty = isEmpty; spinTo += Math.PI / 3; },
+    fire(isEmpty) { if (!rig) return; hammerT = 0.0001; empty = isEmpty; spinTo += Math.PI * 2 / 5; },
     startReload(secs) { if (rig) reload = { t: 0, secs }; },
     reloadAt(p) { if (rig) reload = p == null ? null : { t: p * 2, secs: 2, frozen: true }; }, // 開発用: リロードを p（0〜1）の所で止めて見る
     get reloading() { return !!reload; },

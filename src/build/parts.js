@@ -224,11 +224,11 @@ export const PART_LIST = Object.keys(PARTS).filter((t) => !PARTS[t].hidden); // 
 export const COSTS = {
   foundation: { wood: 4 }, triangle: { wood: 2 }, upperFloor: { wood: 3 }, wall: { wood: 3 }, diagWall: { wood: 4 }, halfWall: { wood: 2 }, pillar: { wood: 2 },
   stairs: { wood: 3 }, steepStairs: { wood: 4 }, roof: { wood: 1, stick: 3 }, steepRoof: { wood: 1, stick: 3 },
-  door: { wood: 4, stone: 1 }, window: { wood: 3 },
+  door: { wood: 4, stone: 1 }, window: { wood: 3, glass: 2 },
   stoneFoundation: { stone: 6 }, stoneWall: { stone: 5 },
   brickFoundation: { brick: 4 }, brickWall: { brick: 3 }, raft: { bamboo: 3, rope: 1 }, raftCore: { wood: 12, bamboo: 10, rope: 6, stone: 6 },
   sail: { wood: 4, fiber: 8, rope: 2 }, helm: { wood: 5, rope: 2 }, boat: { wood: 10, rope: 3 },
-  workbench: { wood: 6, stone: 2 }, campfire: { stick: 5, stone: 4, flint: 1 }, chest: { wood: 5 }, purifier: { bamboo: 2, clay: 3, stone: 4 }, furnace: { stone: 10, brick: 6 }, planter: { wood: 4, soil: 4 }, bed: { wood: 4, fiber: 6, palmLeaf: 3 },
+  workbench: { wood: 10, stone: 6 }, campfire: { stick: 6, stone: 6, flint: 1 }, chest: { wood: 8, rope: 2 }, purifier: { bamboo: 4, clay: 5, stone: 6 }, furnace: { stone: 16, brick: 8 }, planter: { wood: 4, soil: 4 }, bed: { wood: 4, fiber: 6, palmLeaf: 3 },
 };
 export const localShapes = (def) => def.shapes || [def.shape];
 

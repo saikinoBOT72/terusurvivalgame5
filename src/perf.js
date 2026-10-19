@@ -16,6 +16,7 @@ export const perf = {
     avg[name] = ema(avg[name], n - t0);
     t0 = n;
   },
+  fps: () => (frameMs ? Math.round(1000 / frameMs) : 0), // 今のフレームレート（画面表示用）
   // 文字にする: 重い順
   report(info) {
     const parts = Object.entries(avg).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' / ');

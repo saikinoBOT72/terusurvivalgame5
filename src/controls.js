@@ -6,22 +6,24 @@ import { PARTS } from './build/parts.js';
 import { stationOf } from './survival/stations.js';
 import { isMelee } from './combat/playerCombat.js';
 import { weaponMotion } from './avatar/fpMotion.js';
+import { pressed } from './input/keymap.js';
+import { playing } from './input/touch.js';
 
 // g: main.js の部品。mode() / setMode / held()（手に持つ物の id）/ vehicles()（今の世界の乗り物）/ toggleGrid / toggleDebug など
 // 何も見ていないときに出す、持っている道具の働き
 const TOOL_HINTS = { sling: '左を押して引く・離して撃つ', tubeEmpty: '右クリック 水をくむ', sapling: '右クリック 植える', paddle: '右クリック こぐ' };
 
 export function createControls(g) {
-  const { dom, lockPointer, invHud, buildMenu, build, gather, combat, pc, ranged, tools, farm, inventory, stats, blueprints, player, keysPanel } = g;
+  const { dom, lockPointer, invHud, buildMenu, build, gather, combat, pc, ranged, tools, farm, inventory, stats, player, keysPanel } = g;
   const fps = () => g.mode() === 'fps';
   const uiOpen = () => invHud.open || buildMenu.open; // マウスの固定を外して使う画面
 
   // Esc でマウスの固定が外れたら一時停止してメニューへ。1人称中のクリックで固定し直す。
   document.addEventListener('pointerlockchange', () => {
-    if (fps() && document.pointerLockElement !== dom && !uiOpen()) g.setMode('menu');
+    if (fps() && !playing(dom) && !uiOpen()) g.setMode('menu');
   });
   dom.addEventListener('click', () => {
-    if (!fps() || document.pointerLockElement === dom) return;
+    if (!fps() || playing(dom)) return;
     invHud.setOpen(false);
     buildMenu.setOpen(false);
     lockPointer();
@@ -52,12 +54,7 @@ export function createControls(g) {
     if (aimed?.type === 'bed') return g.sleep(); // 寝床で眠る
     if (aimed?.type === 'planter' && farm.use(aimed, held)) return; // 畑: 植える・水をやる・収穫（持って右クリック）
     if (stationOf(aimed)) return setInventoryOpen(true, aimed); // 設備の窓（ui.md「設備の窓」。食べるより先）
-    const bp = held && ITEMS[held].bp;
-    if (bp) { // 設計図を読む: レシピを覚えて、設計図はなくなる
-      inventory.remove(held, 1);
-      invHud.message(blueprints.learn(bp) ? `${ITEMS[held].name}を読んだ。作り方を覚えた` : 'もう知っている設計図');
-      return;
-    }
+    if (held && ITEMS[held].expand) return invHud.message(inventory.useExpand(held)); // 草の袋・丈夫なかばん: 持ち物を広げる
     if (held && stats.canEat(held)) { // 満腹なら、ふつうの右クリック
       stats.eat(held);
       inventory.remove(held, 1);
@@ -72,7 +69,7 @@ export function createControls(g) {
     if (part) build.toggleAimed();
   }
   dom.addEventListener('mousedown', (e) => {
-    if (!fps() || document.pointerLockElement !== dom) return;
+    if (!fps() || !playing(dom)) return;
     if (e.button === 2) { // 近接武器で何も狙っていなければガード、銃は覗き込む（weapons.md）
       if (ITEMS[g.held()]?.ranged?.aim) return ranged.aim(g.held(), true);
       if (isMelee(g.held()) && !gather.aimedEntity() && !build.aimedPart()) return pc.guardStart(g.held());
@@ -108,19 +105,22 @@ export function createControls(g) {
     inventory.select((inventory.sel + (e.deltaY > 0 ? 1 : BAR - 1)) % BAR);
   });
   addEventListener('keydown', (e) => {
-    if (e.code === 'Tab' || e.code === 'F1') e.preventDefault();
+    if (e.code === 'Tab' || e.code === 'F1' || pressed(e, 'inventory') || pressed(e, 'keys')) e.preventDefault();
     if (e.repeat) return;
     if (fps()) {
-      if (e.code === 'F1') keysPanel.setOpen(!keysPanel.open);
-      if (e.code === 'Tab') { if (buildMenu.open) setBuildMenuOpen(false); else setInventoryOpen(!invHud.open); }
+      if (pressed(e, 'keys')) keysPanel.setOpen(!keysPanel.open);
+      if (pressed(e, 'inventory')) { if (buildMenu.open) setBuildMenuOpen(false); else setInventoryOpen(!invHud.open); }
       if (e.code === 'Escape' && uiOpen()) g.setMode('menu');
+      else if (e.code === 'Escape') { // 全画面ではキーボードのロックで Esc がページに来て、固定が外れない。自分で外して一時停止（ui.md「全画面」）
+        if (document.pointerLockElement === dom) document.exitPointerLock?.(); else g.setMode('menu');
+      }
       const n = e.code.startsWith('Digit') ? Number(e.code.slice(5)) - 1 : -1;
       if (n >= 0 && n < BAR) inventory.select(n);
-      if (e.code === 'KeyQ' && !build.placing && !uiOpen()) tools.throwHeld(); // 置く状態の Q は土台の高さ（buildMode.js）。撤去の状態のハンマーは投げられる
+      if (pressed(e, 'throw') && !build.placing && !uiOpen()) tools.throwHeld(); // 置く状態の Q は土台の高さ（buildMode.js）。撤去の状態のハンマーは投げられる
     }
     if (e.code === 'KeyG') g.toggleGrid();
-    if (e.code === 'KeyC' && fps()) pc.dodge(); // ステップ（weapons.md）
-    if (e.code === 'KeyR' && fps() && !build.active) ranged.reload(g.held()); // 込め直し（建築中の R は回す）
+    if (pressed(e, 'dodge') && fps()) pc.dodge(); // ステップ（weapons.md）
+    if (pressed(e, 'reload') && fps() && !build.active) ranged.reload(g.held()); // 込め直し（建築中の R は回す）
     if (e.code === 'KeyH') g.toggleDebug();
   });
 

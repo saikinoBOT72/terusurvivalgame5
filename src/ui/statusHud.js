@@ -57,10 +57,10 @@ export function createStatusHud() {
 export function createDeathScreen({ onWake }) {
   const box = el(`
     <div class="death-back" hidden>
-      <div class="panel death">
-        <div class="title">倒れた…</div>
+      <div class="panel win death">
+        <div class="win-h1">倒れた…</div>
         <div class="sub"></div>
-        <button type="button">起きる</button>
+        <button type="button" class="btn-l">起きる</button>
       </div>
     </div>`);
   box.querySelector('button').addEventListener('click', onWake);

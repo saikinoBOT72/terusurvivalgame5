@@ -1,8 +1,9 @@
-// プレイヤーの戦い方（docs/rules/weapons.md）: スタミナ、ステップ（C）、ため攻撃、ガードと受け流し、受けたとき（無敵・押し戻し・揺れ・来た向き）
+// プレイヤーの戦い方（docs/rules/weapons.md）: スタミナ（走る・泳ぐも）、ステップ（X）、ため攻撃、ガードと受け流し、受けたとき（無敵・押し戻し・揺れ・来た向き）
 // 数値は下の表（STAM など）と items.js（武器の stam・heavy）
 import * as THREE from 'three';
 import { ITEMS } from '../survival/items.js';
 import { weaponOf } from '../mobs/combat.js';
+import { COST } from '../player/gait.js';
 
 export const STAM = {
   max: 100, regen: 30, wait: 0.8, // 使わずに wait 秒たつと 1 秒に regen 戻る
@@ -116,6 +117,12 @@ export function createPlayerCombat({ player, stats, hud, statusHud, onStagger = 
       if (s.guard >= 0) { s.guard += dt; s.rest = 0; if (!isMelee(held) || !canMove()) this.guardEnd(); } // 構えている間は戻らない
       s.slowT = Math.max(0, s.slowT - dt);
       p().slow = Math.min(s.charge >= STAM.tap || s.guard >= 0 ? STAM.slow : 1, s.slowT > 0 ? s.slowK : 1);
+      // 走る・泳ぐのスタミナ（weapons.md）: 使っている間は戻らない。0 で走れなくなり、20 たまるまで走れない。泳いで 0 だと浮けない
+      const st = p(), cost = st.swimming ? (st.gait === 'run' ? COST.swimFast : st.moving ? COST.swim : COST.float) : st.gait === 'run' && st.moving ? COST.run : 0;
+      if (cost) { s.rest = 0; s.stam = Math.max(0, s.stam - cost * dt); }
+      if (s.stam <= 0) s.tired = true; else if (s.stam >= COST.resume) s.tired = false;
+      st.canRun = !s.tired;
+      st.canFloat = s.stam > 0;
       if ((s.rest += dt) >= STAM.wait) s.stam = Math.min(STAM.max, s.stam + STAM.regen * dt);
       statusHud.stamina(Math.round(s.stam), STAM.max);
     },

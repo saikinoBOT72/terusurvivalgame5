@@ -38,7 +38,7 @@ export const MOBS = {
       { name: '風の弾', kind: 'shot', dmg: 10, windup: 0.3, min: 10, reach: 20, rest: 1, cd: 3.5, push: 1, shot: { speed: 14, r: 0.35, range: 30 }, fx: 'wind', wind: 'windupShot', hit: 'shoot' },
     ],
     low: { at: 0.3, act: 'flee' },
-    drops: [['screw', 1, 2, 1], ['battery', 1, 1, 0.2]],
+    drops: [['screw', 1, 2, 1]],
   },
   crab: {
     name: 'カニ', make: createCrab, hp: 40, speed: 1.2, sight: 10, giveUp: 40, flinch: 1, turn: 1.6, swim: true, // 向きを変えるのが遅い: 背中へ回るとはさみが来ない
@@ -62,7 +62,8 @@ export const MOBS = {
   },
   mining: { // 「その場の鉱石 2」はステップ 7（置かれた場所を知ってから）。近距離だけで戦い、遠いとすぐあきらめる（enemies.md「採掘ロボ」）
     name: '採掘ロボ', make: createMining, hp: 120, speed: 2.5, sight: 6, giveUp: 40, flinch: 0.5, turn: 3, arc: 0.1, disguise: true,
-    pick: 'weight', vary: 0.2, leash: 18, farGive: [12, 2], roar: 0.8, // roar: 岩の殻から出て吠える秒 // 技は重み w で選ぶ（melee.js）・同じ技は続けない、スポットの中心から 18m・12m より遠いまま 2 秒であきらめる
+    pick: 'weight', vary: 0.2, leash: 18, farGive: [12, 2], roar: 0.8, barrier: 20, // barrier: これより遠くから遠距離武器で当てるとダメージ 0（バリア）
+     // roar: 岩の殻から出て吠える秒 // 技は重み w で選ぶ（melee.js）・同じ技は続けない、スポットの中心から 18m・12m より遠いまま 2 秒であきらめる
     attacks: [ // cone: 左右の角度、around: 向いていなくても出せる（背中側なら優先）、ground: 地面の上だけ（跳べばよけられる）、stuck: 刺さって抜けない秒
       { name: '振り下ろし', w: 40, dmg: 40, windup: 0.9, reach: 6, hitR: 2.6, track: 0.15, lunge: { time: 0.45, hop: 1, stop: 1.2, air: 'leapSmash' }, secs: 0.3, cone: 25, rest: 2, push: 2.5, stuck: 0.7, fx: 'rock', style: 'smash', wind: 'windupSmash', hit: 'smash', shake: 60 },
       { name: 'なぎ払い', w: 35, dmg: 25, windup: 0.6, reach: 4.5, hitR: 2.6, lunge: { time: 0.25, stop: 1 }, secs: 0.15, cone: 80, rest: 1.5, push: 2, fx: 'rock', style: 'sweep', wind: 'windupSweep', hit: 'sweep', dust: true },
@@ -79,11 +80,11 @@ export const MOBS = {
     ],
     weak: { at: [0, 2.1, -0.6], r: 0.35, mult: 3 }, // 背中の冷却口
     low: { at: 0.5, act: 'rage', speed: 1.2 },
-    drops: [['battery', 2, 2, 1], ['scrap', 6, 6, 1]],
+    drops: [['scrap', 6, 6, 1]],
   },
   camera: { // 監視カメラ（enemies.md「監視カメラ」）: 動かない。見つけると警報でブンブンを呼ぶ（cameraBrain.js）。sight は水平の距離
     name: '監視カメラ', make: createCamera, hp: 40, speed: 0, sight: 25, giveUp: 999, flinch: 0, camera: true,
-    attacks: [], drops: [['copperWire', 1, 1, 1], ['battery', 1, 1, 1], ['screw', 2, 2, 1]],
+    attacks: [], drops: [['copperWire', 1, 1, 1], ['screw', 2, 2, 1]],
   },
   dummy: {
     name: '練習用の的', make: createDummy, hp: 100, speed: 0, sight: 0, giveUp: 999, flinch: 1, dummy: true,

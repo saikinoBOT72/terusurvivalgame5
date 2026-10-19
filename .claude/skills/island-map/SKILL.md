@@ -8,7 +8,7 @@ description: 遊んでいる島を上から見た図をウィジェットで出�
 ## 出す
 
 1. 確認用サーバー（`preview_start` の `dev`）を開き、図にしたい島に入る（ふつうは メニュー → 開発用 → 墜落島（素材つき））。`__game.mode` が `fps` になるまで待つ。
-2. `extract.js`（このフォルダ）を Read して、中身をそのまま `javascript_tool` で実行する。返り値は JSON の文字列（区域・高さの連長圧縮、スポット、敵の行、夜の敵）。
+2. `extract.js`（このフォルダ）を Read して、中身をそのまま `javascript_tool` で実行する。返り値は JSON の文字列（区域・高さの連長圧縮、スポット、固定湧きの行、自然湧きの範囲）。
 3. `widget.html`（このフォルダ）を Read して、`__DATA__` を 2 の JSON に置きかえ、`show_widget` で出す（初回は `read_me` の `interactive` を先に）。title は `<島の id>_enemy_editor`。
 4. チャットには短く「図を出した。変えたら『この変更を送る』」とだけ書く。図の中身を文章でくり返さない。
 
@@ -16,8 +16,7 @@ description: 遊んでいる島を上から見た図をウィジェットで出�
 
 ## 送られてきた変更を入れる
 
-- 敵の行は `src/world/islandMap.js` の `spawns`。「行 N」は spawns の番号（0 から）。
-- **行の番号を変えない**（セーブの倒した記録のキーが番号を使う）: 足す敵は末尾へ。消す行は消さずに `n: 0`。
-- スポットから動かした番人は、`spot` をやめて `at: { x, z }` の行にする。
-- 決まった場所（`at`）の行に mode（guard / sleep / fake）と n を付けられるようにする仕組みは、PLAN.md「島の図のウィジェットで敵を置く」の計画（`spawn.js`）。まだなら先にそれを作る。
+- 固定湧きの行は `src/world/islandMap.js` の `spawns`。「行 N」は spawns の番号（0 から）。足す敵は末尾へ。セーブの倒した記録のキーはスポットの番号か `at` の場所なので、行の番号は変わってもよい。
+- スポットから動かした番人・新しく置いた敵は、`at: { x, z }` の行にする（`mode`: guard / sleep / fake、`n`、`when: 'always'`、`back: 2`）。「夜に来る」（visit）はスポットの行（`spot` と `when: 'night'`）だけ。
+- 自然湧きの上限は `wild` の行の `night` / `day`。
 - 入れたら `docs/rules/islands.md`「敵の出方」と「スポット」の表も直す。

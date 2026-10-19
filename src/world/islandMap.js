@@ -33,12 +33,9 @@ export const ISLANDS = {
     ],
     spawn: { x: -50, z: 166, yaw: Math.PI }, // 墜落の浜。残骸のほう（南）を向いて起きる
     dummy: { x: -45, z: 163 }, // 練習用の的（enemies.md）
-    // 敵の出方（islands.md「敵の出方」）。zones: 出る区域の字、n: 同時の数、group: 1 組の数、when: night 夜（5 日目から昼も半分）| always いつも
-    // ore: 鉱石の岩のそばに置く数、at: 決まった場所、back: 倒してから戻るまでの日（null で戻らない）
+    // 固定湧き（islands.md「敵の出方」）。n: 数、group: 1 組の数、when: always いつも | night 夜に来る番人
+    // at: 決まった場所（mode・n も付けられる）、back: 倒してから戻るまでの日（null で戻らない）
     spawns: [
-      { kind: 'drone', zones: 'FGD', n: 3, when: 'night' },
-      { kind: 'crab', zones: 'BLM', n: 4, when: 'night' },
-      { kind: 'dog', zones: 'GFD', n: 2, group: 2, when: 'night' },
       // スポットの番人（islands.md「スポット」、enemies.md「番人」）。spot: スポットの番号、mode: guard いつもいる | sleep 寝ている | visit 夜に来る | fake 死んだふり
       // ore: その鉱石の岩のそばに置く（倒すとその鉱石 2）。face: [x, z] そちらを向く
       { kind: 'crab', spot: 2, n: 2, mode: 'guard', when: 'always', back: 2 },
@@ -60,8 +57,31 @@ export const ISLANDS = {
       { kind: 'mining', spot: 28, n: 2, mode: 'guard', when: 'always', back: 2, ore: 'iron' },
       { kind: 'drone', spot: 28, n: 2, mode: 'guard', when: 'always', back: 2 },
       { kind: 'gangi', at: { x: 20, z: -185 }, when: 'always', back: null },
+      // 鉱石の密集地（islands.md「鉱石の密集地」）
+      { kind: 'crab', spot: 32, n: 2, mode: 'guard', when: 'always', back: 2, d: 7 },
+      { kind: 'crab', spot: 33, n: 2, mode: 'guard', when: 'always', back: 2, d: 6 },
+      { kind: 'drone', spot: 33, n: 1, mode: 'guard', when: 'always', back: 2 },
+      { kind: 'drone', spot: 34, n: 2, mode: 'guard', when: 'always', back: 2 },
+      { kind: 'dog', spot: 34, n: 2, mode: 'guard', when: 'always', back: 2, d: 6 },
+      { kind: 'dog', spot: 26, n: 2, mode: 'guard', when: 'always', back: 2, d: 4 },
+    ],
+    // 自然湧き（islands.md「敵の出方」）: 円（x, z, r）の中の区域 zones に出る。mobs: [種類, 1 組の数] から 1 つ選ぶ
+    // night / day: 生きている数（組）の上限（day は 5 日目から）、every: 出す間隔の幅（秒）
+    wild: [
+      { name: '浜の西', zones: 'B', x: -95, z: 180, r: 45, mobs: [['crab', 1]], night: 2, day: 1, every: [40, 100] },
+      { name: '浜の東', zones: 'B', x: 15, z: 180, r: 45, mobs: [['crab', 1]], night: 2, day: 1, every: [40, 100] },
+      { name: '入り江', zones: 'L', x: 130, z: 110, r: 55, mobs: [['crab', 1]], night: 2, day: 1, every: [40, 100] },
+      { name: '湿地', zones: 'M', x: -155, z: 115, r: 50, mobs: [['crab', 1]], night: 2, day: 1, every: [40, 100] },
+      { name: '林の南', zones: 'F', x: 20, z: 110, r: 60, mobs: [['drone', 1], ['crab', 1]], night: 2, day: 0, every: [60, 140] },
+      { name: '西の草原の南', zones: 'G', x: -180, z: 30, r: 55, mobs: [['drone', 1], ['dog', 2]], night: 2, day: 1, every: [60, 140] },
+      { name: '西の草原の北', zones: 'G', x: -180, z: -70, r: 55, mobs: [['drone', 1], ['dog', 2]], night: 2, day: 1, every: [60, 140] },
+      { name: '林の北', zones: 'F', x: 40, z: -5, r: 60, mobs: [['drone', 1], ['dog', 2]], night: 3, day: 1, every: [50, 120] },
+      { name: '深い森', zones: 'D', x: 0, z: -85, r: 85, mobs: [['drone', 1], ['dog', 2]], night: 3, day: 1, every: [50, 120] },
+      { name: '岩場', zones: 'Q', x: -155, z: -150, r: 60, mobs: [['dog', 2], ['drone', 1]], night: 2, day: 1, every: [60, 140] },
+      { name: '峡谷', zones: 'C', x: 140, z: -130, r: 55, mobs: [['dog', 2], ['drone', 1]], night: 2, day: 1, every: [60, 140] },
     ],
     wreck: { x: -52, z: 178, rot: 0.35 },     // 飛行機の残骸（機首が北）
+    sandBed: { x: -32, z: 184 },              // 砂の鉱床（stonePlace.js）
     high: 19,                                 // 高台の高さ（崖の上）
     // 峡谷の底の道: 入口（林）から高台まで、canyonFrom → canyonTo m へ上る
     canyon: [[148, -60], [150, -90], [140, -130], [120, -150], [95, -165], [68, -170]], canyonFrom: 3, canyonTo: 19,
@@ -96,12 +116,16 @@ export const ISLANDS = {
       { n: 19, name: '見晴らしの岩', x: -10, z: -30, r: 6, shape: [{ type: 'calm', r: 26, edge: 8 }, { type: 'bowl', r: 16, d: -8 }], ground: { kind: 'stone', r: 6 } },
       { n: 20, name: '滝と裏の洞窟', x: 10, z: -126, r: 10, ground: { kind: 'stone', r: 9 } },
       { n: 21, name: '川の飛び石と水車小屋跡', x: 30, z: 50, r: 8, shape: [{ type: 'raise', h: -0.5, r: 5 }] },
-      { n: 22, name: '露天掘りの大穴', x: -150, z: -140, r: 22, shape: [{ type: 'steps', h: 12.5, rings: [20, 14, 8], step: 2.5, a: Math.PI / 2, rw: 4 }], ground: { kind: 'pit', r: 21 }, ores: { coal: [8, 8] }, bed: { kind: 'coal', x: -152, z: -142 } },
+      { n: 22, name: '露天掘りの大穴', x: -150, z: -140, r: 22, shape: [{ type: 'steps', h: 12.5, rings: [20, 14, 8], step: 2.5, a: Math.PI / 2, rw: 4 }], ground: { kind: 'pit', r: 21 }, ores: { coal: [8, 8] } },
       { n: 24, name: '岩場の鍾乳洞', x: -103, z: -186, r: 8, shape: [{ type: 'flat', h: 8.5, r: 7, edge: 4 }], ground: { kind: 'stone', r: 10 }, ores: { iron: [0, 3] }, oreIn: { x: -44, z: -206, r: 6, y: 4 } },
       { n: 25, name: '峡谷入口の監視カメラ', x: 144, z: -81.5, r: 3 },
-      { n: 26, name: '銅の鉱脈の壁', x: 140, z: -130, r: 12, shape: [{ type: 'flat', h: 10.5, r: 6, edge: 2 }], ground: { kind: 'copper', r: 16 }, ores: { copper: [6, 6] }, bed: { kind: 'copper' } },
+      { n: 26, name: '銅の鉱脈の壁', x: 140, z: -130, r: 12, shape: [{ type: 'flat', h: 10.5, r: 6.5, edge: 1 }], ground: { kind: 'copper', r: 16 }, ores: { copper: [6, 6] }, bed: { kind: 'copper' } },
       { n: 27, name: '崩れた坂', x: 108, z: -158, r: 8, shape: [{ type: 'crack', a: Math.atan2(-15, -25), len: 6, d: 4, top: 17 }], ground: { kind: 'stone', r: 9 } },
-      { n: 28, name: '鉄の鉱脈', x: -70, z: -190, r: 16, shape: [{ type: 'flat', h: 18.5, r: 6, edge: 2 }], ground: { kind: 'rust', r: 14 }, ores: { iron: [7, 8] }, bed: { kind: 'iron' } },
+      { n: 28, name: '鉄の鉱脈', x: -70, z: -190, r: 16, shape: [{ type: 'flat', h: 18.5, r: 6, edge: 2 }], ground: { kind: 'rust', r: 14 }, ores: { iron: [7, 8] } },
+      // 鉱石の密集地（islands.md「鉱石の密集地」）。cluster: stone は stonePlace.js が岩と石を置く。鉱床の下は flat で平らにする（斜面に置かない）
+      { n: 32, name: '石の密集地', x: -34, z: 126, r: 12, shape: [{ type: 'flat', h: 4, r: 10, edge: 4 }], ground: { kind: 'stone', r: 7 }, cluster: 'stone' },
+      { n: 33, name: '石炭の密集地', x: -115, z: 75, r: 13, shape: [{ type: 'calm', r: 18, edge: 6 }, { type: 'flat', h: 4.5, r: 11, edge: 4 }], ground: { kind: 'pit', r: 9 }, ores: { coal: [8, 10] }, bed: { kind: 'coal', x: -113, z: 74.5 } },
+      { n: 34, name: '鉄の密集地', x: 66, z: 4, r: 13, shape: [{ type: 'flat', h: 4.5, r: 11, edge: 4 }], ground: { kind: 'rust', r: 10 }, ores: { iron: [8, 8] }, bed: { kind: 'iron' } },
       { n: 29, name: 'ガンギの広場', x: 20, z: -185, r: 12 },
     ],
     // 洞窟（terrain.md「洞窟」、islands.md「スポット」17・20・24）。地形を削る（caveCarve.js）
@@ -156,8 +180,10 @@ export const ISLANDS = {
       mushroom: { F: 20, D: 20, M: 10 }, flint: { B: 16, L: 6 }, stick: { F: 80, D: 40, G: 30, B: 20, M: 10 },
       stone: { F: 25, G: 25, B: 20, Q: 30, K: 20 }, nest: 15,
       wildPotato: { G: 4 }, wildHemp: { G: 4 }, // 野生の作物（最初の種。survival.md「畑」）。ほかに石垣の畑跡（スポット 9）に 6 ずつ
-      coal: { Q: 14 }, copper: { C: 10 }, iron: { H: 7 }, // ほかにスポットの ores（22・24・26・28）
-      oreSmall: { coal: { Q: 22, K: 8 }, copper: { C: 14 }, iron: { H: 7 } }, // 小さい鉱石の岩
+      coal: { Q: 6 }, copper: { C: 10 }, iron: {}, // ほかにスポットの ores（22・24・26・28・33・34）
+      oreSmall: { coal: { Q: 10 }, copper: { C: 14 }, iron: { H: 4 } }, // 小さい鉱石の岩
+      // 密集地のまわりの小さい鉱石: 区域の字ごとの数を、中心 near [x, z, 半径] の中にだけ置く
+      oreNear: [{ kind: 'coal', want: { M: 4, G: 3, F: 3 }, near: [-115, 75, 60] }, { kind: 'iron', want: { K: 4, D: 4 }, near: [66, 4, 70] }],
     },
   },
 };

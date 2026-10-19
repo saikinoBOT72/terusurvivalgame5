@@ -1,8 +1,9 @@
-// 手に持つ物の見た目（道具は柄を握る。素材は手のひらにのせる）と、持っている間だけ光る物（松明・ランタン・光るキノコ）
+// 手に持つ物の見た目（道具は柄を握る。素材は手のひらにのせる）と、持っている間だけ光る物（松明・光るキノコ）
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
 import { glowShroomGill, GLOW_MAT } from '../world/spotNature.js';
 import { PISTOL_HOLD, gunRig } from '../survival/gunShapes.js';
+import { slingRig } from '../avatar/fpSling.js';
 import { weaponMotion } from '../avatar/fpMotion.js';
 import { ITEMS } from '../survival/items.js';
 import { itemMesh, gripOf } from '../survival/itemShapes.js';
@@ -20,19 +21,13 @@ export function createHeld({ inventory, player, build, onMessage }) {
     player.arms.setWeapon(weaponMotion(id)); // 振り方と重さ（avatar/fpMotion.js）
     if (!id) return player.arms.hold(null);
     const tool = !!ITEMS[id].tool;
-    const mesh = ITEMS[id].tool === 'gun' ? gunRig(id) : itemMesh(id); // 銃は撃鉄・弾倉が動く形
+    const mesh = ITEMS[id].tool === 'gun' ? gunRig(id) : ITEMS[id].tool === 'sling' ? slingRig(id) : itemMesh(id); // 銃は撃鉄・弾倉、スリングは袋とひもが動く形
     player.arms.hold(mesh, tool ? gripOf(id) : -0.1, ITEMS[id].hold ?? (tool ? 0.7 : 0.55), ITEMS[id].tool === 'spear', tool, !!ITEMS[id].top, ITEMS[id].tool === 'gun' ? PISTOL_HOLD : null);
     if (id === 'torch') { // 持っている間だけ明るい。炎は光の影響を受けない材質で、まわりを照らす
       torchFire = campfire(rng(3), { base: false });
       torchFire.root.scale.setScalar(0.5);
       torchFire.root.position.y = 0.75;
       mesh.add(torchFire.root);
-    }
-    if (id === 'lantern') { // ランタン: 白い光（半径 14m）。松明と同じく持っている間だけ減る
-      const light = new THREE.PointLight(P.lanternGlow, 3, 14, 1.6);
-      light.position.y = 0.1;
-      mesh.add(light);
-      torchFire = { root: light, update() {} };
     }
     if (id === 'glowShroom') { // 光るキノコ: 青緑の弱い光（松明の半分）。ひだは光の影響を受けない材質
       mesh.add(new THREE.Mesh(glowShroomGill(rng(4)), GLOW_MAT));
@@ -51,7 +46,7 @@ export function createHeld({ inventory, player, build, onMessage }) {
       if (sleeping || (torchT += dt) < 1) return;
       torchT -= 1;
       const broke = inventory.wear();
-      if (broke) onMessage(broke === 'ランタン' ? 'ランタンの電池が切れた' : broke === '光るキノコ' ? '光るキノコが光らなくなった' : '松明が燃え尽きた');
+      if (broke) onMessage(broke === '光るキノコ' ? '光るキノコが光らなくなった' : '松明が燃え尽きた');
     },
   };
 }

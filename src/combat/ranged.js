@@ -11,6 +11,7 @@ import { createTracerFx } from './tracerFx.js';
 
 const G = 9.8, LIFE = 3, STEP = 0.25; // 重力、弾が消えるまでの秒、地形・木を調べる間かく（m）
 const AIM_ZOOM = 1 / 0.75; // 覗き込むと視野が 0.75 倍
+const AIM_TIME = 0.15; // 寄る・戻るのにかかる秒（腕の構えと同じ速さ）
 const MIN_POWER = 0.4; // スリングを少しだけ引いたときの強さ
 const TRACE_MAX = 120, TRACE_DT = 1 / 60; // 軌道の線の最長（m）と、先に当たる所を調べる刻み（秒）
 
@@ -24,7 +25,7 @@ export function falloff([near, far, min], d) {
 }
 
 export function createRanged({ scene, camera, inventory, combat, player, hud, blockers = () => [], onTarget = () => {}, onMessage = () => {} }) {
-  let world = null, draw = -1, cool = 0, reload = null, aiming = false;
+  let world = null, draw = -1, cool = 0, reload = null, aiming = false, aimK = 0; // aimK: 覗き込みの進み 0〜1
   const shots = [];
   const o = new THREE.Vector3(), d = new THREE.Vector3(), up = new THREE.Vector3(), right = new THREE.Vector3(), q = new THREE.Vector3();
   const tracer = createTracerFx(scene);
@@ -108,6 +109,8 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
 
   function hit(s, h, dir) {
     if (h.mob) {
+      const m = h.mob.m, p = player.state;
+      if (m.def.barrier && Math.hypot(m.x - p.x, m.z - p.z) > m.def.barrier) { combat.barrierMob(m, h.mob.point); return; } // 遠すぎる所からはバリアで 0
       const k = falloff(s.R.falloff, s.travel + h.dist);
       combat.damageMob(h.mob.m, s.R.dmg * s.power * k, { weak: h.mob.weak, point: h.mob.point, dir, knock: s.R.knock ?? 0.2, src: ITEMS[s.id].name });
     } else if (h.target) onTarget(h.target);
@@ -142,6 +145,7 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
       player.arms.setPose('charge', 0);
       if (!inventory.remove(R.ammo, 1)) { onMessage(`${ITEMS[R.ammo].name}が必要`); return; }
       player.arms.swing('fling', 0.3, { heavy: true }); // 引いた所から前へ振り出す
+      player.arms.slingFire();
       fire(id, MIN_POWER + (1 - MIN_POWER) * k);
     },
     // R: 込め直し（銃）
@@ -157,8 +161,6 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
       on = on && !!rangedOf(id)?.aim;
       if (on === aiming) return;
       aiming = on;
-      camera.zoom = on ? AIM_ZOOM : 1;
-      camera.updateProjectionMatrix();
       player.arms.setPose('aim', on ? 1 : 0);
     },
     get aiming() { return aiming; },
@@ -175,6 +177,12 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
       const R = rangedOf(id);
       cool = Math.max(0, cool - dt);
       if (!R) { draw = -1; if (aiming) this.aim(id, false); }
+      const k = Math.max(0, Math.min(1, aimK + (aiming ? dt : -dt) / AIM_TIME)); // 視野の拡大は毎フレーム近づける
+      if (k !== aimK) {
+        aimK = k;
+        camera.zoom = 1 + (AIM_ZOOM - 1) * k * k * (3 - 2 * k);
+        camera.updateProjectionMatrix();
+      }
       if (draw >= 0 && R) { draw += dt; player.arms.setPose('charge', Math.min(1, draw / (R.draw || 1))); }
       if (reload) { // 込め直し: 持ち替えたら取りやめ
         if (held() !== reload.slot) reload = null;
@@ -186,6 +194,7 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
           reload = null;
         }
       }
+      if (R && !R.mag) player.arms.slingLoaded(ammoCount(R) > 0);
       if (aiming || draw >= 0) player.state.slow = Math.min(player.state.slow, 0.5);
       hud.setAmmo(R?.mag ? `${held()?.mag ?? 0}/${R.mag}` : null, reload ? reload.t / reload.R.reload : null);
       if ((muzzleT -= dt) <= 0) muzzle.visible = false;

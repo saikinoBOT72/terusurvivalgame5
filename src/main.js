@@ -19,9 +19,13 @@ import { createCombatHud } from './ui/combatHud.js';
 import { createPlayerCombat } from './combat/playerCombat.js';
 import { createRanged } from './combat/ranged.js';
 
-import { createBlueprints } from './survival/blueprints.js';
+import { ITEMS } from './survival/items.js';
+import { createKeyItems } from './survival/keyItems.js';
+import { createEquip } from './survival/equip.js';
 import { createInventoryHud } from './ui/inventoryHud.js';
 
+import './input/mouseKeys.js';
+import './ui/kit.css';
 import './ui/ui.css';
 import { perf } from './perf.js';
 import { createRenderer } from './game/renderer.js';
@@ -35,7 +39,11 @@ import { MAX_HP } from './survival/stats.js';
 import { createDayNight } from './world/dayNight.js';
 import { createStatusHud } from './ui/statusHud.js';
 import { createAimHighlight } from './ui/aimHighlight.js';
+import { createFpsMeter } from './ui/fpsMeter.js';
 import { createControls } from './controls.js';
+import { setTouchMode } from './input/touch.js';
+import { createTouchHud } from './ui/touchHud.js';
+import { openTouchEdit } from './ui/touchEdit.js';
 
 import { createTools } from './survival/tools.js';
 import { hasSave, readSave, save, restore } from './save/save.js';
@@ -55,16 +63,18 @@ const survival = () => mode === 'fps' && world === island && !life.sleeping;
 const fighting = () => mode === 'fps' && (world === island || world?.range) && !life.sleeping; // 戦い（敵の動き・スタミナ）は射撃訓練島でも
 const player = createFirstPerson({ camera, dom, onLand: (h) => { if (survival()) stats.fell(h); } });
 const structuresOf = new Map(); // 世界ごとの建築パーツ
-const inventory = createInventory();
-const blueprints = createBlueprints(); // 読んだ設計図（survival.md「設計図」）
-const invHud = createInventoryHud(inventory, { vitals: () => stats.state, known: (rc) => blueprints.has(rc.bp) }); // 開いているときだけ呼ばれる（stats はこのあとで作る）
+const keyItems = createKeyItems(); // 大事な物（設計図など。survival.md「持ち物の広さ・大事な物・装備」）
+const equip = createEquip(); // 装備の枠
+const inventory = createInventory(keyItems);
+const invHud = createInventoryHud(inventory, { vitals: () => stats.state, known: (rc) => keyItems.hasBp(rc.bp), keyItems, equip }); // known は開いているときだけ呼ばれる（stats はこのあとで作る）
+keyItems.onAdd = (id) => invHud.message(`${ITEMS[id].name}を手に入れた`);
 const statusHud = createStatusHud();
 const keysPanel = createKeysPanel();
 const aimMark = createAimHighlight(scene);
 const time = createDayNight();
 const life = createLife({ player, inventory, invHud, statusHud, sky, time, structuresOf, world: () => world, setMode: (m) => setMode(m), lockPointer }); // game/life.js
 const { stats, deathScreen } = life;
-const { build, hud: buildHud, menu: buildMenu } = createBuilding({ scene, camera, dom, player, inventory, invHud, blueprints, world: () => world, closeMenu: () => input.setBuildMenuOpen(false) }); // 建築（game/building.js）
+const { build, hud: buildHud, menu: buildMenu } = createBuilding({ scene, camera, dom, player, inventory, invHud, keyItems, world: () => world, closeMenu: () => input.setBuildMenuOpen(false) }); // 建築（game/building.js）
 const farm = createFarm({ inventory, onGain: (id, n) => invHud.gained(id, n), onMessage: (t) => invHud.message(t) });
 const gather = createGather({ camera, inventory, onGain: (id, n) => invHud.gained(id, n), onMessage: (t) => invHud.message(t) });
 const combatHud = createCombatHud({ camera });
@@ -133,10 +143,11 @@ let atTitle = true; // メニューがタイトルか一時停止か
 // kit: 開発用メニューの「墜落島（素材つき）」。ふつうは何も持たずに残骸のそばで起きる（islands.md「始まり」）
 function newGame(kit = false) {
   spawner.load(null); // 倒した敵の記録を消す
-  inventory.slots.fill(null);
+  inventory.reset();
   inventory.select(0);
-  blueprints.reset();
-  if (kit) devKit(inventory, blueprints);
+  keyItems.reset();
+  equip.reset();
+  if (kit) devKit(inventory, keyItems);
   inventory.changed();
   stats.reset();
   time.reset();
@@ -144,16 +155,19 @@ function newGame(kit = false) {
 }
 // 設定（ui.md「設定と舵の表示」）: マウスの感度・視野の広さ・UI の大きさ
 const settings = loadSettings();
+const fpsMeter = createFpsMeter({ fps: perf.fps });
 const fovOf = (m) => (m === 'fps' || m === 'dead' ? vfovOf(settings.hfov) : 45); // 1人称は設定の視野角、タイトルは 45 度
 function applySettings(v) {
   player.setSensitivity(sensRad(v.vsens));
   camera.fov = fovOf(mode);
   camera.updateProjectionMatrix();
   document.documentElement.style.setProperty('--ui-zoom', v.ui);
+  fpsMeter.setOn(v.fps);
+  setTouchMode(v.touch, v.tsens);
 }
 applySettings(settings);
 const menu = createMenu({
-  settings, onSettings: applySettings,
+  settings, onSettings: applySettings, onTouchEdit: () => openTouchEdit(() => touchHud.layout()),
   onStart: () => newGame(),
   onContinue: () => { if (island && !islandFresh) play(island); else loadGame(); },
   onResume: () => { setMode('fps'); lockPointer(); },
@@ -173,13 +187,14 @@ const menu = createMenu({
   },
 });
 // ---- セーブ（save/save.js）: 一時停止したとき・60 秒ごと・ページを閉じるときに自動で保存。「つづきから」で戻す ----
-const gameRef = () => ({ islandId, blueprints, spawner, island, structures: structuresOf.get(island), inventory, time, stats, player });
+const gameRef = () => ({ islandId, keyItems, equip, spawner, island, structures: structuresOf.get(island), inventory, time, stats, player });
 function saveNow() { if (island && world === island && mode === 'fps' && !life.sleeping) save(gameRef()); }
 function loadGame() {
   const d = readSave();
   if (d) buildThen(d.island, () => { play(island); restore(d, gameRef()); });
 }
 addEventListener('pagehide', saveNow);
+addEventListener('beforeunload', (e) => { if (mode === 'fps') e.preventDefault(); }); // 遊んでいる間は、Ctrl+W などで閉じる前に確かめる（player.md「動き方」）
 // 島づくりは少し時間がかかるので、ロード画面を出して作る（ui.md「ロード画面」）
 const loading = createLoading();
 let building = false;
@@ -220,17 +235,20 @@ buildThen('crash', () => { islandFresh = true; useWorld(island); titleView(); se
 
 // 遊び中の操作（controls.js）
 const input = createControls({
-  dom, lockPointer, invHud, buildMenu, build, gather, combat, pc, ranged, tools, farm, inventory, stats, blueprints, sleep: life.sleep, canSleep: () => time.isNight, player, keysPanel,
+  dom, lockPointer, invHud, buildMenu, build, gather, combat, pc, ranged, tools, farm, inventory, stats, sleep: life.sleep, canSleep: () => time.isNight, player, keysPanel,
   mode: () => mode, setMode, held: () => held.id, vehicles: () => world.vehicles,
   toggleGrid: () => world.setGrid(gridOn = !gridOn),
   toggleDebug: () => { world.setDebug(debugOn = !debugOn); world.physics?.setDebug(debugOn); },
 });
+// タッチの画面（ui/touchHud.js）
+const touchHud = createTouchHud({ dom, mode: () => mode, uiOpen: input.uiOpen, placing: () => build.placing, select: (i) => inventory.select(i) });
 
 
 const clock = new THREE.Clock();
 function frame(step) { // step: 確認用に決まった秒だけ進める（__game.run）
   const dt = step ?? Math.min(clock.getDelta(), 0.05), t = step ? (clock.elapsedTime += step) : clock.elapsedTime;
   perf.start();
+  fpsMeter.update(dt);
   if (!world) return view.draw(scene, false); // 起動して島ができるまで（空だけ）
   angle += dt * 0.55;
   const c = world.catCenter;
@@ -258,12 +276,14 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   perf.lap('敵');
   if (mode === 'fps') ranged.update(dt, held.id);
   combatHud.setCooldown(mode === 'fps' ? ranged.cdFrac(held.id) ?? pc.cdFrac() : null); // 照準の下の攻撃間隔の線
+  combatHud.setStance(mode === 'fps' && !player.state.ride ? ({ sneak: '忍び足', crouch: 'しゃがみ' })[player.state.gait] ?? null : null); // 動き方の札
   combatHud.setLowHp(stats.state.hp / MAX_HP, mode !== 'fps' || stats.state.dead); // HP が低いと画面のふちが赤く脈打つ
   build.update();
   buildHud.update(mode === 'fps' ? build.status() : null);
   statusHud.setUnderwater(mode === 'fps' && player.state.underwater);
   if (mode === 'fps') invHud.setAim(input.aimHint());
   aimMark.update(mode === 'fps' && !build.active && !input.uiOpen() ? gather.aimedEntity() : null);
+  touchHud.update();
   perf.lap('照準・UI');
   if (survival()) {
     stats.update(dt, { nearFire: life.nearFire(), underwater: player.state.underwater });
@@ -290,6 +310,6 @@ renderer.setAnimationLoop(() => frame());
 // 確認用（開発中だけ）: ブラウザのコンソールから状態を見たり動かしたりする
 if (import.meta.env.DEV) {
   // run(ms): 画面が隠れていても ms だけ進める（確認用）
-  window.__game = { renderer, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, blueprints, invHud, sleep: life.sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, camera, cat, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; } };
+  window.__game = { renderer, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, keyItems, equip, invHud, sleep: life.sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, camera, cat, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; } };
   import('./debug.js').then(({ createDebug, modelStats, createPhysicsTest }) => { window.__game.debug = createDebug(window.__game); window.__game.stats = modelStats; window.__game.physics = createPhysicsTest(window.__game); });
 }

@@ -80,11 +80,12 @@ export function createDebug(g) {
       `画面 ${g.mode}  世界 ${w?.report ? '確認島' : w?.range ? '訓練島' : w ? '島' : 'なし'}  FPS ${fps}`,
       `HP ${g.vitals.state.hp}  空腹 ${g.vitals.state.food}  水分 ${g.vitals.state.water}${g.vitals.state.dead ? ' 倒れた' : ''}  ${g.time.label} ${g.time.phase}`,
       `位置 ${f1(s.x)},${f1(s.y)},${f1(s.z)}  向き ${deg(s.yaw)}°/${deg(s.pitch)}°  ${s.swimming ? "泳ぐ" : s.onGround ? "地面" : "空中"}${s.underwater ? " 水中" : ""}${s.moving ? " 移動中" : ""}  息 ${f1(g.vitals.state.breath)}${w?.zoneAt ? `  島 ${w.name} 区域 ${w.zoneAt(s.x, s.z)}` : ""}`,
+      `動き ${s.gait}${s.sneak ? '(忍び足を入れている)' : ''}  目 ${f1(s.eyeH)} 頭 ${f1(s.headH)}  スタミナ ${Math.round(g.pc.state.stam)}${s.canRun ? '' : ' 走れない'}${s.canFloat ? '' : ' 浮けない'}`,
       ...(w?.spots ? [`スポット ${w.spots.map((p) => ({ p, d: Math.hypot(p.x - s.x, p.z - s.z) })).sort((a, b) => a.d - b.d).slice(0, 3)
         .map(({ p, d }) => `${p.n}.${p.name} ${Math.round(d)}m`).join(' / ')}`] : []),
       `手 [${inv.sel}] ${item(inv.held())}  列 ${inv.slots.slice(0, 6).map(item).join(' ')}`,
       `持ち物 ${Object.entries(bag).map(([k, n]) => `${ITEMS[k]?.name ?? k}${n}`).join(' ') || 'なし'}`,
-      `設計図 ${g.blueprints?.save().join(' ') || 'なし'}`,
+      `広さ ${inv.slots.length} マス（奥 ${inv.rows} 段）  大事な物 ${g.keyItems?.list().map((id) => ITEMS[id].name).join(' ') || 'なし'}  装備 ${g.equip?.slots.map(item).join(' ')}`,
       g.invHud?.station ? `設備 ${g.invHud.station.type} [${g.invHud.station.slots.map((x) => (x ? x.id + "x" + x.n : "-")).join(" ")}] 燃え残り ${f1(g.invHud.station.burn ?? 0)}秒 進み ${(g.invHud.station.prog ?? []).map(f1).join(",")}${g.invHud.station.burning ? " 燃えている" : ""}` : "設備 閉じている",
       `照準 ${aim ? `${aim.name}（${aim.key}）` : b.aimedPart() ? name(b.aimedPart().type) : '-'}`,
       `建築 ${b.hammer ? 'ハンマー' : '-'}${b.active ? ` 置く中 ${t ? `${name(t.type)} ${b.preview.material === PREVIEW_MAT.ok ? '置ける' : '置けない'}` : '対象なし'}` : ''}`,

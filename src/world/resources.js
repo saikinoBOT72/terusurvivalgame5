@@ -6,7 +6,7 @@ const _m = new THREE.Matrix4(), _r = new THREE.Matrix4(), _back = new THREE.Matr
 const SHAKE = 0.3, FALL = 1; // 揺れる時間、倒れる時間（秒）
 
 export function createResources() {
-  const cells = new Map(), waiting = [], moving = [];
+  const cells = new Map(), waiting = [], moving = [], late = []; // late: あとから足した島の物（base の最後に並べる）
   let base = null; // 島ができた時点の物（セーブで、番号で指す）
   const key = (cx, cz) => `${cx},${cz}`;
 
@@ -17,8 +17,10 @@ export function createResources() {
     for (const p of e.parts) p.mesh.getMatrixAt(p.index, (p.matrix = new THREE.Matrix4()));
     return e;
   }
-  function add(e) {
+  // late: セーブの番号を前の島のままにするため、あとから足す島の物は true（base の最後に並ぶ）
+  function add(e, isLate = false) {
     track(e);
+    if (isLate) { e.late = true; late.push(e); }
     const k = key(Math.floor(e.x / CELL), Math.floor(e.z / CELL));
     if (!cells.has(k)) cells.set(k, []);
     cells.get(k).push(e);
@@ -76,7 +78,7 @@ export function createResources() {
     fall(e, dx, dz) { e.ready = false; animate(e, 'fall', dx, dz); }, // 倒れて沈み、消える
     entries: () => [...cells.values()].flat(), // 確認用
     // 島ができたら呼ぶ。このあとに足された物（落とした袋、苗木が育った木）は、セーブで別に扱う
-    freeze() { base = [...cells.values()].flat(); },
+    freeze() { base = [...[...cells.values()].flat().filter((e) => !e.late), ...late]; },
     get base() { return base; },
     // セーブ用: 消えている物 [[番号, 戻るまでの秒（戻らないなら -1）], ...]
     hidden() {

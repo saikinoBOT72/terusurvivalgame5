@@ -20,6 +20,8 @@ export function createCombatHud({ camera }) {
   // 攻撃間隔の線（照準の 18px 下。下地は同じ白の 25%）と、画面のふちの赤いにじみ
   const cd = el(`<div style="position:fixed;left:50%;top:calc(50% + 18px);width:36px;height:3px;transform:translateX(-50%);background:${hexA(P.ui.cooldown, 0.25)};pointer-events:none" hidden><i style="display:block;height:100%;width:0;background:${P.ui.cooldown}"></i></div>`, layer);
   const cdBar = cd.firstChild;
+  const stance = el('<div class="sub stance" hidden></div>', layer); // 動き方の札（忍び足・しゃがみ。ui.md）
+  let stanceText = null;
   const vig = el(`<div style="position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center, transparent 62%, ${hexA(P.ui.lowHp, 0.35)} 84%, ${hexA(P.ui.lowHp, 0.9)} 100%)"></div>`);
   // 画面のふちの泥（ui.md「泥」）: しみ 4〜6 個。ふちから内側へ 25% くらいまで、真ん中にはかけない
   const mudLayer = el('<div style="position:fixed;inset:0;pointer-events:none;opacity:0;overflow:hidden"></div>');
@@ -37,8 +39,8 @@ export function createCombatHud({ camera }) {
   }
 
   return {
-    number(point, n, weak) {
-      const e = el(`<div class="dmg-num${weak ? ' weak' : ''}">${n}</div>`, layer);
+    number(point, n, weak, cls = '') {
+      const e = el(`<div class="dmg-num${weak ? ' weak' : ''}${cls}">${n}</div>`, layer);
       nums.push({ e, p: point.clone(), t: 0 });
     },
     mark(weak) {
@@ -75,6 +77,13 @@ export function createCombatHud({ camera }) {
     setCooldown(k) {
       cd.hidden = k == null;
       if (k != null) cdBar.style.width = `${Math.min(1, k) * 100}%`;
+    },
+    // 照準の下の動き方の札（null で隠す）
+    setStance(text) {
+      if (text === stanceText) return;
+      stanceText = text;
+      stance.hidden = text == null;
+      stance.textContent = text ?? '';
     },
     // HP の割合（0〜1）。30% 以下で赤くにじんで脈打つ。off: 倒れた画面などで出さない
     setLowHp(frac, off = false) { low = off ? 0 : Math.max(0, Math.min(1, (0.3 - frac) / 0.3 + (frac <= 0.3 ? 0.001 : 0))); },

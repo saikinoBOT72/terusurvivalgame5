@@ -6,6 +6,7 @@ import { STATIONS } from '../survival/stations.js';
 import { iconUrl } from './icons.js';
 import { partIcon } from './buildMenu.js';
 import { UI_SHAPES } from './uiShapes.js';
+import { winHead } from './uiKit.js';
 
 const ROLE = { in: '入れる', out: 'できた', fuel: '燃料' }; // 空のマスにうすく出す字
 
@@ -20,7 +21,7 @@ export function createStationWindow(parent, { slotHtml, recipeHtml }) {
 
   function build(p) {
     const S = STATIONS[p.type];
-    let html = `<div class="st-head"><img src="${partIcon(p.type)}" alt=""><div><div class="title">${S.name}</div><div class="st-state"></div></div></div>`;
+    let html = `<div class="st-head"><img src="${partIcon(p.type)}" alt=""><div>${winHead(S.name)}<div class="st-state"></div></div></div>`;
     if (S.lanes) {
       html += S.lanes.map(([a, b], k) => `<div class="st-lane">${slot(S, a)}<div class="st-arrow" data-k="${k}"><div class="shape"><i></i></div></div>${slot(S, b)}</div>`).join('');
       if (S.fuel !== undefined) {

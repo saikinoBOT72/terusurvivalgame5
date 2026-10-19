@@ -1,31 +1,28 @@
-// 敵の出方（docs/rules/islands.md「敵の出方」）。島ごとの表は islandMap.js の spawns
-// 夜の敵: プレイヤーの近くの決まった区域に出る。朝に消える（5 日目からは昼も半分）。倒した分は次の夜に戻る
-// いつもいる敵: 決まった場所・スポットの番人（spot。enemies.md「番人」）。倒した時刻をセーブし、back 日で戻る（null は戻らない）
+// 敵の出方（docs/rules/islands.md「敵の出方」）。島ごとの表は islandMap.js の spawns（固定湧き）と wild（自然湧き。wildSpawn.js）
+// 固定湧き（いつもいる敵）: 決まった場所（at。mode・n も付けられる）・スポットの番人（spot。enemies.md「番人」）。倒した時刻をセーブし、back 日で戻る（null は戻らない）
 // 夜に来る番人（spot と when: night）: 夜、スポットのそばの見えない所に出て、スポットまで歩く。朝に消える
 // 呼ばれて来る敵: 監視カメラの警報で、カメラから 40m の所にブンブン 3 体（call）
 import { DAY_LEN } from '../world/dayNight.js';
 import { MOBS } from './mobTypes.js';
+import { createWildSpawner } from './wildSpawn.js';
 
-const NEAR = 30, FAR = 90; // 夜の敵が出る、プレイヤーからの距離
-const LOST = 150; // これより遠く、戦っていなければ消して出し直す
-const MORNING = 30; // 朝に消える距離
+const MORNING = 30; // 朝に消える距離（夜に来る番人）
 const BACK_AWAY = 40; // いつもいる敵が戻るとき、プレイヤーがこれより離れていること
 const SHOW = 70, HIDE = 100; // いつもいる敵は SHOW m 以内に入ったら出し、HIDE m より離れたら消す（倒した記録は残る。HP は戻る）
 const EVERY = 2; // 出す間かく（秒）
-const DAY_FROM = 5; // この日から昼も出る
 
 const ORE_ITEM = { coal: 'coal', copper: 'copperOre', iron: 'ironOre' };
 
 export function createSpawner({ combat, time, player }) {
   let world = null, t = 0, period = -1;
-  const spent = new Map(); // 夜の敵: この夜（昼）に出した数
+  const spent = new Map(); // 夜に来る番人: この夜に出した数（組）
+  const wild = createWildSpawner({ combat, time, player });
   let dead = {}; // いつもいる敵: 'kind:番号' → 倒した時刻（time.total）
   let fixed = []; // いつもいる敵の置き場所 { key, entry, x, z, ore, spot, yaw }
 
   const p = () => player.state;
   const dist = (x, z) => Math.hypot(x - p().x, z - p().z);
-  const day = () => Math.floor(time.total / DAY_LEN) + 1;
-  const want = (e) => (time.isNight ? e.n : e.spot ? 0 : day() >= DAY_FROM ? Math.ceil(e.n / 2) : 0); // 同時の数（組）。夜に来る番人は夜だけ
+  const want = (e) => (time.isNight ? e.n : 0); // 夜に来る番人の数（組）。夜だけ
 
   // スポットの番人の置き場所 n か所。ore があれば、スポットの中のその鉱石の岩のそば。face: [x, z] があればそちらを向く
   function guardSpots(e, s) {
@@ -43,20 +40,6 @@ export function createSpawner({ combat, time, player }) {
       }
     }
     return out;
-  }
-
-  // プレイヤーから NEAR〜FAR m の、区域 zones の、立てる場所（なければ null）
-  function spot(e) {
-    const T = world.terrain, swim = MOBS[e.kind].swim;
-    for (let i = 0; i < 30; i++) {
-      const a = Math.random() * Math.PI * 2, r = NEAR + Math.random() * (FAR - NEAR);
-      const x = p().x + Math.sin(a) * r, z = p().z + Math.cos(a) * r;
-      if (!e.zones.includes(world.zoneAt(x, z))) continue;
-      if (T.heightAt(x, z) < T.waterLevel - (swim ? 0.3 : -0.1)) continue;
-      if (world.colliders(x, z, 0.6).length) continue;
-      return { x, z };
-    }
-    return null;
   }
 
   // (c.x, c.z) から d m の、プレイヤーから 25m より遠い、立てる場所。fly: 飛ぶ敵（水の上でもよい）
@@ -85,11 +68,12 @@ export function createSpawner({ combat, time, player }) {
   return {
     setWorld(w) {
       world = w?.spawns ? w : null;
+      wild.setWorld(world);
       spent.clear(); period = -1; fixed = [];
       if (!world) return;
-      world.spawns.forEach((e, i) => {
+      world.spawns.forEach((e) => {
         if (e.when !== 'always') return;
-        if (e.at) fixed.push({ key: `${e.kind}:${i}:0`, entry: e, x: e.at.x, z: e.at.z });
+        if (e.at) { const s = { n: `a${e.at.x},${e.at.z}`, x: e.at.x, z: e.at.z, r: 10 }; ((e.n ?? 1) === 1 ? [{ x: e.at.x, z: e.at.z }] : guardSpots(e, s)).forEach((g, k) => fixed.push({ key: `${e.kind}:a${e.at.x},${e.at.z}:${k}`, entry: e, x: g.x, z: g.z, yaw: g.yaw, spot: e.mode ? s : null })); } // 決まった場所。キーは場所（行の番号は変わってよい）
         if (e.spot) { const s = world.spots.find((o) => o.n === e.spot); guardSpots(e, s).forEach((g, k) => fixed.push({ key: `${e.kind}:s${e.spot}:${k}`, entry: e, x: g.x, z: g.z, y: g.y, ore: e.ore, spot: s, yaw: g.yaw })); }
       });
     },
@@ -105,12 +89,14 @@ export function createSpawner({ combat, time, player }) {
     // 倒した: いつもいる敵は時刻を残す
     onDead(m) { if (m.spawnKey) dead[m.spawnKey] = time.total; },
     update(dt) {
+      if (world) wild.update(dt);
       if (!world || (t += dt) < EVERY) return;
       t = 0;
       const now = Math.floor(time.total / DAY_LEN) * 2 + (time.isNight ? 1 : 0); // 昼・夜の番号
-      if (now !== period) { // 新しい昼・夜: 夜の敵は数え直し。昼に出ない敵は、遠くて戦っていなければ消える
+      if (now !== period) { // 新しい昼・夜: 夜に来る番人は数え直し・朝に消える。自然湧きは上限より多い分を消す
         period = now;
         spent.clear();
+        wild.onPeriod();
         for (const m of [...combat.list]) {
           if (m.spawnEntry && !want(m.spawnEntry) && m.aware !== 'fight' && dist(m.x, m.z) > MORNING) combat.remove(m);
         }
@@ -128,19 +114,15 @@ export function createSpawner({ combat, time, player }) {
         delete dead[f.key];
         placeFixed(f);
       }
-      // 夜の敵: 遠くへ離れた物は消して出し直す。足りなければ 1 組出す
-      for (const m of [...combat.list]) {
-        if (m.spawnEntry && m.aware !== 'fight' && dist(m.x, m.z) > LOST) { combat.remove(m); spent.set(m.spawnEntry, Math.max(0, (spent.get(m.spawnEntry) ?? 0) - 1 / (m.spawnEntry.group ?? 1))); }
-      }
+      // 夜に来る番人: 足りなければ 1 組、スポットのそばの見えない所に出す
       for (const e of world.spawns) {
         if (e.when !== 'night' || (spent.get(e) ?? 0) >= want(e) - 1e-6) continue;
-        const s = e.spot && world.spots.find((o) => o.n === e.spot);
-        const at = s ? near(s, 30) : spot(e);
+        const s = world.spots.find((o) => o.n === e.spot), at = s && dist(s.x, s.z) < 160 && near(s, 30);
         if (!at) continue;
         for (let k = 0; k < (e.group ?? 1); k++) {
           const m = combat.spawn(e.kind, at.x + k * 1.5, at.z + k * 1.2);
           m.spawnEntry = e;
-          if (s) { guard(m, s, e.mode); m.home = { x: s.x + Math.sin(k * 2.4) * 3, z: s.z + Math.cos(k * 2.4) * 3 }; m.state = 'return'; m.model.setPose('move'); } // 夜に来る: スポットまで歩く
+          guard(m, s, e.mode); m.home = { x: s.x + Math.sin(k * 2.4) * 3, z: s.z + Math.cos(k * 2.4) * 3 }; m.state = 'return'; m.model.setPose('move'); // スポットまで歩く
         }
         spent.set(e, (spent.get(e) ?? 0) + 1);
         break; // 2 秒に 1 組
@@ -148,6 +130,11 @@ export function createSpawner({ combat, time, player }) {
     },
     save: () => ({ dead }),
     load(d) { dead = { ...(d?.dead ?? {}) }; },
-    get counts() { return world ? world.spawns.map((e) => `${MOBS[e.kind].name}${combat.list.filter((m) => m.kind === e.kind && m.state !== 'down').length}`).join(' ') : 'なし'; },
+    // 確認用: 種類ごとの今いる数（固定湧きはそのうち何体）と、自然湧きの範囲ごとの 数/上限（出るまでの秒）
+    get counts() {
+      if (!world) return 'なし';
+      const kinds = [...new Set(combat.list.filter((m) => m.state !== 'down').map((m) => m.kind))];
+      return `${kinds.map((k) => `${MOBS[k].name}${combat.list.filter((m) => m.kind === k && m.state !== 'down').length}`).join(' ') || 'なし'}（固定 ${combat.list.filter((m) => m.spawnKey && m.state !== 'down').length}）  自然湧き: ${wild.counts}`;
+    },
   };
 }

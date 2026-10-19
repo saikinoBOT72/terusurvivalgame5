@@ -1,5 +1,5 @@
 // 鉱床（objects.md「鉱床」、survival.md「鉱床」）: 地面に広がる平たい岩の板の群れに、鉱石の塊が埋まっている。
-// 真ん中ほど大きな板、外ほど小さい板。板は少し傾けて深く埋める（上の面が 0.15m ほど出る）。kind: coal / copper / iron
+// 真ん中ほど大きな板、外ほど小さい板。板は少し傾けて深く埋める（上の面が 0.15m ほど出る）。kind: coal / copper / iron / stone（石の鉱床: 鉱石の塊の代わりに丸い明るい石）
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
 import { shape, merge, makeMesh, pick } from '../style/lowpoly.js';
@@ -21,7 +21,7 @@ function slab(rand, w, d, h) {
 }
 
 export function oreBed(rand, kind) {
-  const cols = P[kind], oreCol = () => (kind === 'copper' ? pick(rand, [cols[0], cols[1], cols[2]]) : pick(rand, cols));
+  const cols = kind === 'stone' ? [P.stone[3], P.stone[4], P.stone[3]] : P[kind], oreCol = () => (kind === 'copper' ? pick(rand, [cols[0], cols[1], cols[2]]) : pick(rand, cols));
   const parts = [], placed = [];
   // 円の中の候補点を真ん中から順に見て、真ん中ほど大きい板を、すき間を少しあけて敷き詰める
   const cand = Array.from({ length: 400 }, () => { const rr = BED_R * Math.sqrt(rand()) * 0.95, a = rand() * Math.PI * 2; return { x: Math.cos(a) * rr, z: Math.sin(a) * rr, rr }; }).sort((p, q) => p.rr - q.rr);
@@ -39,8 +39,8 @@ export function oreBed(rand, kind) {
   }
   // 鉱石の塊: 1 枚おきの板の上の面にめり込ませる（真ん中から外まで散らばる）
   placed.filter((_, i) => i % 2 === 0).slice(0, NUGGETS).forEach((o) => {
-    const s = 0.17 + rand() * 0.07, g = new THREE.OctahedronGeometry(s, 0);
-    g.scale(1.3, 0.6, 1).rotateY(rand() * Math.PI);
+    const stone = kind === 'stone', s = stone ? 0.26 + rand() * 0.1 : 0.17 + rand() * 0.07, g = stone ? new THREE.IcosahedronGeometry(s, 0) : new THREE.OctahedronGeometry(s, 0);
+    g.scale(stone ? 1.2 : 1.3, stone ? 0.7 : 0.6, 1).rotateY(rand() * Math.PI);
     g.translate(o.x + (rand() - 0.5) * o.s * 0.3, o.top + s * 0.05, o.z + (rand() - 0.5) * o.s * 0.2);
     parts.push(shape(g, oreCol(), rand, { jit: s * 0.15 }));
   });

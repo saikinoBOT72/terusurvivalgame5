@@ -9,7 +9,7 @@ import { planterRefund } from '../survival/farm.js';
 import { placeDrop } from '../survival/death.js';
 
 // world(): 今の世界。closeMenu(): 建築メニューを閉じる（操作は controls.js が持つ）
-export function createBuilding({ scene, camera, dom, player, inventory, invHud, blueprints, world, closeMenu }) {
+export function createBuilding({ scene, camera, dom, player, inventory, invHud, keyItems, world, closeMenu }) {
   const hud = createBuildHud({ partName: (t) => PARTS[t].name, costHtml: (t) => costHtml(t, inventory), refundHtml: (parts) => itemsHtml(build.refund(parts)) });
   const build = createBuildMode({
     camera, dom,
@@ -43,6 +43,6 @@ export function createBuilding({ scene, camera, dom, player, inventory, invHud, 
   });
   scene.add(build.preview);
   scene.add(build.marks); // 撤去で消えるパーツの赤い重ね
-  const menu = createBuildMenu({ inventory, onPick: (i) => { closeMenu(); build.start(i); }, known: (bp) => blueprints.has(bp) });
+  const menu = createBuildMenu({ inventory, onPick: (i) => { closeMenu(); build.start(i); }, known: (bp) => keyItems.hasBp(bp) });
   return { build, hud, menu };
 }

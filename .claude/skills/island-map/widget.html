@@ -13,7 +13,7 @@
 <select id="kind"><option value="drone">ブンブン</option><option value="crab">カニ</option><option value="dog" selected>ガラクタ犬</option><option value="mining">採掘ロボ</option><option value="camera">監視カメラ</option><option value="gangi">ガンギ</option></select>
 <select id="mode"><option value="guard">いつもいる</option><option value="sleep">寝ている</option><option value="fake">死んだふり</option><option value="visit">夜に来る</option></select>
 <select id="n"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select>
-<label><input type="checkbox" id="showSpot" checked> スポット番号</label></div>
+<label><input type="checkbox" id="showSpot" checked> スポット番号</label><label><input type="checkbox" id="showWild" checked> 自然湧きの範囲</label></div>
 <div style="position:relative;max-width:600px">
 <canvas id="cv" width="960" height="960" style="width:100%;border-radius:8px;cursor:crosshair;display:block;touch-action:none"></canvas>
 <div id="tip" style="position:absolute;left:8px;top:8px;font-size:12px;background:var(--surface-2);color:var(--text-primary);padding:2px 8px;border-radius:6px;border:0.5px solid var(--border)">空いた所をクリックで置く・敵をクリックで選ぶ・ドラッグで動かす</div>
@@ -47,12 +47,14 @@ const rad=it=>(3.5+it.n*0.4)*R;
 function draw(){g.imageSmoothingEnabled=false;g.drawImage(base,0,0,cv.width,cv.height);
 g.strokeStyle='rgba(255,255,255,0.25)';g.lineWidth=1;for(let v=-Math.floor(HALF/100)*100;v<HALF;v+=100){const[a]=P(v,0),[,b]=P(0,v);g.beginPath();g.moveTo(a,0);g.lineTo(a,cv.height);g.moveTo(0,b);g.lineTo(cv.width,b);g.stroke();}
 if(document.getElementById('showSpot').checked)for(const s of SP){const[px,py]=P(s[2],s[3]);g.fillStyle='rgba(0,0,0,0.55)';g.font=`500 ${FS}px sans-serif`;g.textAlign='left';g.textBaseline='bottom';g.fillText(s[0],px+2.5*R,py-1.5*R);}
+if(document.getElementById('showWild').checked)for(const w of D.WILD){const[px,py]=P(w[3],w[4]);g.setLineDash([6,5]);g.strokeStyle='rgba(255,255,255,0.8)';g.lineWidth=1.5;g.beginPath();g.arc(px,py,w[5]*R,0,7);g.stroke();g.setLineDash([]);g.fillStyle='rgba(255,255,255,0.9)';g.font=`500 ${FS}px sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(w[1],px,py);}
 for(const it of items){if(it.orig&&(it.x!==it.orig.x||it.z!==it.orig.z)){const[a,b]=P(it.orig.x,it.orig.z),[c,d]=P(it.x,it.z);g.setLineDash([4,4]);g.strokeStyle='rgba(0,0,0,0.5)';g.lineWidth=1.5;g.beginPath();g.moveTo(a,b);g.lineTo(c,d);g.stroke();g.setLineDash([]);}
 const[px,py]=P(it.x,it.z),r=rad(it);g.beginPath();g.arc(px,py,r,0,7);g.fillStyle=KC[it.kind];g.fill();g.lineWidth=(it===sel?4:changed(it)?3:1.5)*R/2;g.strokeStyle=it===sel?'#185FA5':changed(it)?'#FAC775':'#fff';g.stroke();
 g.fillStyle='#fff';g.font=`500 ${FS}px sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(it.mode==='sleep'?'z':it.mode==='fake'?'x':it.mode==='visit'?'v':it.n,px,py+0.5);}}
 const lgz=document.getElementById('lgz'),zs=new Set(Z);for(const k of Object.keys(ZN))if(k!=='~'&&zs.has(k))lgz.innerHTML+=`<span><i class="sw" style="background:rgb(${ZC[k]})"></i>${ZN[k]}</span>`;
 const lgk=document.getElementById('lgk');for(const k in KN)lgk.innerHTML+=`<span><i class="sw" style="background:${KC[k]};border-radius:50%"></i>${KN[k]}</span>`;lgk.innerHTML+='<span>数字=数・z=寝ている・x=死んだふり・v=夜に来る・黄の縁=変えた・青の縁=選択中</span>';
-const nightEl=document.getElementById('night');nightEl.innerHTML='<span class="cap">夜に区域へ出る敵（同時の数）:</span> '+D.NIGHT.map(e=>`<label>${KN[e[1]]}${e[4]>1?'（組×'+e[4]+'）':''}・${[...e[2]].map(c=>ZN[c]||c).join('・')} <input type="number" min="0" max="10" step="1" id="night${e[0]}" value="${e[3]}"></label>`).join(' ');
+const KS=s=>s.split(',').map(t=>{const[k,n]=t.split('×');return KN[k]+(n?'×'+n:'');}).join('か');
+const nightEl=document.getElementById('night');nightEl.innerHTML='<span class="cap">自然湧きの範囲（夜 / 昼の上限。点線の円）:</span><br>'+D.WILD.map(w=>`<label>${w[1]}（${KS(w[6])}） <input type="number" min="0" max="10" step="1" id="wn${w[0]}" value="${w[7]}"> / <input type="number" min="0" max="10" step="1" id="wd${w[0]}" value="${w[8]}"></label>`).join('<br>');
 const W=e=>{const b=cv.getBoundingClientRect();return[(e.clientX-b.left)/b.width*SZ-HALF,(e.clientY-b.top)/b.height*SZ-HALF];};
 const hitAt=(x,z)=>{let best=null,bd=1e9;for(const it of items){const d=Math.hypot(it.x-x,it.z-z);if(d<rad(it)/R+2&&d<bd){bd=d;best=it;}}return best;};
 const tip=document.getElementById('tip'),err=document.getElementById('err');
@@ -67,14 +69,14 @@ const desc=it=>`${KN[it.kind]}×${it.n}（${MN[it.mode]}）x ${it.x}, z ${it.z}`
 const od=it=>`${where(it)} ${KN[it.orig.kind]}×${it.orig.n}（${MN[it.orig.mode]}）`;
 function changes(){const L=[];for(const it of removed)L.push(`- 消す: ${od(it)}`);
 for(const it of items){if(!it.orig)L.push(`- 足す: ${it.kind} ${desc(it)}・${ZN[zoneAt(it.x,it.z)]}`);else if(changed(it))L.push(`- 変える: ${od(it)} → ${it.kind} ${desc(it)}${it.x!==it.orig.x||it.z!==it.orig.z?'（場所を移す・'+ZN[zoneAt(it.x,it.z)]+'）':''}`);}
-for(const e of D.NIGHT){const v=+document.getElementById('night'+e[0]).value;if(v!==e[3])L.push(`- 夜の${KN[e[1]]}（行${e[0]}）: ${e[3]} → ${v}`);}return L;}
+for(const w of D.WILD){const a=+document.getElementById('wn'+w[0]).value,b=+document.getElementById('wd'+w[0]).value;if(a!==w[7]||b!==w[8])L.push(`- 自然湧き「${w[1]}」の上限: 夜 ${w[7]} → ${a}、昼 ${w[8]} → ${b}`);}return L;}
 function upd(){draw();editor();const L=changes();document.getElementById('chg').innerHTML=L.length?'<span class="cap">変更（'+L.length+'）</span><br>'+L.map(s=>s.slice(2)).join('<br>'):'';}
 cv.addEventListener('pointerdown',e=>{const[x,z]=W(e);err.textContent='';const h=hitAt(x,z);if(h){sel=h;drag=h;cv.setPointerCapture(e.pointerId);upd();}else{if(zoneAt(x,z)==='~'){err.textContent='海には置けない';return;}const it={kind:kind.value,mode:mode.value,n:+n.value,x:Math.round(x),z:Math.round(z)};items.push(it);sel=it;upd();}});
 cv.addEventListener('pointermove',e=>{const[x,z]=W(e);if(drag){if(zoneAt(x,z)!=='~'){drag.x=Math.round(x);drag.z=Math.round(z);draw();}return;}let t=`x ${Math.round(x)}, z ${Math.round(z)}　${ZN[zoneAt(x,z)]||''}`;const s=SP.find(s=>Math.hypot(s[2]-x,s[3]-z)<8);if(s)t+=`　スポット${s[0]} ${s[1]}`;const h=hitAt(x,z);if(h)t+=`　${desc(h)}`;tip.textContent=t;});
 cv.addEventListener('pointerup',()=>{if(drag){drag=null;upd();}});
-D.NIGHT.forEach(e=>document.getElementById('night'+e[0]).oninput=upd);
-document.getElementById('showSpot').onchange=draw;
-document.getElementById('reset').onclick=()=>{items=init();removed=[];sel=null;D.NIGHT.forEach(e=>document.getElementById('night'+e[0]).value=e[3]);err.textContent='';upd();};
+D.WILD.forEach(w=>{document.getElementById('wn'+w[0]).oninput=upd;document.getElementById('wd'+w[0]).oninput=upd;});
+document.getElementById('showSpot').onchange=draw;document.getElementById('showWild').onchange=draw;
+document.getElementById('reset').onclick=()=>{items=init();removed=[];sel=null;D.WILD.forEach(w=>{document.getElementById('wn'+w[0]).value=w[7];document.getElementById('wd'+w[0]).value=w[8];});err.textContent='';upd();};
 document.getElementById('send').onclick=()=>{const L=changes();if(!L.length){err.textContent='まだ何も変えていない';return;}sendPrompt(D.name+'の敵の配置をこう変えて（島の図のウィジェットから）:\n'+L.join('\n'));};
 upd();
 </script>

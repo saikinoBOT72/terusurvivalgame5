@@ -6,6 +6,7 @@ import { rng, makeMesh, merge } from '../style/lowpoly.js';
 import { createTerrain } from './terrain.js';
 import { conifer, broadleaf, stump, rock, grassTuft, mountain, oreRock } from './nature.js';
 import { oreBed } from './oreBed.js';
+import { sandMound, sandBed } from './sandShapes.js';
 import { bigWaterfall } from './waterfall.js';
 import { stick, pebble, berryBush, sack } from './pickups.js';
 import { fallenLog, birdNest, bambooGrove, palmTree, sapling } from './flora.js';
@@ -119,7 +120,8 @@ function catalog() {
   const fall = bigWaterfall(r());
   list.push({ name: '滝', obj: fall.root, update: fall.update });
   list.push({ name: '伐採ロボの残骸', obj: mesh(loggerWreck(r())) }, { name: '丸太の山', obj: mesh(logPile(r())) }, { name: '壊れたロボの山', obj: robotHeap(r()), heap: true });
-  for (const [k, n] of [['coal', '石炭'], ['copper', '銅'], ['iron', '鉄']]) list.push({ name: `${n}の鉱床`, obj: oreBed(r(), k), bed: true });
+  for (const [k, n] of [['coal', '石炭'], ['copper', '銅'], ['iron', '鉄'], ['stone', '石']]) list.push({ name: `${n}の鉱床`, obj: oreBed(r(), k), bed: true });
+  list.push({ name: '砂の鉱床', obj: mesh(sandBed(r())), bed: true }, { name: '砂の塊', obj: mesh(sandMound(r())) });
   // 浄水器: 止まっている（受け皿が空）と、火にかけている（受け皿に 6 割）
   const purifier = (level, lit) => {
     const g = new THREE.Group().add(makeMesh(purifierGeo(r())));
@@ -154,6 +156,7 @@ function catalog() {
   list.push({ name: '練習用の的', obj: dummy.root, update: dummy.update });
   const has = (n) => list.some((it) => it.name === n); // 落ちている枝・石と持ち物の枝・石は同じ形
   for (const id in ITEMS) if (!has(ITEMS[id].name)) list.push({ name: ITEMS[id].name, obj: itemMesh(id), gun: ITEMS[id].tool === 'gun', ammo: id === 'junkAmmo' });
+  for (const [id, name] of [['battery', 'バッテリー（削除済み）'], ['lantern', 'ランタン（削除済み）']]) list.push({ name, obj: itemMesh(id) }); // 形だけ残す
   for (const t in PARTS) if (!has(PARTS[t].name)) list.push({ name: PARTS[t].name, obj: makeMesh(partGeometry(t)) });
   return list;
 }

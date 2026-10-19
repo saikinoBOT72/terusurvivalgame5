@@ -5,6 +5,7 @@ import { P } from '../style/palette.js';
 import { rng, shape, makeMesh } from '../style/lowpoly.js';
 import { MOTIONS, swingPose, chargePose, strikeDir, pose0 } from './fpMotion.js';
 import { createGunMotion } from './fpGun.js';
+import { createSlingMotion } from './fpSling.js';
 import { createSwingFx } from '../combat/swingFx.js';
 
 export const handGeo = (r) => shape(new THREE.IcosahedronGeometry(0.075, 0).scale(1, 0.9, 1.1), P.catWhite[1], r, { jit: 0.008 });
@@ -34,6 +35,7 @@ export function createFpHands({ seed = 9 } = {}) {
   R.add(hold0);
   const fx = createSwingFx(root);
   const gun = createGunMotion();
+  const slingM = createSlingMotion();
   const tip = new THREE.Object3D(), tipIn = new THREE.Object3D(), tipInHeavy = new THREE.Object3D(); // 刃先と、軌跡の帯の手前のはし
   let held = null, hasTip = false;
 
@@ -45,6 +47,7 @@ export function createFpHands({ seed = 9 } = {}) {
     gunHeld = !!gunInfo;
     held = obj; hasTip = false; equip = 0; sw = null;
     gun.attach(gunInfo ? obj : null);
+    slingM.attach(gunInfo ? null : obj);
     if (!obj) return;
     obj.scale.setScalar(scale);
     if (gunInfo) {
@@ -118,7 +121,7 @@ export function createFpHands({ seed = 9 } = {}) {
   const v = new THREE.Vector3(), w = new THREE.Vector3();
   const inRoot = (o, out) => out.copy(o.position).applyMatrix4(held.matrix).applyMatrix4(hold0.matrix).applyMatrix4(R.matrix);
 
-  function update(dt, moving, slow = 1) {
+  function update(dt, moving, slow = 1, bob = 1) { // bob: 動き方による揺れの大きさ・速さ（走る 1.3、忍び足・しゃがみ 0.5〜0.6。player/gait.js）
     time += dt;
     for (const k in pose) pose[k] += (poseTo[k] - pose[k]) * Math.min(1, dt * (k === 'charge' ? 30 : 14));
     for (const s of [bounce, recoil, knock, swayX, swayY]) s.step(Math.min(dt, 1 / 30));
@@ -146,8 +149,8 @@ export function createFpHands({ seed = 9 } = {}) {
     root.rotation.z = swayX.x * 0.6;
     // 歩くと 8 の字に揺れる（重い物ほど大きく、遅く歩く間は小さく）
     amp += ((moving ? 1 : 0) - amp) * Math.min(1, dt * 8);
-    phase += dt * 8 * amp * (slow < 1 ? 0.8 : 1);
-    const bobK = amp * (0.75 + 0.4 * weapon.weight) * (slow < 1 ? 0.5 : 1) * (1 - 0.8 * pose.aim);
+    phase += dt * 8 * amp * (slow < 1 ? 0.8 : 1) * bob;
+    const bobK = amp * (0.75 + 0.4 * weapon.weight) * (slow < 1 ? 0.5 : 1) * (1 - 0.8 * pose.aim) * bob;
     const bx = Math.sin(phase) * 0.012 * bobK, by = Math.abs(Math.sin(phase)) * 0.022 * bobK;
     const idle = Math.sin(time * 2) * 0.004;
     // 震え: ため満タン（近接）・スリングは引くほど
@@ -155,6 +158,7 @@ export function createFpHands({ seed = 9 } = {}) {
     const shakeA = sling ? (0.0015 + 0.006 * pose.charge ** 2) * (pose.charge > 0.05 ? 1 : 0) : poseTo.charge >= 1 ? 0.004 : 0;
     const shake = shakeA * Math.sin(time * 60), shake2 = shakeA * Math.sin(time * 47 + 1);
     const g = gun.update(dt, R, root);
+    slingM.update(dt, pose.charge);
     const eq = 1 - ease(equip);
     const hb = R.userData.base;
     const gx = gunHeld ? GUN_OUT * (1 - pose.aim) : 0; // 銃は外へ寄せる
@@ -214,6 +218,8 @@ export function createFpHands({ seed = 9 } = {}) {
     parry() { fx.parry(v.set(-0.08, -0.08, -0.5)); knock.v += 2; },
     gunFire(empty) { recoil.v += pose.aim > 0.5 ? 3.5 : 5.5; gun.fire(empty); },
     gunReload(secs) { gun.startReload(secs); },
+    slingFire() { slingM.fire(); }, // スリングを放った（袋がはじける）
+    slingLoaded(on) { slingM.setLoaded(on); }, // 持ち物に石があるか
     previewReload(p) { gun.reloadAt(p); }, // 開発用
     // 銃口の世界の位置（銃を持っていなければ null）
     muzzleWorld(out) { return gun.rig ? gun.rig.userData.muzzle.getWorldPosition(out) : null; },

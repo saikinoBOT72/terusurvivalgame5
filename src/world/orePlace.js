@@ -1,5 +1,5 @@
 // 鉱石の岩を置き、resources に登録する（docs/rules/islands.md「資源の量」、survival.md「鉱石と炉」）
-// 石炭は岩場、銅は峡谷の底の道ぞい、鉄は高台。大きい岩と小さい岩（small）。数は islandMap.js の counts。壊すと 3 日で戻る（island.js の REGROW）
+// 石炭は密集地と岩場、銅は峡谷の底の道ぞい、鉄は密集地と高台。大きい岩と小さい岩（small）。数は islandMap.js の counts（oreNear: 密集地のまわりの小さい岩）。壊すと 3 日で戻る（island.js の REGROW）
 import * as THREE from 'three';
 import { rng } from '../style/lowpoly.js';
 import { oreRock, instanced } from './nature.js';
@@ -18,6 +18,8 @@ export function placeOres({ group, terrain, gen, colliders, addCollider, resourc
   for (const s of gen.def.spots) {
     if (!s.bed) continue;
     const x = s.bed.x ?? s.x, z = s.bed.z ?? s.z, y = terrain.heightAt(x, z), m = oreBed(r, s.bed.kind);
+    const ys = Array.from({ length: 8 }, (_, i) => terrain.heightAt(x + Math.cos(i * Math.PI / 4) * BED_R, z + Math.sin(i * Math.PI / 4) * BED_R));
+    if (Math.max(...ys, y) - Math.min(...ys, y) > 0.5) console.warn(`鉱床が斜面にある: スポット ${s.n}（下を flat で平らにする）`); // islands.md「資源の量」の鉱床
     m.position.set(x, y, z); m.rotation.y = r() * Math.PI * 2;
     group.add(m);
     addCollider(x, z, BED_R, y + 0.2);
@@ -45,6 +47,11 @@ export function placeOres({ group, terrain, gen, colliders, addCollider, resourc
       }
     }
     spots.push(...pickSpots({ r, terrain, gen, want, gap: small ? 3 : 5, ok }));
+    if (small) for (const o of gen.def.counts.oreNear ?? []) { // 密集地のまわり: 中心から半径の中だけ
+      if (o.kind !== kind) continue;
+      const [cx, cz, cr] = o.near;
+      spots.push(...pickSpots({ r, terrain, gen, want: o.want, gap: 3, ok: (x, z, t) => Math.hypot(x - cx, z - cz) < cr && ok(x, z, t) && !spots.some((q) => Math.hypot(q.x - x, q.z - z) < 3) }));
+    }
     const items = protos.map(() => []);
     for (const p of spots) {
       const i = Math.floor(r() * N), s = 0.9 + r() * 0.3, y = p.y ?? terrain.heightAt(p.x, p.z);

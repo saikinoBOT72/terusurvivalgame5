@@ -84,7 +84,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
   // 敵がプレイヤーと重ならない所で止まる（上下に離れていれば重なってよい）
   function apart(m) {
     const p = player.state, b = bodyBox(m.kind);
-    if (m.y + b.min.y > p.y + PLAYER_H || m.y + b.max.y < p.y) return;
+    if (m.y + b.min.y > p.y + (p.headH ?? PLAYER_H) || m.y + b.max.y < p.y) return;
     const dx = m.x - p.x, dz = m.z - p.z, d = Math.hypot(dx, dz), min = bodyR(m.kind) + PLAYER_R;
     if (d >= min) return;
     const l = d || 1;
@@ -195,6 +195,14 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
     return dmg;
   }
 
+  // 遠すぎる所から遠距離で当てた（def.barrier）: ダメージ 0。気づきは普通に当たったときと同じ
+  function barrierMob(m, point) {
+    if (m.aware !== 'fight') m.alertT = 1;
+    m.aware = 'fight'; m.asleep = false;
+    record(`→${m.def.name} バリア`);
+    fx?.barrier(m, point ?? new THREE.Vector3(m.x, m.y + 0.5, m.z));
+  }
+
   // 近接: 振り下ろしたところで当てる。mult: ため攻撃の倍率。当たった数を返す
   function melee(held, mult = 1) {
     if (!world || !list.length) return 0;
@@ -229,7 +237,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
   return {
     list, log, shots, mfx,
     setWorld(w) { clear(); world = w; mfx.setWorld(w); mud?.setWorld(w); rock?.setWorld(w); steer = w?.terrain ? createSteer({ terrain: w.terrain, blockers }) : null; for (const at of w?.dummies ?? (w?.dummyAt ? [w.dummyAt] : [])) { const m = spawn('dummy', at.x, at.z); m.yaw = Math.atan2(w.spawn.x - m.x, w.spawn.z - m.z); m.fixed = true; } }, // 練習用の的は島の決まった場所に（訓練島は射撃の道に並べる。fixed: 全部消すで消さない）
-    spawn, remove, stash, clear, rayMob, damageMob,
+    spawn, remove, stash, clear, rayMob, damageMob, barrierMob,
     // 敵の体（プレイヤーの当たり判定に足す。firstPerson.js）。倒れた敵は通り抜ける
     bodies(x, z, r) {
       const out = [];

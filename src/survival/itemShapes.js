@@ -7,10 +7,13 @@ import { stick, pebble } from '../world/pickups.js';
 import { MATERIAL_SHAPES, berry, fish as fishShape } from './materialShapes.js';
 import { METAL_SHAPES } from './metalShapes.js';
 import { GUN_SHAPES } from './gunShapes.js';
+import { BAG_SHAPES } from './bagShapes.js';
 import { CROP_ITEM_SHAPES } from '../world/crops.js';
 
 export const GRIP = 0.12;
 export const gripOf = (id) => (id === 'stoneSpear' || id === 'ironSpear' || id === 'paddle' ? 0.4 : GRIP); // やりとかいは柄の中ほどを握る
+const woodCol = (r) => () => pick(r, [P.wood[3], P.wood[4]]); // 木の頭は柄より明るい（削った木）
+const lashing = (r, y) => shape(new THREE.CylinderGeometry(0.075, 0.075, 0.07, 8).translate(0, y, 0), P.straw[1], r); // 頭を縛るひも
 const stoneCol = (r) => () => pick(r, [P.stone[2], P.stone[3]]);
 
 // 八角形の柄と、頭の下に巻いたひも
@@ -46,6 +49,28 @@ export function flintBlade(r, pts, depth, edge, col = null) {
   return shape(g, col ?? ((f) => (Math.abs(f.nz) > 0.5 ? pick(r, [P.stone[0], P.stone[1]]) : P.stone[2])), r);
 }
 
+// スリング: Y 字の枝（frame）と、先から袋へのびるひも 2 本・袋（bag。引くと袋だけ動く。avatar/fpSling.js）
+const SLING_TIPS = [new THREE.Vector3(-0.096, 0.455, 0), new THREE.Vector3(0.096, 0.455, 0)], SLING_POUCH = new THREE.Vector3(0, 0.39, 0);
+export function strapGeo(r, tip, pouch) {
+  const mid = tip.clone().add(pouch).multiplyScalar(0.5);
+  const g = new THREE.CylinderGeometry(0.007, 0.007, tip.distanceTo(pouch), 4);
+  g.rotateZ(Math.atan2(pouch.x - tip.x, tip.y - pouch.y)).translate(mid.x, mid.y, mid.z);
+  return shape(g, P.straw[1], r);
+}
+export function slingParts(r) {
+  const col = () => pick(r, [P.wood[2], P.wood[3]]);
+  const grip = new THREE.CylinderGeometry(0.035, 0.04, 0.3, 6);
+  grip.translate(0, 0.15, 0);
+  const frame = [shape(grip, col, r, { jit: 0.005 })];
+  for (const s of [-1, 1]) {
+    const arm = new THREE.CylinderGeometry(0.03, 0.035, 0.2, 6);
+    arm.translate(0, 0.1, 0).rotateZ(-0.5 * s).translate(0, 0.28, 0);
+    frame.push(shape(arm, col, r));
+  }
+  const bag = shape(new THREE.BoxGeometry(0.045, 0.02, 0.035).translate(SLING_POUCH.x, SLING_POUCH.y, SLING_POUCH.z), P.straw[0], r);
+  return { frame, bag: [bag], tips: SLING_TIPS, pouch: SLING_POUCH };
+}
+
 const SHAPES = {
   stick: (r) => stick(r),
   stone: (r) => pebble(r, 0.12),
@@ -60,6 +85,7 @@ const SHAPES = {
   ...MATERIAL_SHAPES,
   ...METAL_SHAPES,
   ...GUN_SHAPES,
+  ...BAG_SHAPES,
   ...CROP_ITEM_SHAPES,
   // 石のナイフ: 短い柄に、火打ち石の片刃の刃。背はまっすぐ、刃（+z）はふくらんで先がとがる。刃先ほど薄い
   stoneKnife: (r) => {
@@ -67,26 +93,9 @@ const SHAPES = {
     blade.rotateY(-Math.PI / 2); // 刃を +z へ
     return merge([...handle(r, 0.3), blade]);
   },
-  // スリング: Y 字の枝の先から、細いひもが真ん中の小さな袋へたるむ
   sling: (r) => {
-    const col = () => pick(r, [P.wood[2], P.wood[3]]);
-    const grip = new THREE.CylinderGeometry(0.035, 0.04, 0.3, 6);
-    grip.translate(0, 0.15, 0);
-    const parts = [shape(grip, col, r, { jit: 0.005 })];
-    const pouch = new THREE.Vector3(0, 0.39, 0);
-    for (const s of [-1, 1]) {
-      const a = new THREE.CylinderGeometry(0.03, 0.035, 0.2, 6);
-      a.translate(0, 0.1, 0).rotateZ(-0.5 * s).translate(0, 0.28, 0);
-      parts.push(shape(a, col, r));
-      const tip = new THREE.Vector3(0.096 * s, 0.455, 0), mid = tip.clone().add(pouch).multiplyScalar(0.5);
-      const strap = new THREE.CylinderGeometry(0.007, 0.007, tip.distanceTo(pouch), 4);
-      strap.rotateZ(Math.atan2(pouch.x - tip.x, tip.y - pouch.y)).translate(mid.x, mid.y, mid.z);
-      parts.push(shape(strap, P.straw[1], r));
-    }
-    const bag = new THREE.BoxGeometry(0.045, 0.02, 0.035);
-    bag.translate(pouch.x, pouch.y, pouch.z);
-    parts.push(shape(bag, P.straw[0], r));
-    return merge(parts);
+    const { frame, bag, tips, pouch } = slingParts(r);
+    return merge([...frame, ...tips.map((t) => strapGeo(r, t, pouch)), ...bag]);
   },
   // 釣り竿: 竹の竿と、先から垂れた糸、糸の先に水色の小さな魚の形のえさ
   fishingRod: (r) => {
@@ -111,6 +120,9 @@ const SHAPES = {
     };
     return merge([...handle(r, 0.75), shape(head, () => pick(r, [P.straw[0], P.straw[1]]), r, { jit: 0.01 }), flame(0.085, 0.26, P.fire[0], 0.78), flame(0.05, 0.22, P.fire[2], 0.8)]);
   },
+  // 木の斧・木のピッケル: 石の道具と同じ長さと握り。頭は削った木のかたまりを、ひもで縛る
+  woodAxe: (r) => merge([...handle(r), stoneHead(r, 0.12, 0.16, 0.3, (t) => ({ x: t > 0 ? 1 - t * 0.6 : 1, y: t > 0 ? 1 + t * 0.2 : 1 }), 0.5, woodCol(r)), lashing(r, 0.44)]),
+  woodPick: (r) => merge([...handle(r), stoneHead(r, 0.1, 0.11, 0.56, (t) => ({ x: 1 - Math.abs(t) * 0.75, y: 1 - Math.abs(t) * 0.75 }), 0.5, woodCol(r)), lashing(r, 0.44)]),
   // 斧: 刃に向かって薄くなるくさび
   stoneAxe: (r) => merge([...handle(r), stoneHead(r, 0.11, 0.18, 0.3, (t) => ({ x: t > 0 ? 1 - t * 0.75 : 1, y: t > 0 ? 1 + t * 0.35 : 1 }), 0.5)]),
   // ピッケル: 両側がとがった、長い頭
