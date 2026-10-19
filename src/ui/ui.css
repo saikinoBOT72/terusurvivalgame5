@@ -1,0 +1,251 @@
+/* 画面表示の見た目（docs/rules/ui.md「石の板の見た目」）。色は palette.js から CSS 変数（--ui-*）で受け取る */
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { font-family: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Meiryo", sans-serif; color: var(--ui-text); }
+canvas { display: block; }
+[hidden] { display: none !important; }
+
+/* ---- 石の板: 面の模様、濃い輪郭、斜めに切った角 ---- */
+.panel {
+  background: var(--ui-facets), var(--ui-panel);
+  border: 2px solid var(--ui-edge); border-radius: 10px; corner-shape: bevel; padding: 12px 14px;
+  box-shadow: inset 2px 2px 0 var(--ui-light), inset -2px -2px 0 color-mix(in srgb, var(--ui-edge) 22%, transparent),
+    0 3px 10px color-mix(in srgb, var(--ui-edge) 35%, transparent);
+}
+button {
+  font: inherit; font-size: 14px; font-weight: 700; color: var(--ui-text); cursor: pointer; padding: 7px 14px;
+  background: var(--ui-facets), var(--ui-panel); border: 2px solid var(--ui-edge); border-radius: 7px; corner-shape: bevel;
+  box-shadow: inset 2px 2px 0 var(--ui-light), inset -2px -2px 0 color-mix(in srgb, var(--ui-edge) 28%, transparent);
+}
+button:hover { background: var(--ui-light); }
+button:active { box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ui-edge) 28%, transparent); }
+button:focus-visible { outline: 2px solid var(--ui-label); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: default; background: var(--ui-panel); }
+/* 景色の上に直接出す文字（白に濃いふち） */
+.outlined { color: var(--ui-label); text-shadow: 1px 1px 0 var(--ui-edge), -1px -1px 0 var(--ui-edge), 1px -1px 0 var(--ui-edge), -1px 1px 0 var(--ui-edge), 0 2px 3px var(--ui-edge); }
+.lack { color: var(--ui-ng); }
+.need small { color: var(--ui-textSub); }
+
+/* ---- マス: 暗い石のくぼみ ---- */
+.slot {
+  position: relative; width: 56px; height: 56px; display: grid; place-items: center; box-sizing: border-box;
+  background: var(--ui-facets-slot), var(--ui-slot); border: 2px solid var(--ui-edge); border-radius: 7px; corner-shape: bevel;
+  box-shadow: inset 3px 3px 0 color-mix(in srgb, var(--ui-edge) 40%, transparent), inset -2px -2px 0 color-mix(in srgb, var(--ui-light) 55%, transparent);
+}
+.slot img { width: 52px; height: 52px; }
+.slot .n { position: absolute; right: 4px; bottom: 1px; font-size: 13px; font-weight: 700; }
+.slot.on { border-color: var(--ui-label); outline: 2px solid var(--ui-edge); }
+.slot.picked { border-color: var(--ui-ok); }
+.slot .dur { position: absolute; left: 10%; bottom: 4px; height: 3px; border-radius: 2px; background: var(--ui-ok); }
+
+/* ---- 見本ビューア ---- */
+.viewer-hud { position: fixed; top: 16px; left: 16px; display: flex; flex-direction: column; gap: 6px; }
+.viewer-hud .title { font-weight: 700; font-size: 16px; }
+.viewer-hud .sub { font-size: 12px; color: var(--ui-textSub); }
+.viewer-hud .row { display: flex; gap: 8px; margin-top: 4px; }
+
+/* ---- タイトルと一時停止 ---- */
+.menu-back { position: fixed; inset: 0; display: grid; place-items: center; }
+.menu { display: flex; flex-direction: column; gap: 14px; padding: 22px 26px; min-width: 260px; max-width: calc(100vw - 64px); }
+.menu .title { font-weight: 700; font-size: 26px; }
+.menu .row { display: flex; gap: 10px; }
+.menu .row button { flex: 1; font-size: 16px; padding: 10px 14px; }
+.menu .titleBtns, .menu .pauseBtns { display: flex; flex-direction: column; gap: 10px; }
+.menu .pauseBtns > button { font-size: 16px; padding: 10px 14px; }
+.menu .sub { font-size: 12px; color: var(--ui-textSub); min-height: 1em; }
+.menu details { font-size: 13px; color: var(--ui-textSub); }
+.menu details summary { cursor: pointer; }
+.menu details .row { margin-top: 8px; }
+.menu details .row button { font-size: 13px; padding: 6px 10px; }
+.keys { display: grid; grid-template-columns: auto auto; gap: 4px 14px; font-size: 13px; color: var(--ui-textSub); }
+.keys b { color: var(--ui-text); font-weight: 700; text-align: right; }
+.keys .dev { grid-column: 1 / -1; margin-top: 4px; font-size: 11px; }
+.keys-panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; display: flex; flex-direction: column; gap: 8px; }
+.keys-panel .title { font-weight: 700; font-size: 15px; }
+.settingsBox { display: flex; flex-direction: column; gap: 8px; }
+.setting { display: grid; grid-template-columns: 7em 1fr 4.5em; align-items: center; gap: 8px; font-size: 13px; }
+.setting b { text-align: right; }
+.setting input[type=number] { width: 6em; font: inherit; }
+/* UI の大きさ（設定） */
+.status-hud, .clock, .hotbar, .corner, .inv, .build-menu, .keys-panel, .menu, .death { zoom: var(--ui-zoom, 1); }
+
+/* ---- 遊び中: 照準、枠、ヒント ---- */
+.play-hud { position: fixed; inset: 0; pointer-events: none; }
+/* 照準: 細い十字 */
+.crosshair { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; opacity: .9; }
+.crosshair::before, .crosshair::after { content: ''; position: absolute; background: var(--ui-label); box-shadow: 0 0 0 .75px var(--ui-edge); }
+.crosshair::before { left: 0; top: 6.25px; width: 14px; height: 1.5px; }
+.crosshair::after { top: 0; left: 6.25px; width: 1.5px; height: 14px; }
+/* 右下: 説明・知らせはここにまとめる（上から 知らせ・建築・照準の先） */
+.corner { position: fixed; right: 16px; bottom: 84px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
+.corner .toasts { order: 1; }
+.corner .build-hud { order: 2; }
+.corner .aim-name { order: 3; }
+.aim-name { font-size: 13px; padding: 4px 10px; }
+.aim-name b { margin-left: 4px; padding: 0 5px; border: 1px solid var(--ui-line); border-radius: 4px; font-size: 11px; }
+
+/* ---- HP と「おなか」（左上）、時計（右上）、ダメージ ---- */
+.status-hud { position: fixed; left: 16px; top: 14px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
+.gauge { display: flex; align-items: center; gap: 6px; }
+.gauge img { width: 28px; height: 28px; flex: none; }
+.gauge .track { width: min(300px, 50vw); }
+.gauge.food .track, .gauge.water .track { width: min(190px, 32vw); }
+.gauge .track { box-sizing: border-box; flex: none; height: 18px; padding: 2px; border: 2px solid var(--ui-edge); border-radius: 9px; corner-shape: bevel;
+  background: color-mix(in srgb, var(--ui-slot) 85%, transparent); box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ui-edge) 30%, transparent); }
+.gauge .track i { display: block; height: 100%; border-radius: 5px; corner-shape: bevel; transition: width .3s;
+  background:
+    linear-gradient(to top right, transparent calc(50% - 1px), color-mix(in srgb, var(--ui-edge) 30%, transparent) 50%, transparent calc(50% + 1px)),
+    linear-gradient(to bottom right, transparent calc(50% - 1px), color-mix(in srgb, var(--ui-edge) 30%, transparent) 50%, transparent calc(50% + 1px)),
+    linear-gradient(to bottom, color-mix(in srgb, var(--fill) 70%, var(--ui-light)), var(--fill) 55%, color-mix(in srgb, var(--fill) 80%, var(--ui-edge))); }
+.gauge.hp { --fill: var(--ui-hp); }
+.gauge.food { --fill: var(--ui-hunger); }
+.gauge.water { --fill: var(--ui-water); }
+.gauge.breath { --fill: var(--ui-water); }
+.gauge.breath .track { width: min(140px, 24vw); }
+.gauge[hidden] { display: none; }
+.underwater { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .2s; background: color-mix(in srgb, var(--ui-water) 40%, transparent); }
+.underwater.on { opacity: 1; }
+.gauge.low .track { border-color: var(--ui-ng); animation: gauge-low 1s ease-in-out infinite alternate; }
+@keyframes gauge-low { to { opacity: .55; } }
+.clock { position: fixed; right: 16px; top: 16px; display: flex; gap: 10px; align-items: baseline; padding: 6px 12px; font-weight: 700; font-size: 14px; pointer-events: none; }
+.clock .phase { font-size: 12px; color: var(--ui-textSub); }
+.hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 120px 30px var(--ui-hp); }
+.sleep-fade { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: #000; transition: opacity 1s; }
+.sleep-fade.on { opacity: 1; }
+.hurt.on { animation: hurt .6s ease-out; }
+@keyframes hurt { from { opacity: .8; } to { opacity: 0; } }
+
+/* ---- 建築 ---- */
+.build-hud { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; padding: 6px 12px; }
+.build-hud .title { font-weight: 700; font-size: 14px; }
+.build-hud .cost { font-size: 13px; display: flex; gap: 10px; }
+.build-hud .sub { font-size: 12px; color: var(--ui-textSub); }
+.build-hud .why { font-size: 12px; color: var(--ui-ng); font-weight: 700; }
+.build-menu { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box; }
+.build-menu .title { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+.build-menu .sub { font-size: 12px; color: var(--ui-textSub); margin-top: 8px; }
+.build-menu .cards { display: grid; grid-template-columns: repeat(auto-fill, 112px); gap: 8px; width: min(616px, calc(100vw - 64px)); }
+.build-menu .card { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; }
+.build-menu .card img { width: 72px; height: 72px; }
+.build-menu .card .name { font-weight: 700; font-size: 13px; }
+.build-menu .card .need { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; }
+.build-menu .card.short { opacity: .55; }
+.build-menu .card[hidden] { display: none; }
+.build-menu .need .lack { color: var(--ui-ng); }
+.build-menu .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.build-menu .tab { padding: 6px 14px; font-weight: 700; }
+.build-menu .tab.on { background: var(--ui-light); box-shadow: inset 0 -3px 0 var(--ui-hunger); }
+.build-menu .tab.remove { margin-left: auto; color: var(--ui-ng); }
+
+/* ---- 手に持つ列 ---- */
+.hotbar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.hotbar .row { display: flex; gap: 6px; }
+.hotbar .slot .n { color: var(--ui-label); text-shadow: 1px 1px 0 var(--ui-edge), -1px -1px 0 var(--ui-edge); }
+.hotbar .slot .key { position: absolute; left: 4px; top: 1px; font-size: 10px; font-weight: 700; color: var(--ui-label); text-shadow: 1px 1px 0 var(--ui-edge); }
+.hotbar .held-name { font-size: 13px; font-weight: 700; opacity: 0; transition: opacity .3s; min-height: 1em; }
+.hotbar.naming .held-name { opacity: 1; }
+
+/* ---- 持ち物画面（右に寄せる。上にタブ） ---- */
+/* 持ち物の窓はいつも真ん中（ui.md「設備の窓」）。設備の窓はその右に出す */
+.inv { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; gap: 10px;
+  width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; }
+.inv .recipes { max-height: 56vh; overflow: auto; padding-right: 4px; }
+.inv .tabs { display: flex; gap: 6px; }
+.inv .tab { width: 60px; height: 46px; padding: 0; display: grid; place-items: center; }
+.inv .tab img { width: 38px; height: 38px; }
+.inv .tab.on { background: var(--ui-light); border-color: var(--ui-edge); box-shadow: inset 0 -3px 0 var(--ui-hunger); }
+.inv .title { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+.inv .sub { font-size: 12px; color: var(--ui-textSub); margin: 8px 0 4px; }
+.inv .grid { display: grid; grid-template-columns: repeat(6, 56px); gap: 6px; }
+.inv .vitals { font-size: 13px; font-weight: 700; display: flex; gap: 12px; }
+.inv .chest-btns { display: flex; gap: 8px; margin: 8px 0 4px; }
+.drag-ghost { position: fixed; width: 52px; height: 52px; pointer-events: none; z-index: 10; transform: translate(-50%, -50%); }
+.slot.drag-from { opacity: .4; }
+.inv .slot { cursor: pointer; }
+.inv .slot .n { color: var(--ui-label); text-shadow: 1px 1px 0 var(--ui-edge), -1px -1px 0 var(--ui-edge); }
+.inv .chest { margin-bottom: 12px; }
+.inv .recipes { display: flex; flex-direction: column; gap: 8px; width: 390px; max-width: 100%; }
+.recipe { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 2px solid var(--ui-edge); border-radius: 7px; corner-shape: bevel;
+  background: color-mix(in srgb, var(--ui-light) 45%, transparent); }
+.recipe > img { width: 52px; height: 52px; }
+.recipe.cant { opacity: .55; }
+.recipe .info { flex: 1; }
+.recipe .name { font-weight: 700; font-size: 14px; }
+.recipe .need { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+.recipe .need img { width: 26px; height: 26px; vertical-align: middle; }
+.recipe .need .lack { color: var(--ui-ng); }
+.recipe .station { font-size: 11px; color: var(--ui-textSub); }
+.recipe .station.lack { color: var(--ui-ng); }
+
+/* ---- 手に入れたとき（右下） ---- */
+.toasts { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.toast { font-size: 14px; padding: 6px 12px; animation: toast-in .15s ease-out; }
+.toast img { width: 24px; height: 24px; vertical-align: middle; margin-right: 4px; }
+.toast .sub { font-size: 12px; color: var(--ui-textSub); margin-left: 4px; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* ---- 倒れた画面 ---- */
+.death-back { position: fixed; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--ui-edge) 45%, transparent); }
+.death { display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; padding: 22px 26px; max-width: min(360px, calc(100vw - 64px)); }
+.death .title { font-weight: 700; font-size: 24px; }
+.death .sub { font-size: 13px; color: var(--ui-textSub); }
+.death button { font-size: 16px; padding: 10px 28px; }
+
+/* ロード画面（ui.md「ロード画面」）: 夜の海の色に、石の板の模様をうすく重ねる */
+.loading { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--ui-facets-slot), linear-gradient(180deg, var(--ui-loadTop), var(--ui-loadBottom)); background-blend-mode: soft-light, normal; }
+.loading[hidden] { display: none; }
+.loading-box { width: min(420px, 80vw); text-align: center; }
+.loading-name { font-size: 46px; font-weight: 800; letter-spacing: .12em; }
+.loading-sub { margin: 4px 0 22px; color: var(--ui-light); font-size: 14px; letter-spacing: .3em; opacity: .85; }
+.loading-bar { height: 22px; padding: 4px; }
+.loading-fill { height: 100%; width: 0; background: var(--ui-loadFill); border-radius: 4px; corner-shape: bevel; transition: width .2s; }
+.loading-step { margin-top: 10px; color: var(--ui-light); font-size: 13px; min-height: 1.2em; }
+.loading-tip { position: absolute; bottom: 36px; color: var(--ui-light); font-size: 13px; opacity: .8; }
+
+/* ---- 設備の窓（ui.md「設備の窓」）: 持ち物の窓の右。石の板とマスは持ち物と同じ ---- */
+.station-win { position: absolute; left: calc(100% + 14px); top: 0; display: flex; flex-direction: column; gap: 12px; min-width: 250px; width: max-content; }
+.station-win[hidden] { display: none; }
+.st-head { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 2px solid color-mix(in srgb, var(--ui-edge) 25%, transparent); }
+.st-head > img { width: 54px; height: 54px; }
+.st-head .title { margin-bottom: 2px; }
+.st-state { font-size: 12px; font-weight: 700; color: var(--ui-textSub); }
+.station-win.burning .st-state { color: color-mix(in srgb, var(--ui-loadFill) 75%, var(--ui-edge)); }
+.st-lane { display: flex; align-items: center; gap: 10px; }
+/* 進み具合の矢印: 石の溝に、たき火の色がたまっていく。縁は濃い線 */
+.st-arrow { width: 96px; height: 30px; filter: drop-shadow(2px 0 0 var(--ui-edge)) drop-shadow(-2px 0 0 var(--ui-edge)) drop-shadow(0 2px 0 var(--ui-edge)) drop-shadow(0 -2px 0 var(--ui-edge)); }
+.st-arrow .shape { width: 100%; height: 100%; background: var(--ui-facets-slot), var(--ui-slot);
+  clip-path: polygon(0 32%, 66% 32%, 66% 4%, 100% 50%, 66% 96%, 66% 68%, 0 68%); }
+.st-arrow i { display: block; height: 100%; width: 0; transition: width .15s linear;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--ui-loadFill) 70%, var(--ui-light)), var(--ui-loadFill) 55%, color-mix(in srgb, var(--ui-loadFill) 80%, var(--ui-edge))); }
+.st-fuel { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
+.gauge.fuel { --fill: var(--ui-loadFill); }
+.gauge.fuel .track { width: 150px; }
+.station-win:not(.burning) .gauge.fuel img { filter: grayscale(.8) brightness(.9); }
+.st-note { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--ui-textSub); }
+.st-note img { width: 22px; height: 22px; vertical-align: middle; margin-right: 2px; }
+.slot .role { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--ui-light); opacity: .55; pointer-events: none; }
+.slot .role[hidden] { display: none; }
+.station-win .recipes { width: 360px; }
+
+/* 戦闘の表示（ui.md「戦闘の表示」） */
+.combat-hud { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.combat-hud > * { position: absolute; left: 0; top: 0; }
+.dmg-num { font: 800 20px sans-serif; color: var(--ui-dmg); text-shadow: 0 0 3px var(--ui-textShadow), 0 1px 0 var(--ui-textShadow); white-space: nowrap; }
+.dmg-num.weak { font-size: 28px; color: var(--ui-dmgWeak); }
+.hit-mark { left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; opacity: 0; }
+.hit-mark::before, .hit-mark::after { content: ''; position: absolute; left: 9px; top: -2px; width: 2px; height: 24px; background: var(--ui-hitMark); box-shadow: 0 0 0 .75px var(--ui-edge); transform: rotate(45deg); }
+.hit-mark::after { transform: rotate(-45deg); }
+.hit-mark.weak { width: 30px; height: 30px; margin: -15px 0 0 -15px; }
+.hit-mark.weak::before, .hit-mark.weak::after { left: 13.5px; height: 34px; width: 3px; background: var(--ui-hitWeak); }
+.hit-mark.on { animation: hit-mark .15s linear; }
+@keyframes hit-mark { from { opacity: 1; } 70% { opacity: 1; } to { opacity: 0; } }
+.hurt-arc { left: 50%; top: 50%; width: 180px; height: 180px; border-radius: 50%; border: 5px solid transparent; border-top-color: var(--ui-hurtArc); filter: drop-shadow(0 0 2px var(--ui-hurtArc)); }
+.ammo { left: auto; top: auto; right: 28px; bottom: 26px; font: 800 22px sans-serif; color: var(--ui-label); text-shadow: 0 0 3px var(--ui-textShadow); text-align: center; zoom: var(--ui-zoom, 1); }
+.ammo i { display: block; height: 3px; margin-top: 2px; background: var(--ui-label); }
+.mob-mark { font: 900 26px sans-serif; text-shadow: 0 0 3px var(--ui-textShadow), 0 2px 0 var(--ui-textShadow); }
+.mob-mark.aware { color: var(--ui-aware); }
+.mob-mark.alert { color: var(--ui-alert); }
+.mob-mark.sleep { color: var(--ui-sleep); font-size: 20px; }
+.gauge.stamina { --fill: var(--ui-stamina); }
+.gauge.stamina .track { width: min(150px, 26vw); height: 12px; }
+.gauge.stamina.full { opacity: .45; }

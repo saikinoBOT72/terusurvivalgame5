@@ -1,0 +1,208 @@
+// 遠距離武器（docs/rules/weapons.md「遠距離武器」）: スリングも銃も同じ仕組み。違いは items.js の ranged の値だけ
+// 弾は物として飛び、重力で落ちる。スリングの石は目に見え、銃の弾は見せずに軌道の線を引く（tracerFx.js）。遠いほどばらつきで当たりにくく、距離で弱くなる（falloff）
+// 当たる物: 敵（combat.rayMob）、スリングの的（巣の卵・ヤシの実）、地形・水、木・岩・建築パーツ（blockers）
+import * as THREE from 'three';
+import { P } from '../style/palette.js';
+import { makeMesh } from '../style/lowpoly.js';
+import { ITEMS } from '../survival/items.js';
+import { itemGeometry } from '../survival/itemShapes.js';
+import { hitCylinder } from '../world/resources.js';
+import { createTracerFx } from './tracerFx.js';
+
+const G = 9.8, LIFE = 3, STEP = 0.25; // 重力、弾が消えるまでの秒、地形・木を調べる間かく（m）
+const AIM_ZOOM = 1 / 0.75; // 覗き込むと視野が 0.75 倍
+const MIN_POWER = 0.4; // スリングを少しだけ引いたときの強さ
+const TRACE_MAX = 120, TRACE_DT = 1 / 60; // 軌道の線の最長（m）と、先に当たる所を調べる刻み（秒）
+
+export const rangedOf = (id) => ITEMS[id]?.ranged ?? null;
+
+// 距離の減り方: [ここまで 100%, ここで最小, 最小の倍率]
+export function falloff([near, far, min], d) {
+  if (d <= near) return 1;
+  if (d >= far) return min;
+  return 1 - (1 - min) * (d - near) / (far - near);
+}
+
+export function createRanged({ scene, camera, inventory, combat, player, hud, blockers = () => [], onTarget = () => {}, onMessage = () => {} }) {
+  let world = null, draw = -1, cool = 0, reload = null, aiming = false;
+  const shots = [];
+  const o = new THREE.Vector3(), d = new THREE.Vector3(), up = new THREE.Vector3(), right = new THREE.Vector3(), q = new THREE.Vector3();
+  const tracer = createTracerFx(scene);
+  const mz = new THREE.Vector3();
+  const muzzle = new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), new THREE.MeshBasicMaterial({ color: P.fx.muzzle[1] }));
+  muzzle.visible = false;
+  scene.add(muzzle);
+  let muzzleT = 0;
+
+  // ばらつき: 照準から deg 度の円の中のどこか
+  function spreadDir(dir, deg) {
+    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * THREE.MathUtils.degToRad(deg);
+    up.set(0, 1, 0);
+    right.crossVectors(dir, up).normalize();
+    up.crossVectors(right, dir).normalize();
+    return dir.clone().addScaledVector(right, Math.cos(a) * Math.tan(r)).addScaledVector(up, Math.sin(a) * Math.tan(r)).normalize();
+  }
+
+  function fire(id, power) {
+    const R = rangedOf(id);
+    camera.getWorldPosition(o);
+    camera.getWorldDirection(d);
+    const deg = R.spread[aiming ? 2 : player.state.moving ? 1 : 0];
+    const dir = spreadDir(d, deg);
+    const mesh = R.mag ? null : makeMesh(itemGeometry(R.ammo), { shadow: false }); // 銃の弾は見せない
+    if (mesh) { mesh.scale.setScalar(0.6); scene.add(mesh); }
+    const start = o.clone().addScaledVector(d, 0.4);
+    const v = dir.multiplyScalar(R.speed * power);
+    shots.push({ id, R, power, p: start, from: start.clone(), v, t: 0, mesh, travel: 0 });
+    if (R.recoil) player.kick(THREE.MathUtils.degToRad(R.recoil));
+    if (R.mag) { // 銃口の火と、銃口から先に当たる所までの軌道の線
+      if (!player.arms.muzzleWorld(mz)) {
+        right.crossVectors(d, up.set(0, 1, 0)).normalize();
+        mz.copy(o).addScaledVector(d, 0.7).addScaledVector(right, aiming ? 0 : 0.18).addScaledVector(up, aiming ? -0.08 : -0.15);
+      }
+      muzzle.position.copy(mz).addScaledVector(d, 0.03);
+      muzzle.visible = true; muzzleT = 0.05;
+      tracer.fire(mz, traceEnd(start, v, R));
+      player.arms.gunFire(!held()?.mag);
+    }
+    cool = R.rate;
+    const broke = inventory.wear();
+    if (broke) onMessage(`${broke}が壊れた`);
+  }
+
+  // 撃った瞬間に、同じ飛び方で先に当たる所を調べる（軌道の線の終わり。当たりは飛ぶ弾で今どおり調べる）
+  function traceEnd(start, v0, R) {
+    const s = { p: start.clone() }, vel = v0.clone(), dir = new THREE.Vector3();
+    for (let t = 0, dist = 0; t < LIFE && dist < TRACE_MAX && world; t += TRACE_DT) {
+      vel.y -= G * R.drop * TRACE_DT;
+      const len = vel.length() * TRACE_DT;
+      dir.copy(vel).normalize();
+      const h = firstHit(s, dir, len);
+      if (h) return s.p.addScaledVector(dir, h.dist);
+      s.p.addScaledVector(dir, len);
+      dist += len;
+    }
+    return s.p;
+  }
+
+  // 弾が 1 フレームで進む線の上で、一番先に当たる物（なければ null）
+  function firstHit(s, dir, len) {
+    let best = null;
+    const mob = combat.rayMob(s.p, dir, len);
+    if (mob) best = { dist: mob.dist, mob };
+    for (const t of world.slingTargets ?? []) {
+      if (!t.ready) continue;
+      const h = hitCylinder(s.p, dir, t);
+      if (h !== null && h <= len && (!best || h < best.dist)) best = { dist: h, target: t };
+    }
+    const T = world.terrain;
+    for (let k = STEP; k < (best?.dist ?? len) + STEP; k += STEP) { // 地形・水・木・岩・パーツ
+      const kk = Math.min(k, len);
+      q.copy(s.p).addScaledVector(dir, kk);
+      if (T.solidAt(q.x, q.y, q.z) || (q.y <= T.waterLevel && T.floorAt(q.x, q.y, q.z) < T.waterLevel)) return { dist: kk, wall: true };
+      if (blockers(q.x, q.z, 0.04).some((c) => q.y < c.top && q.y > (c.bottom ?? -Infinity))) return { dist: kk, wall: true };
+      if (kk >= len) break;
+    }
+    return best;
+  }
+
+  function hit(s, h, dir) {
+    if (h.mob) {
+      const k = falloff(s.R.falloff, s.travel + h.dist);
+      combat.damageMob(h.mob.m, s.R.dmg * s.power * k, { weak: h.mob.weak, point: h.mob.point, dir, knock: s.R.knock ?? 0.2, src: ITEMS[s.id].name });
+    } else if (h.target) onTarget(h.target);
+  }
+
+  const held = () => inventory.held();
+  const ammoCount = (R) => inventory.count?.(R.ammo) ?? inventory.slots.reduce((n, x) => n + (x?.id === R.ammo ? x.n : 0), 0);
+
+  return {
+    setWorld(w) { world = w; for (const s of shots) s.mesh?.removeFromParent(); shots.length = 0; tracer.clear(); },
+    // 左を押した: スリングは引き始める、銃は撃つ
+    press(id) {
+      const R = rangedOf(id);
+      if (!R || !world || cool > 0 || reload) return;
+      if (R.mag) {
+        const slot = held();
+        if (!slot.mag) { if (!this.reload(id)) onMessage(`${ITEMS[R.ammo].name}が必要`); return; }
+        slot.mag--;
+        inventory.changed();
+        fire(id, 1);
+        return;
+      }
+      if (!ammoCount(R)) { onMessage(`${ITEMS[R.ammo].name}が必要`); return; }
+      draw = 0;
+    },
+    // 左を離した: 引いた分の強さで撃つ
+    release(id) {
+      const R = rangedOf(id);
+      if (!R || draw < 0) return;
+      const k = R.draw ? Math.min(1, draw / R.draw) : 1;
+      draw = -1;
+      player.arms.setPose('charge', 0);
+      if (!inventory.remove(R.ammo, 1)) { onMessage(`${ITEMS[R.ammo].name}が必要`); return; }
+      player.arms.swing('fling', 0.3, { heavy: true }); // 引いた所から前へ振り出す
+      fire(id, MIN_POWER + (1 - MIN_POWER) * k);
+    },
+    // R: 込め直し（銃）
+    reload(id) {
+      const R = rangedOf(id), slot = held();
+      if (!R?.mag || reload || (slot.mag ?? 0) >= R.mag || !ammoCount(R)) return false;
+      reload = { t: 0, slot, R };
+      player.arms.gunReload(R.reload); // リロードの動き（avatar/fpGun.js）
+      return true;
+    },
+    // 右を押している間、覗き込む（aim のある武器）
+    aim(id, on) {
+      on = on && !!rangedOf(id)?.aim;
+      if (on === aiming) return;
+      aiming = on;
+      camera.zoom = on ? AIM_ZOOM : 1;
+      camera.updateProjectionMatrix();
+      player.arms.setPose('aim', on ? 1 : 0);
+    },
+    get aiming() { return aiming; },
+    // 照準の下の線（攻撃間隔）: 込め直しの進み、なければ連射の間の満ち具合。満ちていれば null
+    cdFrac(id) {
+      const R = rangedOf(id);
+      if (!R) return null;
+      if (reload) return reload.t / reload.R.reload;
+      return cool > 0 ? 1 - cool / R.rate : null;
+    },
+    get tracers() { return tracer.count; },
+    get drawing() { return draw >= 0; },
+    update(dt, id) {
+      const R = rangedOf(id);
+      cool = Math.max(0, cool - dt);
+      if (!R) { draw = -1; if (aiming) this.aim(id, false); }
+      if (draw >= 0 && R) { draw += dt; player.arms.setPose('charge', Math.min(1, draw / (R.draw || 1))); }
+      if (reload) { // 込め直し: 持ち替えたら取りやめ
+        if (held() !== reload.slot) reload = null;
+        else if ((reload.t += dt) >= reload.R.reload) {
+          const n = Math.min(reload.R.mag - (reload.slot.mag ?? 0), ammoCount(reload.R));
+          inventory.remove(reload.R.ammo, n);
+          reload.slot.mag = (reload.slot.mag ?? 0) + n;
+          inventory.changed();
+          reload = null;
+        }
+      }
+      if (aiming || draw >= 0) player.state.slow = Math.min(player.state.slow, 0.5);
+      hud.setAmmo(R?.mag ? `${held()?.mag ?? 0}/${R.mag}` : null, reload ? reload.t / reload.R.reload : null);
+      if ((muzzleT -= dt) <= 0) muzzle.visible = false;
+      tracer.update(dt);
+
+      for (let i = shots.length - 1; i >= 0; i--) {
+        const s = shots[i];
+        s.t += dt;
+        s.v.y -= G * s.R.drop * dt;
+        const len = s.v.length() * dt, dir = s.v.clone().normalize();
+        const h = world && firstHit(s, dir, len);
+        if (h) hit(s, h, dir);
+        if (h || s.t > LIFE) { s.mesh?.removeFromParent(); shots.splice(i, 1); continue; }
+        s.p.addScaledVector(dir, len);
+        s.travel += len;
+        if (s.mesh) { s.mesh.position.copy(s.p); s.mesh.lookAt(q.copy(s.p).sub(dir)); }
+      }
+    },
+  };
+}

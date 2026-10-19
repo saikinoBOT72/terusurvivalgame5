@@ -1,0 +1,80 @@
+<h2 class="sr-only">島を上から見た地図。今いる敵と新しく置く敵を、選ぶ・動かす・変える・消すことができます。</h2>
+<style>
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 8px}
+.row label,.cap{font-size:13px;color:var(--text-secondary)}
+.lg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--text-secondary);margin:6px 0}
+.lg span{display:inline-flex;align-items:center;gap:4px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+.box{background:var(--surface-1);border-radius:8px;padding:8px 12px;margin:8px 0;font-size:13px}
+.nit input{width:52px}
+#chg{font-size:13px;line-height:1.6;margin:6px 0}
+</style>
+<div class="row"><span class="cap">新しく置く:</span>
+<select id="kind"><option value="drone">ブンブン</option><option value="crab">カニ</option><option value="dog" selected>ガラクタ犬</option><option value="mining">採掘ロボ</option><option value="camera">監視カメラ</option><option value="gangi">ガンギ</option></select>
+<select id="mode"><option value="guard">いつもいる</option><option value="sleep">寝ている</option><option value="fake">死んだふり</option><option value="visit">夜に来る</option></select>
+<select id="n"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select>
+<label><input type="checkbox" id="showSpot" checked> スポット番号</label></div>
+<div style="position:relative;max-width:600px">
+<canvas id="cv" width="960" height="960" style="width:100%;border-radius:8px;cursor:crosshair;display:block;touch-action:none"></canvas>
+<div id="tip" style="position:absolute;left:8px;top:8px;font-size:12px;background:var(--surface-2);color:var(--text-primary);padding:2px 8px;border-radius:6px;border:0.5px solid var(--border)">空いた所をクリックで置く・敵をクリックで選ぶ・ドラッグで動かす</div>
+</div>
+<div class="box" id="ed"><span class="cap">敵を選ぶと、ここで種類・動き・数を変えたり消したりできる</span></div>
+<div class="box nit" id="night"></div>
+<div class="lg" id="lgz"></div><div class="lg" id="lgk"></div>
+<div id="chg"></div>
+<div class="row"><button id="send">この変更を送る ↗</button><button id="reset">元に戻す</button><span id="err" style="font-size:13px;color:var(--text-danger)"></span></div>
+<script>
+const D=__DATA__;
+const SZ=D.size,ST=D.step,N=SZ/ST,HALF=SZ/2;
+const dec=s=>{let o=[],num='';for(const c of s){if(c>='0'&&c<='9')num+=c;else{const k=num?+num:1;for(let i=0;i<k;i++)o.push(c);num='';}}return o;};
+const Z=dec(D.ZR),H=dec(D.HR).map(c=>c==='.'?-1:c.charCodeAt(0)-97);
+const ZC={'~':[133,183,235],B:[250,199,117],L:[240,190,150],M:[93,202,165],G:[151,196,89],F:[99,153,34],D:[59,109,17],K:[192,221,151],r:[55,138,221],P:[24,95,165],Q:[180,178,169],C:[216,140,100],H:[136,135,128],S:[95,94,90]};
+const ZN={B:'浜',L:'入り江',M:'湿地',G:'草原と丘',F:'林',D:'深い森',K:'見晴らしの丘',r:'川',P:'滝つぼ',Q:'岩場',C:'峡谷',H:'高台',S:'海食崖','~':'海'};
+const KC={drone:'#0F6E56',crab:'#D85A30',dog:'#A32D2D',mining:'#534AB7',camera:'#993556',gangi:'#2C2C2A'};
+const KN={drone:'ブンブン',crab:'カニ',dog:'ガラクタ犬',mining:'採掘ロボ',camera:'監視カメラ',gangi:'ガンギ'};
+const MN={guard:'いつもいる',sleep:'寝ている',fake:'死んだふり',visit:'夜に来る'};
+const SP=D.SP,spotOf=n=>SP.find(s=>s[0]===n);
+const init=()=>D.OLD.map((o,i)=>{const dup=D.OLD.slice(0,i).filter(p=>p[2]&&p[2]===o[2]).length,x=o[5]+dup*7,z=o[6];return{row:o[0],kind:o[1],spot:o[2],n:o[3],mode:o[4],x,z,orig:{kind:o[1],n:o[3],mode:o[4],x,z}};});
+let items=init(),removed=[],sel=null,drag=null;
+const cv=document.getElementById('cv'),g=cv.getContext('2d'),R=cv.width/SZ;
+const base=document.createElement('canvas');base.width=base.height=N;const bg=base.getContext('2d'),img=bg.createImageData(N,N);
+for(let j=0;j<N;j++)for(let i=0;i<N;i++){const k=j*N+i,c=ZC[Z[k]]||ZC['~'];let f=1;const h=H[k];if(h>=0){const hn=j>0&&i>0?H[k-N-1]:h;f=1+(h-(hn<0?0:hn))*-0.12+h*0.025;f=Math.max(0.6,Math.min(1.35,f));}else f=Z[k]==='~'?1:0.9;img.data[k*4]=Math.min(255,c[0]*f);img.data[k*4+1]=Math.min(255,c[1]*f);img.data[k*4+2]=Math.min(255,c[2]*f);img.data[k*4+3]=255;}
+bg.putImageData(img,0,0);
+const P=(x,z)=>[(x+HALF)*R,(z+HALF)*R],FS=8+R*1.5;
+const zoneAt=(x,z)=>{const i=Math.floor((x+HALF)/ST),j=Math.floor((z+HALF)/ST);return i<0||j<0||i>=N||j>=N?'~':Z[j*N+i];};
+const changed=it=>!it.orig||['kind','n','mode','x','z'].some(k=>it[k]!==it.orig[k]);
+const rad=it=>(3.5+it.n*0.4)*R;
+function draw(){g.imageSmoothingEnabled=false;g.drawImage(base,0,0,cv.width,cv.height);
+g.strokeStyle='rgba(255,255,255,0.25)';g.lineWidth=1;for(let v=-Math.floor(HALF/100)*100;v<HALF;v+=100){const[a]=P(v,0),[,b]=P(0,v);g.beginPath();g.moveTo(a,0);g.lineTo(a,cv.height);g.moveTo(0,b);g.lineTo(cv.width,b);g.stroke();}
+if(document.getElementById('showSpot').checked)for(const s of SP){const[px,py]=P(s[2],s[3]);g.fillStyle='rgba(0,0,0,0.55)';g.font=`500 ${FS}px sans-serif`;g.textAlign='left';g.textBaseline='bottom';g.fillText(s[0],px+2.5*R,py-1.5*R);}
+for(const it of items){if(it.orig&&(it.x!==it.orig.x||it.z!==it.orig.z)){const[a,b]=P(it.orig.x,it.orig.z),[c,d]=P(it.x,it.z);g.setLineDash([4,4]);g.strokeStyle='rgba(0,0,0,0.5)';g.lineWidth=1.5;g.beginPath();g.moveTo(a,b);g.lineTo(c,d);g.stroke();g.setLineDash([]);}
+const[px,py]=P(it.x,it.z),r=rad(it);g.beginPath();g.arc(px,py,r,0,7);g.fillStyle=KC[it.kind];g.fill();g.lineWidth=(it===sel?4:changed(it)?3:1.5)*R/2;g.strokeStyle=it===sel?'#185FA5':changed(it)?'#FAC775':'#fff';g.stroke();
+g.fillStyle='#fff';g.font=`500 ${FS}px sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(it.mode==='sleep'?'z':it.mode==='fake'?'x':it.mode==='visit'?'v':it.n,px,py+0.5);}}
+const lgz=document.getElementById('lgz'),zs=new Set(Z);for(const k of Object.keys(ZN))if(k!=='~'&&zs.has(k))lgz.innerHTML+=`<span><i class="sw" style="background:rgb(${ZC[k]})"></i>${ZN[k]}</span>`;
+const lgk=document.getElementById('lgk');for(const k in KN)lgk.innerHTML+=`<span><i class="sw" style="background:${KC[k]};border-radius:50%"></i>${KN[k]}</span>`;lgk.innerHTML+='<span>数字=数・z=寝ている・x=死んだふり・v=夜に来る・黄の縁=変えた・青の縁=選択中</span>';
+const nightEl=document.getElementById('night');nightEl.innerHTML='<span class="cap">夜に区域へ出る敵（同時の数）:</span> '+D.NIGHT.map(e=>`<label>${KN[e[1]]}${e[4]>1?'（組×'+e[4]+'）':''}・${[...e[2]].map(c=>ZN[c]||c).join('・')} <input type="number" min="0" max="10" step="1" id="night${e[0]}" value="${e[3]}"></label>`).join(' ');
+const W=e=>{const b=cv.getBoundingClientRect();return[(e.clientX-b.left)/b.width*SZ-HALF,(e.clientY-b.top)/b.height*SZ-HALF];};
+const hitAt=(x,z)=>{let best=null,bd=1e9;for(const it of items){const d=Math.hypot(it.x-x,it.z-z);if(d<rad(it)/R+2&&d<bd){bd=d;best=it;}}return best;};
+const tip=document.getElementById('tip'),err=document.getElementById('err');
+const opt=(o,v)=>Object.entries(o).map(([k,n])=>`<option value="${k}"${k===v?' selected':''}>${n}</option>`).join('');
+const where=it=>it.orig?(it.spot?`行${it.row}・スポット${it.spot} ${spotOf(it.spot)[1]}`:`行${it.row}・決まった場所`):'新しく置いた';
+function editor(){const ed=document.getElementById('ed');if(!sel){ed.innerHTML='<span class="cap">敵を選ぶと、ここで種類・動き・数を変えたり消したりできる</span>';return;}
+ed.innerHTML=`<div class="row" style="margin:0"><span class="cap">${where(sel)}・x ${sel.x}, z ${sel.z}</span><select id="ek">${opt(KN,sel.kind)}</select><select id="em">${opt(MN,sel.mode)}</select><select id="en">${[1,2,3,4,5,6].map(v=>`<option${v===sel.n?' selected':''}>${v}</option>`).join('')}</select><button id="edel">消す</button>${sel.orig&&changed(sel)?'<button id="erev">この敵を戻す</button>':''}</div>`;
+ed.querySelector('#ek').onchange=e=>{sel.kind=e.target.value;upd();};ed.querySelector('#em').onchange=e=>{sel.mode=e.target.value;upd();};ed.querySelector('#en').onchange=e=>{sel.n=+e.target.value;upd();};
+ed.querySelector('#edel').onclick=()=>{if(sel.orig)removed.push(sel);items=items.filter(i=>i!==sel);sel=null;upd();};
+const rv=ed.querySelector('#erev');if(rv)rv.onclick=()=>{Object.assign(sel,sel.orig);upd();};}
+const desc=it=>`${KN[it.kind]}×${it.n}（${MN[it.mode]}）x ${it.x}, z ${it.z}`;
+const od=it=>`${where(it)} ${KN[it.orig.kind]}×${it.orig.n}（${MN[it.orig.mode]}）`;
+function changes(){const L=[];for(const it of removed)L.push(`- 消す: ${od(it)}`);
+for(const it of items){if(!it.orig)L.push(`- 足す: ${it.kind} ${desc(it)}・${ZN[zoneAt(it.x,it.z)]}`);else if(changed(it))L.push(`- 変える: ${od(it)} → ${it.kind} ${desc(it)}${it.x!==it.orig.x||it.z!==it.orig.z?'（場所を移す・'+ZN[zoneAt(it.x,it.z)]+'）':''}`);}
+for(const e of D.NIGHT){const v=+document.getElementById('night'+e[0]).value;if(v!==e[3])L.push(`- 夜の${KN[e[1]]}（行${e[0]}）: ${e[3]} → ${v}`);}return L;}
+function upd(){draw();editor();const L=changes();document.getElementById('chg').innerHTML=L.length?'<span class="cap">変更（'+L.length+'）</span><br>'+L.map(s=>s.slice(2)).join('<br>'):'';}
+cv.addEventListener('pointerdown',e=>{const[x,z]=W(e);err.textContent='';const h=hitAt(x,z);if(h){sel=h;drag=h;cv.setPointerCapture(e.pointerId);upd();}else{if(zoneAt(x,z)==='~'){err.textContent='海には置けない';return;}const it={kind:kind.value,mode:mode.value,n:+n.value,x:Math.round(x),z:Math.round(z)};items.push(it);sel=it;upd();}});
+cv.addEventListener('pointermove',e=>{const[x,z]=W(e);if(drag){if(zoneAt(x,z)!=='~'){drag.x=Math.round(x);drag.z=Math.round(z);draw();}return;}let t=`x ${Math.round(x)}, z ${Math.round(z)}　${ZN[zoneAt(x,z)]||''}`;const s=SP.find(s=>Math.hypot(s[2]-x,s[3]-z)<8);if(s)t+=`　スポット${s[0]} ${s[1]}`;const h=hitAt(x,z);if(h)t+=`　${desc(h)}`;tip.textContent=t;});
+cv.addEventListener('pointerup',()=>{if(drag){drag=null;upd();}});
+D.NIGHT.forEach(e=>document.getElementById('night'+e[0]).oninput=upd);
+document.getElementById('showSpot').onchange=draw;
+document.getElementById('reset').onclick=()=>{items=init();removed=[];sel=null;D.NIGHT.forEach(e=>document.getElementById('night'+e[0]).value=e[3]);err.textContent='';upd();};
+document.getElementById('send').onclick=()=>{const L=changes();if(!L.length){err.textContent='まだ何も変えていない';return;}sendPrompt(D.name+'の敵の配置をこう変えて（島の図のウィジェットから）:\n'+L.join('\n'));};
+upd();
+</script>
