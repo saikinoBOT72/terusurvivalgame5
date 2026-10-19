@@ -1,7 +1,5 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createSky } from './world/sky.js';
-import { buildSampleScene } from './world/sampleScene.js';
 import { buildIsland } from './world/island.js';
 
 import { ISLANDS } from './world/islandMap.js';
@@ -32,7 +30,7 @@ import { createBuilding } from './game/building.js';
 import { createLife } from './game/life.js';
 import { devKit } from './game/devKit.js';
 import { attachWorld } from './game/worlds.js';
-import { applyUiColors, createViewerHud, createMenu, createPlayHud, createKeysPanel, bindFullscreenKey } from './ui/hud.js';
+import { applyUiColors, createMenu, createPlayHud, createKeysPanel, bindFullscreenKey } from './ui/hud.js';
 import { MAX_HP } from './survival/stats.js';
 import { createDayNight } from './world/dayNight.js';
 import { createStatusHud } from './ui/statusHud.js';
@@ -88,14 +86,11 @@ const ranged = createRanged({
 const held = createHeld({ inventory, player, build, onMessage: (t) => invHud.message(t) }); // 手に持つ物の見た目（game/held.js）
 let stationT = 0;
 
-// ---- 世界: 見本の景色と島。島は最初に選ばれたときに作る ----
-const sample = buildSampleScene();
-scene.add(sample.group);
-let island = null, showcase = null, range = null, islandId = 'crash', world = null, gridOn = false, debugOn = false;
+// ---- 世界: 島は起動したときに作り、タイトルの後ろに映す（fresh: まだ遊んでいない島。「はじめから」でそのまま使う） ----
+let island = null, islandFresh = false, showcase = null, range = null, islandId = 'crash', world = null, gridOn = false, debugOn = false;
 
 function useWorld(w) {
   world = w;
-  sample.group.visible = w === sample;
   if (island) island.group.visible = w === island;
   if (showcase) showcase.group.visible = w === showcase;
   if (range) range.group.visible = w === range;
@@ -115,30 +110,24 @@ async function makeIsland(id, onProgress) {
   scene.add(island.group);
 }
 
-// 見本の猫: 円を描いて歩く（1人称では「ほかのプレイヤー」の見え方の確認になる）
+// 見本の猫: 島の始まりのそばで円を描いて歩く（1人称では「ほかのプレイヤー」の見え方の確認になる）
 const cat = createSimple();
 scene.add(cat.root);
 const RADIUS = 2;
-let walking = true, angle = 0;
+let angle = 0;
 
-const controls = new OrbitControls(camera, dom);
-controls.enableDamping = true;
-controls.maxPolarAngle = Math.PI * 0.49;
-
-// ---- 画面の切り替え: menu / viewer / fps / dead（倒れた画面） ----
+// ---- 画面の切り替え: menu / fps / dead（倒れた画面） ----
 let mode = 'menu', played = false; // played: 1人称のあとのメニューは、その場の景色のまま止める
-const viewerHud = createViewerHud({
-  onToggleWalk: () => (walking = !walking),
-  onFocusCat: () => {
-    const p = cat.root.position, a = cat.root.rotation.y + 0.5;
-    controls.target.set(p.x, p.y + 0.9, p.z);
-    camera.position.set(p.x + Math.sin(a) * 3.2, p.y + 1.5, p.z + Math.cos(a) * 3.2);
-  },
-  onMenu: () => setMode('menu'),
-});
 const playHud = createPlayHud();
 // 同じ世界に戻るときは、いた場所から続ける
-const play = (w) => { if (w !== world) useWorld(w); setMode('fps'); lockPointer(); };
+const play = (w) => { if (w === island) islandFresh = false; if (w !== world) useWorld(w); setMode('fps'); lockPointer(); };
+// タイトルの景色: 始まりの浜の沖から、島のほうを見る
+function titleView() {
+  const s = island.spawn, y = island.terrain.heightAt(s.x, s.z);
+  camera.rotation.order = 'XYZ';
+  camera.position.set(s.x + 10, y + 9, s.z + 22);
+  camera.lookAt(s.x - 6, y + 3, s.z - 25);
+}
 let atTitle = true; // メニューがタイトルか一時停止か
 // はじめから: 新しい島、持ち物・HP・時刻も最初から
 // kit: 開発用メニューの「墜落島（素材つき）」。ふつうは何も持たずに残骸のそばで起きる（islands.md「始まり」）
@@ -155,7 +144,7 @@ function newGame(kit = false) {
 }
 // 設定（ui.md「設定と舵の表示」）: マウスの感度・視野の広さ・UI の大きさ
 const settings = loadSettings();
-const fovOf = (m) => (m === 'fps' || m === 'dead' ? vfovOf(settings.hfov) : 45); // 1人称は設定の視野角、見本の観察は 45 度
+const fovOf = (m) => (m === 'fps' || m === 'dead' ? vfovOf(settings.hfov) : 45); // 1人称は設定の視野角、タイトルは 45 度
 function applySettings(v) {
   player.setSensitivity(sensRad(v.vsens));
   camera.fov = fovOf(mode);
@@ -166,13 +155,11 @@ applySettings(settings);
 const menu = createMenu({
   settings, onSettings: applySettings,
   onStart: () => newGame(),
-  onContinue: () => { if (island) play(island); else loadGame(); },
+  onContinue: () => { if (island && !islandFresh) play(island); else loadGame(); },
   onResume: () => { setMode('fps'); lockPointer(); },
   onTitle: () => { atTitle = true; setMode('menu'); },
   dev: {
     onIsland: () => newGame(true),
-    onSample: () => play(sample),
-    onViewer: () => { useWorld(sample); setMode('viewer'); },
     // モデル確認島: 開発中だけ。最初に選ばれたときに作る
     onShowcase: import.meta.env.DEV ? () => import('./world/showcase.js').then(({ buildShowcase }) => {
       if (!showcase) { showcase = buildShowcase(); scene.add(showcase.group); }
@@ -198,6 +185,7 @@ const loading = createLoading();
 let building = false;
 async function buildThen(id, done) {
   if (building) return; // 作っている間のボタンの連打
+  if (island && islandFresh && islandId === id) return done(); // タイトルの後ろの、まだ遊んでいない島をそのまま使う
   building = true;
   loading.show(ISLANDS[id].name);
   await makeIsland(id, (p, label) => loading.set(p, label));
@@ -212,32 +200,23 @@ function setMode(m) {
   if (m === 'menu' && mode === 'fps') saveNow(); // 一時停止で保存
   mode = m;
   menu.hidden = m !== 'menu';
-  viewerHud.hidden = m !== 'viewer';
   playHud.hidden = m !== 'fps';
   invHud.hidden = m !== 'fps';
   statusHud.hidden = (m !== 'fps' && m !== 'dead') || (world !== island && !world?.range);
   deathScreen.hidden = m !== 'dead';
   if (m !== 'fps') keysPanel.setOpen(false);
   if (m !== 'fps') buildMenu.setOpen(false);
-  controls.enabled = m === 'viewer';
   player.setActive(m === 'fps');
   build.setEnabled(m === 'fps');
   camera.fov = fovOf(m);
   camera.updateProjectionMatrix();
-  if (m === 'viewer') {
-    camera.rotation.order = 'XYZ';
-    camera.position.set(15, 11, 17);
-    controls.target.set(0, 0.8, 1);
-    played = false;
-  }
+
   if (m === 'fps') { camera.rotation.order = 'YXZ'; played = true; atTitle = false; }
   menu.setPaused(played && !atTitle);
-  menu.setCanContinue(!!island || hasSave());
+  menu.setCanContinue((!!island && !islandFresh) || hasSave());
 }
-camera.position.set(15, 11, 17);
-controls.target.set(0, 0.8, 1);
-useWorld(sample);
 setMode('menu');
+buildThen('crash', () => { islandFresh = true; useWorld(island); titleView(); setMode('menu'); });
 
 // 遊び中の操作（controls.js）
 const input = createControls({
@@ -252,12 +231,13 @@ const clock = new THREE.Clock();
 function frame(step) { // step: 確認用に決まった秒だけ進める（__game.run）
   const dt = step ?? Math.min(clock.getDelta(), 0.05), t = step ? (clock.elapsedTime += step) : clock.elapsedTime;
   perf.start();
-  if (walking) angle += dt * 0.55;
+  if (!world) return view.draw(scene, false); // 起動して島ができるまで（空だけ）
+  angle += dt * 0.55;
   const c = world.catCenter;
   const x = c.x + Math.cos(angle) * RADIUS, z = c.z + Math.sin(angle) * RADIUS;
   cat.root.position.set(x, world.terrain.heightAt(x, z), z);
   cat.root.rotation.y = Math.atan2(-Math.sin(angle), Math.cos(angle));
-  cat.update(dt, { moving: walking, speed: 1 });
+  cat.update(dt, { moving: true, speed: 1 });
   world.update(t, camera.position);
   if (world.fogAt) { // 場所ごとの霧（立ち枯れの沼。spots.js）: ふだんのかすみと、濃い霧（25m で見えない）を混ぜる
     const k = world.fogAt(camera.position.x, camera.position.z);
@@ -300,7 +280,6 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   if (mode === 'fps') tools.update(dt, held.id);
   if (mode === 'fps') held.update(t, dt, life.sleeping);
 
-  if (mode === 'viewer' || (mode === 'menu' && !played)) controls.update();
   sky.update(dt, camera.position);
   perf.lap('建築・乗り物・空');
   view.draw(scene, mode === 'fps');
@@ -311,6 +290,6 @@ renderer.setAnimationLoop(() => frame());
 // 確認用（開発中だけ）: ブラウザのコンソールから状態を見たり動かしたりする
 if (import.meta.env.DEV) {
   // run(ms): 画面が隠れていても ms だけ進める（確認用）
-  window.__game = { renderer, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, blueprints, invHud, sleep: life.sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, sample, camera, cat, controls, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; } };
+  window.__game = { renderer, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, blueprints, invHud, sleep: life.sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, camera, cat, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; } };
   import('./debug.js').then(({ createDebug, modelStats, createPhysicsTest }) => { window.__game.debug = createDebug(window.__game); window.__game.stats = modelStats; window.__game.physics = createPhysicsTest(window.__game); });
 }

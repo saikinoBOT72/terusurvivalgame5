@@ -77,7 +77,7 @@ export function createDebug(g) {
     const aim = g.mode === 'fps' ? g.gather.aimedInfo() : null;
     const t = b.target;
     const lines = [
-      `画面 ${g.mode}  世界 ${w === g.sample ? '見本' : w?.report ? '確認島' : '島'}  FPS ${fps}`,
+      `画面 ${g.mode}  世界 ${w?.report ? '確認島' : w?.range ? '訓練島' : w ? '島' : 'なし'}  FPS ${fps}`,
       `HP ${g.vitals.state.hp}  空腹 ${g.vitals.state.food}  水分 ${g.vitals.state.water}${g.vitals.state.dead ? ' 倒れた' : ''}  ${g.time.label} ${g.time.phase}`,
       `位置 ${f1(s.x)},${f1(s.y)},${f1(s.z)}  向き ${deg(s.yaw)}°/${deg(s.pitch)}°  ${s.swimming ? "泳ぐ" : s.onGround ? "地面" : "空中"}${s.underwater ? " 水中" : ""}${s.moving ? " 移動中" : ""}  息 ${f1(g.vitals.state.breath)}${w?.zoneAt ? `  島 ${w.name} 区域 ${w.zoneAt(s.x, s.z)}` : ""}`,
       ...(w?.spots ? [`スポット ${w.spots.map((p) => ({ p, d: Math.hypot(p.x - s.x, p.z - s.z) })).sort((a, b) => a.d - b.d).slice(0, 3)

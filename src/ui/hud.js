@@ -19,24 +19,6 @@ function el(html) {
   return e;
 }
 
-// 見本ビューア用のボタン
-export function createViewerHud({ onToggleWalk, onFocusCat, onMenu }) {
-  const box = el(`
-    <div class="panel viewer-hud">
-      <div class="title">見た目の見本</div>
-      <div class="sub">ドラッグで回す ・ ホイールで寄る</div>
-      <div class="row">
-        <button id="btnWalk" type="button">止まる</button>
-        <button id="btnFocus" type="button">猫に寄る</button>
-        <button id="btnMenu" type="button">メニュー</button>
-      </div>
-    </div>`);
-  const walk = box.querySelector('#btnWalk');
-  walk.addEventListener('click', () => { walk.textContent = onToggleWalk() ? '止まる' : '歩く'; });
-  box.querySelector('#btnFocus').addEventListener('click', onFocusCat);
-  box.querySelector('#btnMenu').addEventListener('click', onMenu);
-  return box;
-}
 
 // 最初の画面（1人称の一時停止中も使う）
 // 操作一覧（docs/rules/ui.md「操作」）
@@ -51,7 +33,7 @@ const keysHtml = () => `<div class="keys">${KEYS.map(([k, v]) => `<b>${k}</b><sp
   <span class="dev">開発用: G マス目 ・ H 当たり判定 ・ F 飛ぶ</span></div>`;
 
 // タイトルと一時停止（docs/rules/ui.md「画面の整理」）
-// dev: 開発用のボタン { onIsland, onSample, onViewer, onShowcase, onRange }（onShowcase・onRange は開発中だけ）。settings: 設定の値、onSettings(値): 変えたとき
+// dev: 開発用のボタン { onIsland, onShowcase, onRange }（onShowcase・onRange は開発中だけ）。settings: 設定の値、onSettings(値): 変えたとき
 export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settings, onSettings }) {
   const box = el(`
     <div class="menu-back">
@@ -61,8 +43,8 @@ export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settin
           <div class="row"><button id="btnStart" type="button">はじめから</button><button id="btnContinue" type="button">つづきから</button></div>
           <button class="btnSettings" type="button">設定</button>
           <details><summary>開発用</summary>
-            <div class="row"><button id="btnIsland" type="button">墜落島（素材つき）</button><button id="btnSample" type="button">見本の景色</button></div>
-            <div class="row"><button id="btnViewer" type="button">見本を見る</button><button id="btnShowcase" type="button" hidden>モデル確認島</button><button id="btnRange" type="button" hidden>射撃訓練島</button></div>
+            <div class="row"><button id="btnIsland" type="button">墜落島（素材つき）</button></div>
+            <div class="row"><button id="btnShowcase" type="button" hidden>モデル確認島</button><button id="btnRange" type="button" hidden>射撃訓練島</button></div>
           </details>
         </div>
         <div class="pauseBtns">
@@ -84,8 +66,7 @@ export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settin
   box.querySelectorAll('.btnSettings').forEach((b) => b.addEventListener('click', () => { $('.settingsBox').hidden = !$('.settingsBox').hidden; }));
   bindSettings($('.settingsBox'), settings, onSettings);
   on('#btnIsland', dev.onIsland);
-  on('#btnSample', dev.onSample);
-  on('#btnViewer', dev.onViewer);
+
   if (dev.onShowcase) { $('#btnShowcase').hidden = false; on('#btnShowcase', dev.onShowcase); }
   if (dev.onRange) { $('#btnRange').hidden = false; on('#btnRange', dev.onRange); }
   return {
