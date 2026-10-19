@@ -3,7 +3,7 @@
 import { el } from './uiKit.js';
 import { touch, setStick, addLook, pressKey, pressClick, STICK_MAX } from '../input/touch.js';
 import { down } from '../input/keymap.js';
-import { TOUCH_BTNS, loadLayout, btnHtml, applyBtn } from './touchLayout.js';
+import { TOUCH_BTNS, loadLayout, btnHtml, applyBtn, scale, portrait, posKey, centerOf } from './touchLayout.js';
 import './touch.css';
 
 // mode(): 今の場面、uiOpen(): 持ち物・建築メニューを開いている、placing(): 建築で置く状態、select(i): ホットバーの持ち替え
@@ -12,7 +12,18 @@ export function createTouchHud({ dom, mode, uiOpen, placing, select }) {
   const nodes = Object.fromEntries(TOUCH_BTNS.map((b) => [b.id, box.querySelector(`[data-id="${b.id}"]`)]));
   const def = (id) => TOUCH_BTNS.find((b) => b.id === id);
   let L = loadLayout();
-  function layout() { L = loadLayout(); for (const b of TOUCH_BTNS) applyBtn(nodes[b.id], b, L); }
+  function layout() { L = loadLayout(); for (const b of TOUCH_BTNS) applyBtn(nodes[b.id], b, L); fitHotbar(); }
+  // 手に持つ列（幅 HOTBAR_W px）: 横向きはスティックと「使う」の間に、縦向きは画面の幅に収まる大きさ（--tkb）
+  const HOTBAR_W = 372;
+  function fitHotbar() {
+    let room = innerWidth - 16;
+    if (!portrait()) {
+      const edge = (id) => { const b = def(id), c = L.btn[id]; return [centerOf(c[posKey()])[0], b.d * c.s * scale() / 2]; };
+      const [sx, sr] = edge('stick'), [ux, ur] = edge('use');
+      room = 2 * Math.min(innerWidth / 2 - (sx + sr), ux - ur - innerWidth / 2) - 12;
+    }
+    document.documentElement.style.setProperty('--tkb', Math.max(0.5, Math.min(scale(), room / HOTBAR_W)).toFixed(3));
+  }
   layout();
   addEventListener('resize', layout);
 
@@ -44,14 +55,18 @@ export function createTouchHud({ dom, mode, uiOpen, placing, select }) {
   box.addEventListener('pointerup', unpress);
   box.addEventListener('pointercancel', unpress);
 
-  // スティックと視点: ゲームの画面（ボタンの下）を触った指
-  let stickId = null, lookId = null, lx = 0, ly = 0;
-  const stickCenter = () => { const r = nodes.stick.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, r.width / 2]; };
+  // スティックと視点: ゲームの画面（ボタンの下）を触った指。画面の左半分ならスティック（指を置いた所に出る）、右半分なら視点
+  let stickId = null, lookId = null, lx = 0, ly = 0, sx = 0, sy = 0;
+  const stickCenter = () => [sx, sy, nodes.stick.getBoundingClientRect().width / 2];
   dom.addEventListener('pointerdown', (e) => {
     if (e.pointerType !== 'touch' || !touch.on || mode() !== 'fps') return;
     e.preventDefault(); // 指のあとのマウスのまねを出さない（クリックにしない）
-    const [cx, cy, r] = stickCenter();
-    if (stickId == null && Math.hypot(e.clientX - cx, e.clientY - cy) < r * 1.3) { stickId = e.pointerId; moveStick(e); } else if (lookId == null) { lookId = e.pointerId; lx = e.clientX; ly = e.clientY; }
+    if (stickId == null && e.clientX < innerWidth / 2) {
+      stickId = e.pointerId; sx = e.clientX; sy = e.clientY;
+      Object.assign(nodes.stick.style, { left: `${sx}px`, top: `${sy}px` });
+      nodes.stick.classList.add('held');
+      moveStick(e);
+    } else if (lookId == null) { lookId = e.pointerId; lx = e.clientX; ly = e.clientY; }
   });
   function moveStick(e) {
     const [cx, cy, r] = stickCenter(), dx = e.clientX - cx, dy = e.clientY - cy, d = Math.hypot(dx, dy);
@@ -70,7 +85,10 @@ export function createTouchHud({ dom, mode, uiOpen, placing, select }) {
     }
   });
   function release(e) {
-    if (e.pointerId === stickId) { stickId = null; setStick(0, 0, 0); nodes.stick.firstChild.style.transform = ''; nodes.stick.classList.remove('run'); }
+    if (e.pointerId === stickId) { // 離したら、いつもの場所に戻る
+      stickId = null; setStick(0, 0, 0); nodes.stick.firstChild.style.transform = ''; nodes.stick.classList.remove('run', 'held');
+      applyBtn(nodes.stick, def('stick'), L);
+    }
     if (e.pointerId === lookId) lookId = null;
   }
   addEventListener('pointerup', release);

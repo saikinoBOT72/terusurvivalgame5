@@ -2,6 +2,8 @@
 .touch canvas { touch-action: none; }
 .touch .hotbar .slot { pointer-events: auto; }
 .touch .hotbar .slot .key { display: none; }
+.touch .hotbar { zoom: calc(var(--ui-zoom, 1) * var(--tkb, 1)); }
+.touch .status-hud, .touch .clock { zoom: calc(var(--ui-zoom, 1) * var(--tkh, 1)); }
 
 .touch-hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 .tbtn {
@@ -15,7 +17,9 @@
 .touch .corner { right: 50%; bottom: auto; top: calc(12px + var(--safe-t)); transform: translateX(50%); align-items: center; }
 .tbtn.down { background: var(--ui-light); box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ui-edge) 28%, transparent); }
 .tbtn.on { box-shadow: inset 0 0 0 3px var(--ui-hunger), inset 2px 2px 0 var(--ui-light); }
-/* スティック: くぼみの石と、つまみの石。ふちの外まで引くと（走る）つまみが黄 */
+/* スティック: くぼみの石と、つまみの石。ふちの外まで引くと（走る）つまみが黄。指は通す（左半分を触ると、その場所に出る。touchHud.js） */
+.touch-hud .tstick { pointer-events: none; transition: opacity .15s; }
+.touch-hud .tstick:not(.held) { opacity: .45 !important; }
 .tbtn.tstick { background: color-mix(in srgb, var(--ui-slot) 70%, transparent); box-shadow: inset 3px 3px 0 color-mix(in srgb, var(--ui-edge) 35%, transparent); }
 .tstick i { position: absolute; left: 50%; top: 50%; width: 44%; height: 44%; transform: translate(-50%, -50%); border-radius: 50%;
   background: var(--ui-light); border: 2px solid var(--ui-edge); box-sizing: border-box; }

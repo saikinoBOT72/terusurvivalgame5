@@ -2,7 +2,7 @@
 // ドラッグで動かす、タップで選んで大きさ・不透明度、全部の不透明度、はじめに戻す、完了（保存）。Esc は完了と同じ
 // 板はボタンに重なるので、題の行をドラッグして動かせる。編集の間はメニューを隠す
 import { el, winHead } from './uiKit.js';
-import { TOUCH_BTNS, SIZE, OPACITY, loadLayout, saveLayout, defaultLayout, posFrom, btnHtml, applyBtn } from './touchLayout.js';
+import { TOUCH_BTNS, SIZE, OPACITY, loadLayout, saveLayout, defaultLayout, posFrom, posKey, btnHtml, applyBtn } from './touchLayout.js';
 
 const slider = (key, name, [min, max], step) =>
   `<label class="field"><span>${name}</span><input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}"><b></b></label>`;
@@ -52,7 +52,7 @@ export function openTouchEdit(onDone) {
   box.addEventListener('pointermove', (e) => {
     if (!drag || e.pointerId !== drag.id) return;
     if (drag.panel) return Object.assign(panel.style, { left: `${e.clientX + drag.dx}px`, top: `${e.clientY + drag.dy}px`, transform: 'none' });
-    L.btn[sel].pos = posFrom(e.clientX + drag.dx, e.clientY + drag.dy);
+    L.btn[sel][posKey()] = posFrom(e.clientX + drag.dx, e.clientY + drag.dy);
     applyBtn(nodes[sel], TOUCH_BTNS.find((b) => b.id === sel), L);
   });
   const end = (e) => { if (drag?.id === e.pointerId) drag = null; };

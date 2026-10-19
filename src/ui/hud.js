@@ -5,6 +5,7 @@ import { createSettingsWin } from './settingsWin.js';
 import { keysHtml } from './keyBinds.js';
 import { winHead, el } from './uiKit.js';
 import { pressed } from '../input/keymap.js';
+import { newerVersion, applyUpdate } from './update.js';
 
 export function applyUiColors() {
   const s = document.documentElement.style;
@@ -22,6 +23,7 @@ export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settin
       <div class="panel win menu">
         <div class="win-h1 main">猫の島</div>
         <div class="titleBtns main">
+          <div class="update-row" hidden><span>新しい版があります</span><button class="btn-l" id="btnUpdate" type="button">アップデート</button></div>
           <div class="row"><button class="btn-l" id="btnStart" type="button">はじめから</button><button class="btn-l" id="btnContinue" type="button">つづきから</button></div>
           <button class="btn-l btnSettings" type="button">設定</button>
           <details><summary>開発用</summary>
@@ -52,6 +54,16 @@ export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settin
     if (v === 'main') box.querySelectorAll('.titleBtns, .pauseBtns').forEach((n) => { n.hidden = n.classList.contains('pauseBtns') ? !paused : paused; });
   }
   let paused = false;
+  // タイトルを出すたびと、タイトルのまま 5 分ごとに、新しい版があるか見る
+  let newer = null;
+  async function checkUpdate() {
+    if (paused || box.hidden) return;
+    newer = await newerVersion();
+    $('.update-row').hidden = !newer;
+  }
+  checkUpdate();
+  setInterval(checkUpdate, 5 * 60 * 1000);
+  on('#btnUpdate', () => { if (newer) applyUpdate(newer); });
   on('#btnStart', onStart);
   on('#btnContinue', onContinue);
   on('#btnResume', onResume);
@@ -66,8 +78,8 @@ export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settin
   if (dev.onRange) { $('#btnRange').hidden = false; on('#btnRange', dev.onRange); }
   return {
     el: box,
-    set hidden(v) { box.hidden = v; },
-    setPaused(v) { paused = v; view('main'); },
+    set hidden(v) { box.hidden = v; if (!v) checkUpdate(); },
+    setPaused(v) { paused = v; view('main'); checkUpdate(); },
     setCanContinue(v) { $('#btnContinue').disabled = !v; },
     setMessage(t) { $('#menuMsg').textContent = t; },
   };

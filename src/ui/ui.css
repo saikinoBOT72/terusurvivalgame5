@@ -7,7 +7,8 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 /* 画面の端の切り欠き・ホームバーをよける幅（index.html の viewport-fit=cover） */
 :root { --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px); --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px); }
 body { font-family: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Meiryo", sans-serif; color: var(--ui-text); }
-canvas { display: block; position: fixed; left: 0; top: 0; }
+canvas { display: block; position: fixed; inset: 0; width: 100% !important; height: 100% !important; }
+html, body { background: var(--ui-edge); }
 /* 文字・板・ボタン・タブ・切り替え・キーの札は kit.css（共通部品） */
 .need small { color: var(--ui-textSub); }
 
@@ -25,10 +26,13 @@ canvas { display: block; position: fixed; left: 0; top: 0; }
 
 /* ---- タイトルと一時停止 ---- */
 .menu-back { position: fixed; inset: 0; display: grid; place-items: center; }
-.menu { padding: 22px 26px; min-width: 340px; max-width: calc(100vw - 64px); box-sizing: border-box; max-height: calc(100dvh - 16px); overflow: auto; touch-action: pan-y; }
+.menu { padding: 22px 26px; min-width: min(340px, calc(100vw - 32px)); max-width: calc(100vw - 32px); box-sizing: border-box; max-height: calc(100dvh - 16px); overflow: auto; touch-action: pan-y; }
 .menu .row { display: flex; gap: 10px; }
 .menu .row button { flex: 1; white-space: nowrap; }
 .menu .titleBtns, .menu .pauseBtns { display: flex; flex-direction: column; gap: 10px; }
+.menu .update-row { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ui-ok); }
+.menu .update-row[hidden] { display: none; }
+.menu .update-row button { flex: 1; }
 .menu .sub { min-height: 1em; }
 .menu details { font-size: var(--fs-body); color: var(--ui-textSub); }
 .menu details summary { cursor: pointer; }
@@ -51,6 +55,8 @@ canvas { display: block; position: fixed; left: 0; top: 0; }
 /* 背の低い画面（横向きのスマホ）: 大きい窓は小さくして収める。それでもはみ出す分はなぞってスクロール */
 @media (max-height: 520px) { .inv, .build-menu, .death { zoom: calc(var(--ui-zoom, 1) * .82); } }
 @media (max-height: 420px) { .inv, .build-menu, .death { zoom: calc(var(--ui-zoom, 1) * .7); } }
+/* 幅の狭い画面（縦向きのスマホ） */
+@media (max-width: 600px) { .inv, .build-menu, .death { zoom: calc(var(--ui-zoom, 1) * .7); } .status-hud, .clock { zoom: calc(var(--ui-zoom, 1) * .85); } }
 
 /* ---- 遊び中: 照準、枠、ヒント ---- */
 .play-hud { position: fixed; inset: 0; pointer-events: none; }

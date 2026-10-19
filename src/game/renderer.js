@@ -6,7 +6,7 @@ import { touch } from '../input/touch.js';
 export function createRenderer(camera) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(innerWidth, innerHeight, false); // 見た目の大きさは CSS（ui.css。画面いっぱい）
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.shadowMap.autoUpdate = false; // 影は 1 フレームに 1 回だけ作る（下の描画で 2 回描くため）
@@ -14,11 +14,18 @@ export function createRenderer(camera) {
   renderer.info.autoReset = false; // 2 回描くので、1 フレーム分をまとめて数える（perf.js）
   document.body.appendChild(renderer.domElement);
   const dom = renderer.domElement;
-  addEventListener('resize', () => {
-    camera.aspect = innerWidth / innerHeight;
+  // 描く大きさを、画面に出ている大きさに合わせる（スマホは向きを変えたあと resize が遅れることがあるので、毎フレーム見る）
+  let w = 0, h = 0;
+  function fit() {
+    const nw = dom.clientWidth || innerWidth, nh = dom.clientHeight || innerHeight;
+    if (nw === w && nh === h) return;
+    w = nw; h = nh;
+    camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
-  });
+    renderer.setSize(w, h, false);
+  }
+  fit();
+  addEventListener('resize', fit);
   return {
     renderer, dom,
     // マウスを固定する。加速なしの生の移動量を使うと視点が飛びにくい（使えないブラウザでは普通に固定）
@@ -29,6 +36,7 @@ export function createRenderer(camera) {
     },
     // 世界を描いてから、奥行きを消して 1人称の腕と持つ物を重ねる（arms: 1人称のとき）
     draw(scene, arms) {
+      fit();
       renderer.info.reset();
       renderer.shadowMap.needsUpdate = true;
       renderer.clear();
