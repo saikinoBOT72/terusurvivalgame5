@@ -251,7 +251,7 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
     }
   }
 
-  let gridOn = false, debugOn = false, lastT = null;
+  let gridOn = false, debugOn = false, lastT = null, things = null;
   return {
     id, name: gen.def.name, zoneAt: gen.zoneAt, // 区域（下絵の字）
     spots: gen.def.spots, // スポット（islands.md「スポット」）
@@ -278,6 +278,12 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
         c.mesh.visible = dist < VIEW + CHUNK;
         c.grid.visible = gridOn && dist < NEAR_VIEW + CHUNK;
         c.steep.visible = debugOn && dist < NEAR_VIEW + CHUNK;
+      }
+      // 木・岩・草などの区画（nature.js instanced）も、かすみの奥は描かない
+      if (!things) { things = []; group.traverse((o) => { if (o.parent?.isChunked) things.push(o); }); }
+      for (const m of things) {
+        const b = m.boundingSphere.center;
+        m.visible = Math.hypot(cam.x - b.x, cam.z - b.z) - m.boundingSphere.radius < VIEW;
       }
     },
   };

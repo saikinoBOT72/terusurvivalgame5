@@ -35,6 +35,7 @@ import { ITEMS } from './survival/items.js';
 import { itemMesh, gripOf } from './survival/itemShapes.js';
 import { BAR, SLOTS } from './survival/inventory.js';
 import './ui/ui.css';
+import { perf } from './perf.js';
 import { applyUiColors, createViewerHud, createMenu, createPlayHud, createBuildHud, createKeysPanel, bindFullscreenKey } from './ui/hud.js';
 import { createStats, MAX_HP } from './survival/stats.js';
 import { createDayNight } from './world/dayNight.js';
@@ -60,6 +61,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false; // 影は 1 フレームに 1 回だけ作る（下の描画で 2 回描くため）
 renderer.autoClear = false;
+renderer.info.autoReset = false; // 2 回描くので、1 フレーム分をまとめて数える（perf.js）
 document.body.appendChild(renderer.domElement);
 const dom = renderer.domElement;
 // マウスを固定する。加速なしの生の移動量を使うと視点が飛びにくい（使えないブラウザでは普通に固定）
@@ -416,6 +418,8 @@ addEventListener('resize', () => {
 const clock = new THREE.Clock();
 function frame(step) { // step: 確認用に決まった秒だけ進める（__game.run）
   const dt = step ?? Math.min(clock.getDelta(), 0.05), t = step ? (clock.elapsedTime += step) : clock.elapsedTime;
+  perf.start();
+  renderer.info.reset();
   if (walking) angle += dt * 0.55;
   const c = world.catCenter;
   const x = c.x + Math.cos(angle) * RADIUS, z = c.z + Math.sin(angle) * RADIUS;
@@ -429,13 +433,17 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   }
   if (world.terrain?.ref) world.terrain.ref.y = player.state.y + 2; // 演出の地面の高さのめやす（洞窟の中では洞窟の床。terrain.js groundNear）
   sky.setDim(world.caveDim ? world.caveDim(camera.position) : 0); // 洞窟の奥は暗い（caveCarve.js）
+  perf.lap('世界');
   if (mode === 'fps' || mode === 'dead') world.physics?.update(dt, player.state); // いかだが動いてから、乗っているプレイヤーを動かす
+  perf.lap('物理');
   player.update(dt);
+  perf.lap('プレイヤー');
   combat.update(t, dt, fighting());
   combatHud.hidden(mode !== 'fps');
   combatHud.update(dt);
   if (fighting()) pc.update(dt, heldId);
   if (survival()) spawner.update(dt);
+  perf.lap('敵');
   if (mode === 'fps') ranged.update(dt, heldId);
   combatHud.setCooldown(mode === 'fps' ? ranged.cdFrac(heldId) ?? pc.cdFrac() : null); // 照準の下の攻撃間隔の線
   combatHud.setLowHp(stats.state.hp / MAX_HP, mode !== 'fps' || stats.state.dead); // HP が低いと画面のふちが赤く脈打つ
@@ -444,6 +452,7 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   statusHud.setUnderwater(mode === 'fps' && player.state.underwater);
   if (mode === 'fps') invHud.setAim(input.aimHint());
   aimMark.update(mode === 'fps' && !build.active && !input.uiOpen() ? gather.aimedEntity() : null);
+  perf.lap('照準・UI');
   if (survival()) {
     stats.update(dt, { nearFire: nearFire(), underwater: player.state.underwater });
     world.planting?.update(time.total);
@@ -452,6 +461,7 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
     statusHud.update(stats.state, time);
     if ((saveT += dt) >= 60) { saveT = 0; saveNow(); }
   } else if (fighting()) statusHud.update(stats.state, time); // 訓練島: HP とスタミナだけ（空腹・時刻は進まない）
+  perf.lap('サバイバル');
   structuresOf.get(world)?.update(dt, mode === 'fps');
   if (invHud.open && (stationT += dt) > 0.15) { stationT = 0; invHud.refreshStation(); } // 開いている設備の窓（進み具合・燃料）
   world.vehicles?.update(dt, mode === 'fps');
@@ -466,6 +476,7 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   }
   if (mode === 'viewer' || (mode === 'menu' && !played)) controls.update();
   sky.update(dt, camera.position);
+  perf.lap('建築・乗り物・空');
   // 世界を描いてから、奥行きを消して 1人称の腕と持つ物を重ねる
   renderer.shadowMap.needsUpdate = true;
   renderer.clear();
@@ -479,12 +490,13 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
     camera.layers.set(0);
     scene.background = bg;
   }
+  perf.lap('描画');
 }
 renderer.setAnimationLoop(() => frame());
 
 // 確認用（開発中だけ）: ブラウザのコンソールから状態を見たり動かしたりする
 if (import.meta.env.DEV) {
   // run(ms): 画面が隠れていても ms だけ進める（確認用）
-  window.__game = { fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, blueprints, invHud, sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, sample, camera, cat, controls, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; } };
+  window.__game = { renderer, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, blueprints, invHud, sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, sample, camera, cat, controls, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; } };
   import('./debug.js').then(({ createDebug, modelStats, createPhysicsTest }) => { window.__game.debug = createDebug(window.__game); window.__game.stats = modelStats; window.__game.physics = createPhysicsTest(window.__game); });
 }

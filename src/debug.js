@@ -93,6 +93,7 @@ export function createDebug(g) {
       `戦闘の記録 ${g.combat?.log.join(' / ') || 'なし'}`,
       vehicleLine(w?.vehicles, s),
       `敵 ${(g.combat?.list ?? []).map((m) => `${m.def.name} ${m.hp}/${m.maxHp} ${m.state}${m.band ? `(${m.band})` : ''} ${f1(Math.hypot(m.x - s.x, m.z - s.z))}m${m.lastHit ? ` 受けた${m.lastHit}` : ''}`).join(' / ') || 'なし'}`,
+      g.perf.report(g.renderer.info),
       `パーツ ${Object.entries(parts).map(([k, n]) => `${k}${n}`).join(' ') || 'なし'}  近くの家具 ${near.join(' ') || 'なし'}`,
     ];
     return lines.join('\n');

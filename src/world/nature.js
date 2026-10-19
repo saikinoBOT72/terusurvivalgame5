@@ -143,18 +143,46 @@ export function mountain(rand, radius, height) {
 }
 
 // 同じ形をまとめて描く（インスタンス描画）。items: [{x, y, z, rot, s, q?}]（q があれば傾き込みの向き）
+// 島じゅうを 1 つにまとめると、画面や影の外の物まで毎回描くので、CELL m 四方の区画ごとに分ける（見えない区画は描かない）
+// 返す物は InstancedMesh と同じ使い方ができる（setMatrixAt・getMatrixAt・instanceMatrix.needsUpdate・geometry）
+const CELL = 48, MARGIN = 8; // MARGIN: 木が倒れる・揺れる分、区画の見える範囲を広げる
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+const NO_FLAG = { set needsUpdate(v) {} }; // setMatrixAt で区画ごとに印をつけるので、まとめての印はいらない
+class Chunked extends THREE.Group {
+  constructor(geo, items, { double, shadow }) {
+    super();
+    this.isChunked = true;
+    this.geometry = geo;
+    this.instanceMatrix = NO_FLAG;
+    const cells = new Map();
+    this.where = items.map((it) => {
+      const key = `${Math.floor(it.x / CELL)},${Math.floor(it.z / CELL)}`;
+      if (!cells.has(key)) cells.set(key, []);
+      const list = cells.get(key);
+      list.push(it);
+      return [list, list.length - 1];
+    });
+    const meshOf = new Map();
+    for (const list of cells.values()) {
+      const m = new THREE.InstancedMesh(geo, double ? MAT.double : MAT.solid, list.length);
+      list.forEach((it, i) => {
+        if (it.q) _q.copy(it.q); else _q.setFromAxisAngle(_up, it.rot);
+        m.setMatrixAt(i, _m.compose(_p.set(it.x, it.y, it.z), _q, _s.setScalar(it.s)));
+      });
+      m.castShadow = shadow;
+      m.receiveShadow = true;
+      m.computeBoundingSphere();
+      m.boundingSphere.radius += MARGIN;
+      meshOf.set(list, m);
+      this.add(m);
+    }
+    this.where = this.where.map(([list, i]) => [meshOf.get(list), i]);
+  }
+  setMatrixAt(k, mat) { const [m, i] = this.where[k]; m.setMatrixAt(i, mat); m.instanceMatrix.needsUpdate = true; }
+  getMatrixAt(k, mat) { const [m, i] = this.where[k]; m.getMatrixAt(i, mat); }
+}
 export function instanced(geo, items, { double = false, shadow = true } = {}) {
-  const m = new THREE.InstancedMesh(geo, double ? MAT.double : MAT.solid, Math.max(1, items.length));
-  items.forEach((it, i) => {
-    if (it.q) _q.copy(it.q); else _q.setFromAxisAngle(_up, it.rot);
-    m.setMatrixAt(i, _m.compose(_p.set(it.x, it.y, it.z), _q, _s.setScalar(it.s)));
-  });
-  m.count = items.length;
-  m.castShadow = shadow;
-  m.receiveShadow = true;
-  m.computeBoundingSphere();
-  return m;
+  return new Chunked(geo, items, { double, shadow });
 }
 
 // 当たり判定の表示（H キー）: 物のまわりの輪。list: [{x, z, r, top}]

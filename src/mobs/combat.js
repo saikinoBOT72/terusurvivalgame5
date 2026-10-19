@@ -57,8 +57,9 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
   const record = (t) => { log.push(t); if (log.length > LOG_N) log.shift(); };
 
   // y: 床のめやす（洞窟の中の番人など。なければいちばん上の地面）
+  const pool = {}; // 種類 → とっておいた形
   function spawn(kind, x, z, y = Infinity) {
-    const def = MOBS[kind], model = def.make(), tier = TIERS[world.tier ?? 'v0'];
+    const def = MOBS[kind], model = pool[kind]?.pop() ?? def.make(), tier = TIERS[world.tier ?? 'v0'];
     const maxHp = Math.round(def.hp * tier.hp);
     const m = { kind, def, tier, model, x, z, y: 0, yaw: Math.random() * 6.28, hp: maxHp, maxHp, home: { x, z }, state: 'idle', aware: 'none', t: 0, flash: 0 };
     m.y = y; m.y = groundY(m);
@@ -73,6 +74,11 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
     mfx.drop(m);
     m.model.root.removeFromParent();
     list.splice(list.indexOf(m), 1);
+  }
+  // 遠くへ離れたので消す（倒したのではない）: 無傷なら形をとっておき、次に同じ種類を出すときに使い回す（作るときに止まらない）
+  function stash(m) {
+    remove(m);
+    if (m.hp === m.maxHp) (pool[m.kind] ??= []).push(m.model);
   }
   function clear() { while (list.length) remove(list[0]); shots.clear(); wind?.clear(); mud?.clear(); rock?.clear(); }
   // 敵がプレイヤーと重ならない所で止まる（上下に離れていれば重なってよい）
@@ -223,7 +229,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
   return {
     list, log, shots, mfx,
     setWorld(w) { clear(); world = w; mfx.setWorld(w); mud?.setWorld(w); rock?.setWorld(w); steer = w?.terrain ? createSteer({ terrain: w.terrain, blockers }) : null; for (const at of w?.dummies ?? (w?.dummyAt ? [w.dummyAt] : [])) { const m = spawn('dummy', at.x, at.z); m.yaw = Math.atan2(w.spawn.x - m.x, w.spawn.z - m.z); m.fixed = true; } }, // 練習用の的は島の決まった場所に（訓練島は射撃の道に並べる。fixed: 全部消すで消さない）
-    spawn, remove, clear, rayMob, damageMob,
+    spawn, remove, stash, clear, rayMob, damageMob,
     // 敵の体（プレイヤーの当たり判定に足す。firstPerson.js）。倒れた敵は通り抜ける
     bodies(x, z, r) {
       const out = [];

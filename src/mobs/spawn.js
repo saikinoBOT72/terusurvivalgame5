@@ -10,6 +10,7 @@ const NEAR = 30, FAR = 90; // 夜の敵が出る、プレイヤーからの距�
 const LOST = 150; // これより遠く、戦っていなければ消して出し直す
 const MORNING = 30; // 朝に消える距離
 const BACK_AWAY = 40; // いつもいる敵が戻るとき、プレイヤーがこれより離れていること
+const SHOW = 70, HIDE = 100; // いつもいる敵は SHOW m 以内に入ったら出し、HIDE m より離れたら消す（倒した記録は残る。HP は戻る）
 const EVERY = 2; // 出す間かく（秒）
 const DAY_FROM = 5; // この日から昼も出る
 
@@ -119,7 +120,9 @@ export function createSpawner({ combat, time, player }) {
         const live = combat.list.find((m) => m.spawnKey === f.key && m.state !== 'down');
         if (live?.mode === 'sleep' && live.aware === 'none' && live.state === 'idle' && !time.isNight) live.asleep = true;
         if (live?.asleep && time.isNight) live.asleep = false;
-        if (live) continue;
+        if (live && live.aware !== 'fight' && dist(live.x, live.z) > HIDE && dist(f.x, f.z) > HIDE) combat.stash(live);
+        else if (live) continue;
+        if (dist(f.x, f.z) > SHOW) continue;
         const d = dead[f.key];
         if (d !== undefined && (f.entry.back == null || time.total - d < f.entry.back * DAY_LEN || dist(f.x, f.z) < BACK_AWAY)) continue;
         delete dead[f.key];
