@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite"],
       "port": 5180
+    },
+    {
+      "name": "build-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "preview", "--port", "5181", "--strictPort"],
+      "port": 5181
     }
   ]
 }
