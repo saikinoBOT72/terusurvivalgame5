@@ -142,7 +142,7 @@
 - 左右対称に間引く（しっぽ以外）。頭と胴だけ作り直し済み（全高 1.4m、顔を細く、面を減らした）。**保留中**: ユーザーがあとで方針を決めるまで猫の見た目は触らない。
 - **2026-10-12 方針**: 猫と敵のモデルは、ユーザーが Blender で作って `public/models/` に .glb とメモを置く。作り方は [docs/modeling-guide.md](docs/modeling-guide.md)。再開したら、その13章（ルールの変更の提案と読み込み）から。
 - **2026-10-13**: Blender MCP がつながった。参考画像の猫を Blender で作った（作り方は `models_src/build_cat.py`、ファイルは `models_src/cat.blend`、三角形 1404、部品は modeling-guide.md 6章の名前）。次: ユーザーの確認 → ルール変更の提案 → `.glb` に書き出してゲームに読み込む。
-- 共通の処理は `src/style/sculpt.js`（新規）に置く。
+- 前の猫（`avatar/cat.js`）と共通の処理（`style/sculpt.js`）は 2026-10-19 に消した。git の最初のコミット（7fdc584）から戻せる。
 
 ## 8. 計画から外したもの
 
