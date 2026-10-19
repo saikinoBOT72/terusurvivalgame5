@@ -74,11 +74,12 @@ export function posFrom(cx, cy) {
 export const btnHtml = (b) => (b.id === 'stick'
   ? `<div class="tbtn tstick" data-id="stick"><i></i></div>`
   : `<div class="tbtn${b.build ? ' build' : ''}${b.noBuild ? ' nobuild' : ''}" data-id="${b.id}"><span>${b.name}</span></div>`);
-// 置く・大きさ・不透明度を当てる。手に持つ列・ゲージ・時計も同じ倍率にする（--tk。縦向きのゲージと時計は少し小さく --tkh）
+// 置く・大きさ・不透明度を当てる。ゲージ（--tkh）と時計（--tkc）は倍率より小さめ（スマホでは大きすぎるため）
 export function applyBtn(node, b, L) {
   const c = L.btn[b.id], [x, y] = centerOf(c[posKey()]), d = b.d * c.s * scale();
   const st = document.documentElement.style;
   st.setProperty('--tk', scale().toFixed(3));
-  st.setProperty('--tkh', (scale() * (portrait() ? 0.85 : 1)).toFixed(3));
+  st.setProperty('--tkh', (scale() * 0.62).toFixed(3));
+  st.setProperty('--tkc', (scale() * 0.8).toFixed(3));
   Object.assign(node.style, { left: `${x}px`, top: `${y}px`, width: `${d}px`, height: `${d}px`, opacity: c.o * L.all, fontSize: `${Math.max(9, Math.min(18, d * 0.22, d * 0.74 / [...b.name].length))}px` });
 }

@@ -3,7 +3,8 @@
 .touch .hotbar .slot { pointer-events: auto; }
 .touch .hotbar .slot .key { display: none; }
 .touch .hotbar { zoom: calc(var(--ui-zoom, 1) * var(--tkb, 1)); }
-.touch .status-hud, .touch .clock { zoom: calc(var(--ui-zoom, 1) * var(--tkh, 1)); }
+.touch .status-hud { zoom: calc(var(--ui-zoom, 1) * var(--tkh, 1)); }
+.touch .clock { zoom: calc(var(--ui-zoom, 1) * var(--tkc, 1)); }
 
 .touch-hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 .tbtn {
