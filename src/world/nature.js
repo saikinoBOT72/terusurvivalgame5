@@ -117,15 +117,14 @@ export function water(x0, z0, w, d, level, res = 2) {
   });
   const m = new THREE.Mesh(g, mat);
   m.receiveShadow = true;
-  const pos = g.attributes.position;
-  const baseY = pos.array.slice();
-  m.userData.update = (t) => {
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i), z = pos.getZ(i);
-      pos.setY(i, baseY[i * 3 + 1] + Math.sin(x * 1.3 + t * 0.9) * 0.025 + Math.cos(z * 1.7 + t * 0.7) * 0.025);
-    }
-    pos.needsUpdate = true;
+  // 波は描くときに動かす（毎フレーム頂点を書き換えて送り直すと重い）。頂点の位置は世界の位置と同じ
+  const uTime = { value: 0 };
+  mat.onBeforeCompile = (s) => {
+    s.uniforms.uTime = uTime;
+    s.vertexShader = 'uniform float uTime;\n' + s.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\ntransformed.y += sin(transformed.x * 1.3 + uTime * 0.9) * 0.025 + cos(transformed.z * 1.7 + uTime * 0.7) * 0.025;');
   };
+  m.userData.update = (t) => { uTime.value = t; };
   return m;
 }
 

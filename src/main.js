@@ -1,21 +1,14 @@
 import * as THREE from 'three';
-import { P } from './style/palette.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createSky } from './world/sky.js';
 import { buildSampleScene } from './world/sampleScene.js';
 import { buildIsland } from './world/island.js';
-import { glowShroomGill, GLOW_MAT } from './world/spotNature.js';
+
 import { ISLANDS } from './world/islandMap.js';
 import { createLoading } from './ui/loading.js';
-import { createPhysics } from './physics/physics.js';
-import { createVehicles } from './vehicle/vehicles.js';
 import { loadSettings, sensRad, vfovOf } from './ui/settings.js';
-import { createSimple } from './avatar/simple.js'; // 仮のキャラ。猫に戻すときは cat.js の createCat
-import { createFirstPerson, VIEW_LAYER } from './player/firstPerson.js';
-import { createStructures } from './build/structures.js';
-import { createBuildMode } from './build/buildMode.js';
-import { PARTS, PART_LIST, COSTS } from './build/parts.js';
-import { createBuildMenu, costHtml, canPay, itemsHtml } from './ui/buildMenu.js';
+import { createSimple } from './avatar/simple.js'; // 仮のキャラ。猫に戻すときは cat.js（git の最初のコミット）の createCat
+import { createFirstPerson } from './player/firstPerson.js';
 import { createInventory } from './survival/inventory.js';
 import { createGather } from './survival/gather.js';
 import { createCombat } from './mobs/combat.js';
@@ -27,146 +20,53 @@ import { createRockFx } from './mobs/rockFx.js';
 import { createCombatHud } from './ui/combatHud.js';
 import { createPlayerCombat } from './combat/playerCombat.js';
 import { createRanged } from './combat/ranged.js';
-import { PISTOL_HOLD, gunRig } from './survival/gunShapes.js';
-import { weaponMotion } from './avatar/fpMotion.js';
+
 import { createBlueprints } from './survival/blueprints.js';
 import { createInventoryHud } from './ui/inventoryHud.js';
-import { ITEMS } from './survival/items.js';
-import { itemMesh, gripOf } from './survival/itemShapes.js';
-import { BAR, SLOTS } from './survival/inventory.js';
+
 import './ui/ui.css';
 import { perf } from './perf.js';
-import { applyUiColors, createViewerHud, createMenu, createPlayHud, createBuildHud, createKeysPanel, bindFullscreenKey } from './ui/hud.js';
-import { createStats, MAX_HP } from './survival/stats.js';
+import { createRenderer } from './game/renderer.js';
+import { createHeld } from './game/held.js';
+import { createBuilding } from './game/building.js';
+import { createLife } from './game/life.js';
+import { devKit } from './game/devKit.js';
+import { attachWorld } from './game/worlds.js';
+import { applyUiColors, createViewerHud, createMenu, createPlayHud, createKeysPanel, bindFullscreenKey } from './ui/hud.js';
+import { MAX_HP } from './survival/stats.js';
 import { createDayNight } from './world/dayNight.js';
-import { createStatusHud, createDeathScreen } from './ui/statusHud.js';
-import { dropBag } from './survival/death.js';
+import { createStatusHud } from './ui/statusHud.js';
 import { createAimHighlight } from './ui/aimHighlight.js';
 import { createControls } from './controls.js';
-import { rng } from './style/lowpoly.js';
-import { campfire } from './world/props.js';
+
 import { createTools } from './survival/tools.js';
 import { hasSave, readSave, save, restore } from './save/save.js';
-import { stationRefund } from './survival/stations.js';
-import { createFarm, planterRefund } from './survival/farm.js';
-import { placeDrop } from './survival/death.js';
+import { createFarm } from './survival/farm.js';
 
 applyUiColors();
 bindFullscreenKey();
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.shadowMap.autoUpdate = false; // 影は 1 フレームに 1 回だけ作る（下の描画で 2 回描くため）
-renderer.autoClear = false;
-renderer.info.autoReset = false; // 2 回描くので、1 フレーム分をまとめて数える（perf.js）
-document.body.appendChild(renderer.domElement);
-const dom = renderer.domElement;
-// マウスを固定する。加速なしの生の移動量を使うと視点が飛びにくい（使えないブラウザでは普通に固定）
-function lockPointer() {
-  const p = dom.requestPointerLock?.({ unadjustedMovement: true });
-  p?.catch?.(() => dom.requestPointerLock?.()?.catch?.(() => {}));
-}
-
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.05, 1200);
 scene.add(camera);
+const view = createRenderer(camera), { renderer, dom } = view, lockPointer = view.lockPointer; // game/renderer.js
 const sky = createSky(scene);
-// サバイバル（HP・空腹・時刻）は島を 1人称で遊んでいる間だけ進む
-let saveT = 0, sleeping = false; // 眠って暗転している間は、時間も空腹も止める
-const survival = () => mode === 'fps' && world === island && !sleeping;
-const fighting = () => mode === 'fps' && (world === island || world?.range) && !sleeping; // 戦い（敵の動き・スタミナ）は射撃訓練島でも
+// サバイバル（HP・空腹・時刻）は島を 1人称で遊んでいる間だけ進む。眠って暗転している間は止める
+let saveT = 0;
+const survival = () => mode === 'fps' && world === island && !life.sleeping;
+const fighting = () => mode === 'fps' && (world === island || world?.range) && !life.sleeping; // 戦い（敵の動き・スタミナ）は射撃訓練島でも
 const player = createFirstPerson({ camera, dom, onLand: (h) => { if (survival()) stats.fell(h); } });
 const structuresOf = new Map(); // 世界ごとの建築パーツ
 const inventory = createInventory();
-// たき火から 3m 以内か（建てたたき火と、島のはじめからあるたき火）。そばだと HP の回復が速い
-// 建てたたき火は燃えている間だけ（survival.md「設備の窓と燃料」）
-const nearFire = () => {
-  const st = structuresOf.get(world), s = player.state;
-  return !!st?.list.some((p) => p.type === 'campfire' && p.burning && Math.hypot(p.pos.x - s.x, p.pos.z - s.z) < 3 && Math.abs(p.pos.y - s.y) < 3)
-    || (world.fires ?? []).some((f) => Math.hypot(f.x - s.x, f.z - s.z) < 3);
-};
 const blueprints = createBlueprints(); // 読んだ設計図（survival.md「設計図」）
 const invHud = createInventoryHud(inventory, { vitals: () => stats.state, known: (rc) => blueprints.has(rc.bp) }); // 開いているときだけ呼ばれる（stats はこのあとで作る）
 const statusHud = createStatusHud();
 const keysPanel = createKeysPanel();
 const aimMark = createAimHighlight(scene);
 const time = createDayNight();
-const stats = createStats({
-  onDamage: () => statusHud.hurt(),
-  onDeath: () => (world?.range ? (stats.reset(), invHud.message('HP を戻した（訓練島）')) : fallDown()), // 訓練島では倒れない
-});
-// 倒れる: 手に持つ列のほかを袋で落とし、倒れた画面へ。起きる: 島の最初の場所で（寝床ができたら寝床で）
-const deathScreen = createDeathScreen({ onWake: wake });
-function fallDown() {
-  const s = player.state;
-  deathScreen.setDropped(dropBag(world, inventory, s.x, s.y, s.z));
-  setMode('dead');
-  document.exitPointerLock?.();
-}
-function wake() {
-  stats.wake();
-  player.setWorld(world, structuresOf.get(world));
-  const bed = structuresOf.get(world)?.list.findLast((p) => p.type === 'bed'); // 寝床があれば、その横で起きる
-  if (bed) {
-    const a = bed.mesh.rotation.y, s = player.state;
-    Object.assign(s, { x: bed.pos.x + Math.sin(a), z: bed.pos.z + Math.cos(a), y: bed.pos.y + 0.6 });
-  }
-  setMode('fps');
-  lockPointer();
-}
-// 眠る（寝床に右クリック）: 夜だけ。暗転して朝 6:00 になる
-function sleep() {
-  if (sleeping) return;
-  if (!time.isNight) return invHud.message('夜になってから眠れる');
-  sleeping = true;
-  statusHud.fade(true);
-  setTimeout(() => {
-    stats.sleep(time.skipToMorning());
-    sky.setHour(time.hour);
-    statusHud.update(stats.state, time);
-    statusHud.fade(false);
-    setTimeout(() => (sleeping = false), 1000);
-  }, 1100);
-}
-// ---- 建築: ハンマーを持って右クリックでメニュー。置くと素材が減り、撤去すると半分戻る ----
-const buildHud = createBuildHud({ partName: (t) => PARTS[t].name, costHtml: (t) => costHtml(t, inventory), refundHtml: (parts) => itemsHtml(build.refund(parts)) });
-const build = createBuildMode({
-  camera, dom,
-  onSwing: (removing) => player.arms.swing('chop', removing ? ITEMS.stoneHammer.swing : 0.4), // 撤去はゆっくり、置くのはこれまでどおり
-  swinging: () => player.arms.swinging,
-  canPay: (t) => canPay(t, inventory),
-  onPlaced: (t) => {
-    for (const [id, n] of Object.entries(COSTS[t])) inventory.remove(id, n);
-    const broke = inventory.wear(); // ハンマーの耐久
-    if (broke) invHud.message(`${broke}が壊れた`);
-  },
-  onRemoved: (parts) => {
-    const back = {};
-    let lost = false;
-    const left = []; // 設備の中身（チェストも）は持ち物へ。入りきらない分は、その場に袋で落とす
-    for (const p of parts) for (const [id, n] of [...stationRefund(p), ...planterRefund(p)]) {
-      const got = inventory.add(id, n);
-      if (got) invHud.gained(id, got);
-      if (got < n) left.push({ id, n: n - got, at: p.pos });
-    }
-    if (left.length) {
-      const at = left[0].at;
-      placeDrop(world, left.map(({ id, n }) => ({ id, n })), at.x, at.y + 0.3, at.z, { kind: 'bag' });
-      invHud.message('入りきらない分は袋に入れて置いた');
-    }
-    inventory.changed();
-    for (const t of parts.map((p) => p.type)) for (const [id, n] of Object.entries(COSTS[t])) back[id] = (back[id] || 0) + Math.floor(n / 2);
-    for (const [id, n] of Object.entries(back)) if (n) invHud.gained(id, inventory.add(id, n));
-  },
-  // いかだのコアを撤去: バラバラになって、素材が水に浮かぶ（physics.md「いかだ」）
-  onBreak: (v) => { world.vehicles.breakUp(v, (p) => [...stationRefund(p), ...planterRefund(p)]); invHud.message('いかだが壊れた'); },
-});
-scene.add(build.preview);
-scene.add(build.marks); // 撤去で消えるパーツの赤い重ね
-const buildMenu = createBuildMenu({ inventory, onPick: (i) => { input.setBuildMenuOpen(false); build.start(i); }, known: (bp) => blueprints.has(bp) });
+const life = createLife({ player, inventory, invHud, statusHud, sky, time, structuresOf, world: () => world, setMode: (m) => setMode(m), lockPointer }); // game/life.js
+const { stats, deathScreen } = life;
+const { build, hud: buildHud, menu: buildMenu } = createBuilding({ scene, camera, dom, player, inventory, invHud, blueprints, world: () => world, closeMenu: () => input.setBuildMenuOpen(false) }); // 建築（game/building.js）
 const farm = createFarm({ inventory, onGain: (id, n) => invHud.gained(id, n), onMessage: (t) => invHud.message(t) });
 const gather = createGather({ camera, inventory, onGain: (id, n) => invHud.gained(id, n), onMessage: (t) => invHud.message(t) });
 const combatHud = createCombatHud({ camera });
@@ -185,39 +85,8 @@ const ranged = createRanged({
   scene, camera, inventory, combat, player, hud: combatHud, onTarget: (t) => tools.hitTarget(t), onMessage: (t) => invHud.message(t),
   blockers,
 });
-// 手に持つ物の見た目（道具は柄を握る。素材は手のひらにのせる）
-let heldId = null, torchFire = null, torchT = 0, stationT = 0;
-inventory.onChange(() => {
-  const s = inventory.held(), id = s ? s.id : null;
-  if (id === heldId) return;
-  heldId = id;
-  torchFire = null;
-  build.setHammer(!!id && ITEMS[id].tool === 'hammer'); // 石のハンマーを持っている間だけ建築できる（右クリックでメニュー）
-  player.arms.setWeapon(weaponMotion(id)); // 振り方と重さ（avatar/fpMotion.js）
-  if (!id) return player.arms.hold(null);
-  const tool = !!ITEMS[id].tool;
-  const mesh = ITEMS[id].tool === 'gun' ? gunRig(id) : itemMesh(id); // 銃は撃鉄・弾倉が動く形
-  player.arms.hold(mesh, tool ? gripOf(id) : -0.1, ITEMS[id].hold ?? (tool ? 0.7 : 0.55), ITEMS[id].tool === 'spear', tool, !!ITEMS[id].top, ITEMS[id].tool === 'gun' ? PISTOL_HOLD : null);
-  if (id === 'torch') { // 持っている間だけ明るい。炎は光の影響を受けない材質で、まわりを照らす
-    torchFire = campfire(rng(3), { base: false });
-    torchFire.root.scale.setScalar(0.5);
-    torchFire.root.position.y = 0.75;
-    mesh.add(torchFire.root);
-  }
-  if (id === 'lantern') { // ランタン: 白い光（半径 14m）。松明と同じく持っている間だけ減る
-    const light = new THREE.PointLight(P.lanternGlow, 3, 14, 1.6);
-    light.position.y = 0.1;
-    mesh.add(light);
-    torchFire = { root: light, update() {} };
-  }
-  if (id === 'glowShroom') { // 光るキノコ: 青緑の弱い光（松明の半分）。ひだは光の影響を受けない材質
-    mesh.add(new THREE.Mesh(glowShroomGill(rng(4)), GLOW_MAT));
-    const light = new THREE.PointLight(P.magic[2], 1.5, 7, 1.6);
-    light.position.y = 0.2;
-    mesh.add(light);
-    torchFire = { root: light, update() {} };
-  }
-});
+const held = createHeld({ inventory, player, build, onMessage: (t) => invHud.message(t) }); // 手に持つ物の見た目（game/held.js）
+let stationT = 0;
 
 // ---- 世界: 見本の景色と島。島は最初に選ばれたときに作る ----
 const sample = buildSampleScene();
@@ -231,28 +100,8 @@ function useWorld(w) {
   if (showcase) showcase.group.visible = w === showcase;
   if (range) range.group.visible = w === range;
   sky.setFog(...w.fog);
-  w.setGrid(gridOn);
-  w.setDebug(debugOn);
   if (w !== island) sky.setHour(12); // 島以外は昼で止める
-  if (!structuresOf.has(w)) {
-    const s = createStructures(w);
-    w.group.add(s.group);
-    structuresOf.set(w, s);
-    if (w.terrain?.triangles) { // 物理といかだ（docs/rules/physics.md）
-      w.physics = createPhysics(w, s);
-      w.vehicles = createVehicles(w, s, player, { onMessage: (m) => invHud.message(m) });
-      w.refill?.(); // 射撃訓練島: 地面の武器（物理の落とし物）
-    }
-  }
-  w.physics?.setDebug(debugOn);
-  player.setWorld(w, structuresOf.get(w));
-  build.setWorld(w, structuresOf.get(w));
-  gather.setWorld(w);
-  combat.setWorld(w);
-  spawner.setWorld(w);
-  hitFx.setWorld(w);
-  ranged.setWorld(w);
-  tools.setWorld(w);
+  attachWorld(w, { structuresOf, player, build, systems: [gather, combat, spawner, hitFx, ranged, tools], onMessage: (m) => invHud.message(m), gridOn, debugOn }); // game/worlds.js
 }
 async function makeIsland(id, onProgress) {
   if (island) {
@@ -291,17 +140,6 @@ const playHud = createPlayHud();
 // 同じ世界に戻るときは、いた場所から続ける
 const play = (w) => { if (w !== world) useWorld(w); setMode('fps'); lockPointer(); };
 let atTitle = true; // メニューがタイトルか一時停止か
-// 開発中だけ: 持ち物の奥（手に持つ列のほか）に素材を多めに入れて始める（survival.md「セーブ」）
-// 素材はどれも 50 個（重ねられる数が少ない物はその数）。設計図は全部読んだことにする
-const DEV_KIT = ['wood', 'stick', 'stone', 'bamboo', 'rope', 'fiber', 'flint', 'clay', 'brick', 'palmLeaf', 'feather',
-  'coal', 'copperOre', 'ironOre', 'copperIngot', 'ironIngot', 'copperWire', 'screw', 'scrap', 'battery', 'soil', 'seedPotato', 'hempSeed'];
-const DEV_SLOTS = [...Array(SLOTS - BAR).keys()].map((k) => BAR + k).concat([1, 2, 3, 4, 5]); // 奥から入れ、あふれたら手に持つ列（0 は素手のまま）
-function devKit() {
-  if (!import.meta.env.DEV) return;
-  DEV_KIT.forEach((id, k) => { inventory.slots[DEV_SLOTS[k]] = { id, n: Math.min(50, ITEMS[id].stack) }; });
-  for (const it of Object.values(ITEMS)) if (it.bp) blueprints.learn(it.bp);
-  inventory.changed();
-}
 // はじめから: 新しい島、持ち物・HP・時刻も最初から
 // kit: 開発用メニューの「墜落島（素材つき）」。ふつうは何も持たずに残骸のそばで起きる（islands.md「始まり」）
 function newGame(kit = false) {
@@ -309,7 +147,7 @@ function newGame(kit = false) {
   inventory.slots.fill(null);
   inventory.select(0);
   blueprints.reset();
-  if (kit) devKit();
+  if (kit) devKit(inventory, blueprints);
   inventory.changed();
   stats.reset();
   time.reset();
@@ -349,7 +187,7 @@ const menu = createMenu({
 });
 // ---- セーブ（save/save.js）: 一時停止したとき・60 秒ごと・ページを閉じるときに自動で保存。「つづきから」で戻す ----
 const gameRef = () => ({ islandId, blueprints, spawner, island, structures: structuresOf.get(island), inventory, time, stats, player });
-function saveNow() { if (island && world === island && mode === 'fps' && !sleeping) save(gameRef()); }
+function saveNow() { if (island && world === island && mode === 'fps' && !life.sleeping) save(gameRef()); }
 function loadGame() {
   const d = readSave();
   if (d) buildThen(d.island, () => { play(island); restore(d, gameRef()); });
@@ -403,23 +241,17 @@ setMode('menu');
 
 // 遊び中の操作（controls.js）
 const input = createControls({
-  dom, lockPointer, invHud, buildMenu, build, gather, combat, pc, ranged, tools, farm, inventory, stats, blueprints, sleep, canSleep: () => time.isNight, player, keysPanel,
-  mode: () => mode, setMode, held: () => heldId, vehicles: () => world.vehicles,
+  dom, lockPointer, invHud, buildMenu, build, gather, combat, pc, ranged, tools, farm, inventory, stats, blueprints, sleep: life.sleep, canSleep: () => time.isNight, player, keysPanel,
+  mode: () => mode, setMode, held: () => held.id, vehicles: () => world.vehicles,
   toggleGrid: () => world.setGrid(gridOn = !gridOn),
   toggleDebug: () => { world.setDebug(debugOn = !debugOn); world.physics?.setDebug(debugOn); },
 });
 
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
 
 const clock = new THREE.Clock();
 function frame(step) { // step: 確認用に決まった秒だけ進める（__game.run）
   const dt = step ?? Math.min(clock.getDelta(), 0.05), t = step ? (clock.elapsedTime += step) : clock.elapsedTime;
   perf.start();
-  renderer.info.reset();
   if (walking) angle += dt * 0.55;
   const c = world.catCenter;
   const x = c.x + Math.cos(angle) * RADIUS, z = c.z + Math.sin(angle) * RADIUS;
@@ -441,11 +273,11 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   combat.update(t, dt, fighting());
   combatHud.hidden(mode !== 'fps');
   combatHud.update(dt);
-  if (fighting()) pc.update(dt, heldId);
+  if (fighting()) pc.update(dt, held.id);
   if (survival()) spawner.update(dt);
   perf.lap('敵');
-  if (mode === 'fps') ranged.update(dt, heldId);
-  combatHud.setCooldown(mode === 'fps' ? ranged.cdFrac(heldId) ?? pc.cdFrac() : null); // 照準の下の攻撃間隔の線
+  if (mode === 'fps') ranged.update(dt, held.id);
+  combatHud.setCooldown(mode === 'fps' ? ranged.cdFrac(held.id) ?? pc.cdFrac() : null); // 照準の下の攻撃間隔の線
   combatHud.setLowHp(stats.state.hp / MAX_HP, mode !== 'fps' || stats.state.dead); // HP が低いと画面のふちが赤く脈打つ
   build.update();
   buildHud.update(mode === 'fps' ? build.status() : null);
@@ -454,7 +286,7 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   aimMark.update(mode === 'fps' && !build.active && !input.uiOpen() ? gather.aimedEntity() : null);
   perf.lap('照準・UI');
   if (survival()) {
-    stats.update(dt, { nearFire: nearFire(), underwater: player.state.underwater });
+    stats.update(dt, { nearFire: life.nearFire(), underwater: player.state.underwater });
     world.planting?.update(time.total);
     time.update(dt);
     sky.setHour(time.hour);
@@ -465,31 +297,13 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   structuresOf.get(world)?.update(dt, mode === 'fps');
   if (invHud.open && (stationT += dt) > 0.15) { stationT = 0; invHud.refreshStation(); } // 開いている設備の窓（進み具合・燃料）
   world.vehicles?.update(dt, mode === 'fps');
-  if (mode === 'fps') tools.update(dt, heldId);
-  if (torchFire && mode === 'fps') { // 松明は持っている間だけ燃える
-    torchFire.update(t);
-    if (!sleeping && (torchT += dt) >= 1) {
-      torchT -= 1;
-      const broke = inventory.wear();
-      if (broke) invHud.message(broke === 'ランタン' ? 'ランタンの電池が切れた' : broke === '光るキノコ' ? '光るキノコが光らなくなった' : '松明が燃え尽きた');
-    }
-  }
+  if (mode === 'fps') tools.update(dt, held.id);
+  if (mode === 'fps') held.update(t, dt, life.sleeping);
+
   if (mode === 'viewer' || (mode === 'menu' && !played)) controls.update();
   sky.update(dt, camera.position);
   perf.lap('建築・乗り物・空');
-  // 世界を描いてから、奥行きを消して 1人称の腕と持つ物を重ねる
-  renderer.shadowMap.needsUpdate = true;
-  renderer.clear();
-  renderer.render(scene, camera);
-  if (mode === 'fps') {
-    renderer.clearDepth();
-    const bg = scene.background;
-    scene.background = null; // 背景の色があると、描く前に画面が塗りつぶされる
-    camera.layers.set(VIEW_LAYER);
-    renderer.render(scene, camera);
-    camera.layers.set(0);
-    scene.background = bg;
-  }
+  view.draw(scene, mode === 'fps');
   perf.lap('描画');
 }
 renderer.setAnimationLoop(() => frame());
@@ -497,6 +311,6 @@ renderer.setAnimationLoop(() => frame());
 // 確認用（開発中だけ）: ブラウザのコンソールから状態を見たり動かしたりする
 if (import.meta.env.DEV) {
   // run(ms): 画面が隠れていても ms だけ進める（確認用）
-  window.__game = { renderer, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, blueprints, invHud, sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, sample, camera, cat, controls, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; } };
+  window.__game = { renderer, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, blueprints, invHud, sleep: life.sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, sample, camera, cat, controls, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; } };
   import('./debug.js').then(({ createDebug, modelStats, createPhysicsTest }) => { window.__game.debug = createDebug(window.__game); window.__game.stats = modelStats; window.__game.physics = createPhysicsTest(window.__game); });
 }

@@ -11,7 +11,6 @@ import { stick, pebble, berryBush, sack } from './pickups.js';
 import { fallenLog, birdNest, bambooGrove, palmTree, sapling } from './flora.js';
 import { purifierGeo, purifierWater, purifierWaterY } from '../build/furniture.js';
 import { campfire, mushrooms, barrel, boat } from './props.js';
-import { createCat } from '../avatar/cat.js';
 import { createSimple } from '../avatar/simple.js';
 import { createDrone } from '../mobs/drone.js';
 import { createDog } from '../mobs/dog.js';
@@ -135,8 +134,7 @@ function catalog() {
     return { obj: g, update: f.update };
   };
   list.push({ name: '浄水器', ...purifier(0, false) }, { name: '浄水器（火にかけた）', ...purifier(0.6, true) });
-  const cat = createCat(), simple = createSimple();
-  list.push({ name: '猫', obj: cat.root, update: (t, dt) => cat.update(dt, {}), chara: true });
+  const simple = createSimple();
   list.push({ name: '仮のキャラ', obj: simple.root, update: (t, dt) => simple.update(dt, {}) }); // 仮なので例外にしない
   // 敵の見本: ポーズごとに 1 体ずつ並べる
   const POSE_NAMES = { idle: '待機', move: '移動', windup: 'ため', attack: '攻撃', stagger: '隙', crouch: '突進のため', charge: '突進', windupSpin: 'つむじ風のため', spin: 'つむじ風', windupShot: '風の弾のため', shoot: '風の弾', disguise: '岩のふり', down: '撃墜',

@@ -1,5 +1,5 @@
 // 仮のキャラ（docs/rules/avatar.md「仮のキャラ」）。猫のモデルが決まるまで使う
-// 使い方は cat.js と同じ: createSimple → { root, update }、createFpHands（fpHands.js）→ { root, update, hold, swing, swinging, ... }
+// 使い方は前の猫（cat.js。git の最初のコミットにある）と同じ: createSimple → { root, update }、createFpHands（fpHands.js）→ { root, update, hold, swing, swinging, ... }
 // 正面は +z。足の裏が y=0。
 import * as THREE from 'three';
 import { P } from '../style/palette.js';

@@ -102,4 +102,3 @@ export const RECIPES = [
   { out: 'ironPick', n: 1, need: { ironIngot: 2, stick: 1, screw: 1 }, station: 'workbench', bp: 'ironTools' },
   { out: 'ironSpear', n: 1, need: { ironIngot: 2, stick: 2, screw: 1 }, station: 'workbench', bp: 'ironTools' },
 ];
-export const STATION_NAMES = { workbench: '作業台' };

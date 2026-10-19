@@ -1,6 +1,6 @@
 // 1人称の視点と移動。
 // state（位置・向き・動き）は見た目と分けて持つ。あとでマルチプレイで同期する情報。
-import { createFpHands } from '../avatar/simple.js'; // 仮のキャラ。猫に戻すときは cat.js の createFpArms
+import { createFpHands } from '../avatar/simple.js'; // 仮のキャラ。猫に戻すときは cat.js（git の最初のコミット）の createFpArms
 
 export const BODY = 0.8; // 体の大きさ（2026-10-16 に 1 → 0.8。速さ・跳ぶ高さ・目と頭の高さ・太さもこれに合わせる。player.md）
 const SPEED = 3.6 * BODY;     // 歩く速さ（m/秒）
