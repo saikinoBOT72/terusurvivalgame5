@@ -1,7 +1,13 @@
 /* 画面表示の見た目（docs/rules/ui.md「石の板の見た目」）。色は palette.js から CSS 変数（--ui-*）で受け取る */
-html, body { margin: 0; height: 100%; overflow: hidden; }
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
+/* スマホ: ページを固定して動かさない、長押しの選択・メニューとタップの色を出さない（input/mobileGuard.js）。スクロールする窓だけ縦になぞれる */
+html { -webkit-text-size-adjust: 100%; touch-action: none; }
+body { position: fixed; inset: 0; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+input, textarea { -webkit-user-select: text; user-select: text; }
+/* 画面の端の切り欠き・ホームバーをよける幅（index.html の viewport-fit=cover） */
+:root { --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px); --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px); }
 body { font-family: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Meiryo", sans-serif; color: var(--ui-text); }
-canvas { display: block; }
+canvas { display: block; position: fixed; left: 0; top: 0; }
 /* 文字・板・ボタン・タブ・切り替え・キーの札は kit.css（共通部品） */
 .need small { color: var(--ui-textSub); }
 
@@ -19,7 +25,7 @@ canvas { display: block; }
 
 /* ---- タイトルと一時停止 ---- */
 .menu-back { position: fixed; inset: 0; display: grid; place-items: center; }
-.menu { padding: 22px 26px; min-width: 340px; max-width: calc(100vw - 64px); }
+.menu { padding: 22px 26px; min-width: 340px; max-width: calc(100vw - 64px); box-sizing: border-box; max-height: calc(100dvh - 16px); overflow: auto; touch-action: pan-y; }
 .menu .row { display: flex; gap: 10px; }
 .menu .row button { flex: 1; white-space: nowrap; }
 .menu .titleBtns, .menu .pauseBtns { display: flex; flex-direction: column; gap: 10px; }
@@ -38,10 +44,13 @@ canvas { display: block; }
 .keys .dev { grid-column: 1 / -1; margin-top: 4px; font-size: var(--fs-xs); color: var(--ui-textSub); }
 .keys-panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 /* キー設定のタブ: 動作名 → キーの札 */
-.keys.edit { grid-template-columns: 1fr auto; max-height: 46vh; overflow: auto; padding-right: 6px; }
+.keys.edit { grid-template-columns: 1fr auto; max-height: 46vh; overflow: auto; touch-action: pan-y; padding-right: 6px; }
 .keys.edit .fixed-title { grid-column: 1 / -1; margin-top: 6px; font-size: var(--fs-sub); }
 /* UI の大きさ（設定） */
 .status-hud, .clock, .fps-meter, .hotbar, .corner, .inv, .build-menu, .keys-panel, .menu, .death { zoom: var(--ui-zoom, 1); }
+/* 背の低い画面（横向きのスマホ）: 大きい窓は小さくして収める。それでもはみ出す分はなぞってスクロール */
+@media (max-height: 520px) { .inv, .build-menu, .death { zoom: calc(var(--ui-zoom, 1) * .82); } }
+@media (max-height: 420px) { .inv, .build-menu, .death { zoom: calc(var(--ui-zoom, 1) * .7); } }
 
 /* ---- 遊び中: 照準、枠、ヒント ---- */
 .play-hud { position: fixed; inset: 0; pointer-events: none; }
@@ -51,7 +60,7 @@ canvas { display: block; }
 .crosshair::before { left: 0; top: 6.25px; width: 14px; height: 1.5px; }
 .crosshair::after { top: 0; left: 6.25px; width: 1.5px; height: 14px; }
 /* 右下: 説明・知らせはここにまとめる（上から 知らせ・建築・照準の先） */
-.corner { position: fixed; right: 16px; bottom: 84px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
+.corner { position: fixed; right: calc(16px + var(--safe-r)); bottom: calc(84px + var(--safe-b)); display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
 .corner .toasts { order: 1; }
 .corner .build-hud { order: 2; }
 .corner .aim-name { order: 3; }
@@ -59,7 +68,7 @@ canvas { display: block; }
 .aim-name b { margin-left: 4px; padding: 0 5px; border: 1px solid var(--ui-line); border-radius: 4px; font-size: 11px; }
 
 /* ---- HP と「おなか」（左上）、時計（右上）、ダメージ ---- */
-.status-hud { position: fixed; left: 16px; top: 14px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
+.status-hud { position: fixed; left: calc(16px + var(--safe-l)); top: calc(14px + var(--safe-t)); display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
 .gauge { display: flex; align-items: center; gap: 6px; }
 .gauge img { width: 28px; height: 28px; flex: none; }
 .gauge .track { width: min(300px, 50vw); }
@@ -81,7 +90,7 @@ canvas { display: block; }
 .underwater.on { opacity: 1; }
 .gauge.low .track { border-color: var(--ui-ng); animation: gauge-low 1s ease-in-out infinite alternate; }
 @keyframes gauge-low { to { opacity: .55; } }
-.clock { position: fixed; right: 16px; top: 16px; display: flex; gap: 10px; align-items: baseline; padding: 6px 12px; font-weight: 700; font-size: var(--fs-body); pointer-events: none; }
+.clock { position: fixed; right: calc(16px + var(--safe-r)); top: calc(16px + var(--safe-t)); display: flex; gap: 10px; align-items: baseline; padding: 6px 12px; font-weight: 700; font-size: var(--fs-body); pointer-events: none; }
 .clock .phase { font-size: 12px; color: var(--ui-textSub); }
 .hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 120px 30px var(--ui-hp); }
 .sleep-fade { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: #000; transition: opacity 1s; }
@@ -95,7 +104,7 @@ canvas { display: block; }
 .build-hud .cost { font-size: 13px; display: flex; gap: 10px; }
 .build-hud .sub { font-size: 12px; color: var(--ui-textSub); }
 .build-hud .why { font-size: 12px; color: var(--ui-ng); font-weight: 700; }
-.build-menu { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box; }
+.build-menu { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow: auto; touch-action: pan-y; box-sizing: border-box; }
 .build-menu .cards { display: grid; grid-template-columns: repeat(auto-fill, 112px); gap: 8px; width: min(616px, calc(100vw - 64px)); }
 .build-menu .card { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; }
 .build-menu .card img { width: 72px; height: 72px; }
@@ -107,7 +116,7 @@ canvas { display: block; }
 .build-menu .tab.remove { margin-left: auto; }
 
 /* ---- 手に持つ列 ---- */
-.hotbar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.hotbar { position: fixed; left: 50%; bottom: calc(16px + var(--safe-b)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 .hotbar .row { display: flex; gap: 6px; }
 .hotbar .slot .n { color: var(--ui-label); text-shadow: 1px 1px 0 var(--ui-edge), -1px -1px 0 var(--ui-edge); }
 .hotbar .slot .key { position: absolute; left: 4px; top: 1px; font-size: 10px; font-weight: 700; color: var(--ui-label); text-shadow: 1px 1px 0 var(--ui-edge); }
@@ -117,7 +126,7 @@ canvas { display: block; }
 /* ---- 持ち物画面（右に寄せる。上にタブ） ---- */
 /* 持ち物の窓はいつも真ん中（ui.md「設備の窓」）。設備の窓はその右に出す */
 .inv { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; }
-.inv .recipes { max-height: 56vh; overflow: auto; padding-right: 4px; }
+.inv .recipes { max-height: 56vh; overflow: auto; touch-action: pan-y; padding-right: 4px; }
 .inv .tab { width: 60px; height: 46px; padding: 0; display: grid; place-items: center; }
 .inv .tab img { width: 38px; height: 38px; }
 .inv .sub { margin: var(--gap-in) 0 4px; }
@@ -217,7 +226,7 @@ canvas { display: block; }
 .gauge.stamina.full { opacity: .45; }
 
 /* フレームレート表示（設定「画面」でオン。右上の時計の下） */
-.fps-meter { position: fixed; right: 16px; top: 56px; padding: 1px 8px; font-size: var(--fs-xs); font-weight: 700; pointer-events: none; }
+.fps-meter { position: fixed; right: calc(16px + var(--safe-r)); top: calc(56px + var(--safe-t)); padding: 1px 8px; font-size: var(--fs-xs); font-weight: 700; pointer-events: none; }
 
 /* ---- 持ち物の広さ・装備・大事な物（ui.md「持ち物の広さと装備」） ---- */
 .equip-col { position: absolute; right: calc(100% + 14px); top: 0; width: max-content; }
@@ -227,7 +236,7 @@ canvas { display: block; }
 .slot.lock::after { content: ''; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -12px 0 0 -5px; border: 3px solid var(--ui-light); border-bottom: 0; box-sizing: border-box; }
 .inv .grid.locked:empty, .inv .lock-note:empty { display: none; }
 .inv .lock-note { font-size: var(--fs-sub); color: var(--ui-textSub); }
-.key-list { display: flex; flex-direction: column; gap: 8px; width: 390px; max-width: 100%; max-height: 56vh; overflow: auto; }
+.key-list { display: flex; flex-direction: column; gap: 8px; width: 390px; max-width: 100%; max-height: 56vh; overflow: auto; touch-action: pan-y; }
 .key-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 2px solid var(--ui-edge); border-radius: 7px; corner-shape: bevel;
   background: color-mix(in srgb, var(--ui-light) 45%, transparent); }
 .key-row img { width: 52px; height: 52px; }

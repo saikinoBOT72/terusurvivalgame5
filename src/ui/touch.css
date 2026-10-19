@@ -1,6 +1,5 @@
 /* タッチの画面（docs/rules/ui.md「タッチ操作」）: 丸い石のボタン、スティック。色は palette（hud.js の --ui-*） */
 .touch canvas { touch-action: none; }
-.touch body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .touch .hotbar .slot { pointer-events: auto; }
 .touch .hotbar .slot .key { display: none; }
 
@@ -13,7 +12,7 @@
 }
 .tbtn span { white-space: nowrap; }
 /* 右下の表示（ヒント・知らせ・建築）はボタンと重なるので、タッチでは上の真ん中へ */
-.touch .corner { right: 50%; bottom: auto; top: 12px; transform: translateX(50%); align-items: center; }
+.touch .corner { right: 50%; bottom: auto; top: calc(12px + var(--safe-t)); transform: translateX(50%); align-items: center; }
 .tbtn.down { background: var(--ui-light); box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--ui-edge) 28%, transparent); }
 .tbtn.on { box-shadow: inset 0 0 0 3px var(--ui-hunger), inset 2px 2px 0 var(--ui-light); }
 /* スティック: くぼみの石と、つまみの石。ふちの外まで引くと（走る）つまみが黄 */
@@ -24,6 +23,7 @@
 
 .touch-hud:not(.placing) .tbtn.build, .touch-hud.placing .tbtn.nobuild { display: none; }
 .touch-hud.ui .tbtn:not([data-id=inventory]) { display: none; }
+.no-fs .tbtn[data-id=fullscreen] { display: none; } /* 全画面にできないブラウザ（iPhone）。ホーム画面に追加すると全画面で開く */
 
 /* 配置の編集（touchEdit.js） */
 .touch-edit { position: fixed; inset: 0; z-index: 60; background: color-mix(in srgb, var(--ui-edge) 45%, transparent); touch-action: none; }

@@ -25,6 +25,7 @@ import { createEquip } from './survival/equip.js';
 import { createInventoryHud } from './ui/inventoryHud.js';
 
 import './input/mouseKeys.js';
+import './input/mobileGuard.js';
 import './ui/kit.css';
 import './ui/ui.css';
 import { perf } from './perf.js';
