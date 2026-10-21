@@ -47,7 +47,7 @@ export function weaponOf(id, kind = 'mob') {
 // 敵の体の当たり判定（player.md「敵の体にもぶつかる」）: 見た目の幅の半分の円柱。top は高くして上に乗れないように
 const bodyR = (kind) => { const b = bodyBox(kind); return Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * 0.5; };
 const PLAYER_R = 0.3, PLAYER_H = 1.1; // プレイヤーの太さ・高さ（firstPerson.js の RADIUS・HEAD くらい）
-export function createCombat({ camera, inventory, player, playerDead = () => false, fx = null, wind = null, mud = null, rock = null, hud = null, blockers = () => [], onPlayerHit = () => {}, onDead = () => {}, onMessage = () => {}, onAlarm = () => {}, onGain = () => {}, hasBp = () => true }) {
+export function createCombat({ camera, inventory, player, playerDead = () => false, fx = null, wind = null, mud = null, rock = null, sand = null, hud = null, blockers = () => [], onPlayerHit = () => {}, onDead = () => {}, onMessage = () => {}, onAlarm = () => {}, onGain = () => {}, hasBp = () => true }) {
   let world = null, steer = null;
   const list = [], log = [];
   const shots = createMobShots({ wind, mud }); // 敵の弾（風の弾・泥）
@@ -82,7 +82,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
     remove(m);
     if (m.hp === m.maxHp) (pool[m.kind] ??= []).push(m.model);
   }
-  function clear() { while (list.length) remove(list[0]); shots.clear(); wind?.clear(); mud?.clear(); rock?.clear(); }
+  function clear() { while (list.length) remove(list[0]); shots.clear(); wind?.clear(); mud?.clear(); rock?.clear(); sand?.clear(); }
   // 敵がプレイヤーと重ならない所で止まる（上下に離れていれば重なってよい）
   function apart(m) {
     const p = player.state, b = bodyBox(m.kind);
@@ -104,7 +104,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
     player, dead: playerDead(), steer, list, terrain: world.terrain, blockers, touch: bodyR(m.kind) + PLAYER_R, playerSpeed,
     alarm: (cam) => { record(`${cam.def.name}の警報`); onAlarm(cam); }, // 監視カメラ（cameraBrain.js）
     hurt: (n, atk) => hurtBy(m, n, atk),
-    wind, mud, rock, // 風の演出（windFx.js）、泥と歯の火花（mudFx.js）、岩と土（rockFx.js）
+    wind, mud, rock, sand, // 風の演出（windFx.js）、泥と歯の火花（mudFx.js）、岩と土（rockFx.js）、砂と水（sandFx.js）
     dust: (mm, u, dt) => mfx.dust(mm, u, dt),
     shoot: (atk, from, dir) => shots.fire(m, atk, new THREE.Vector3(from.x, from.y, from.z), new THREE.Vector3(dir.x, dir.y, dir.z), world.group),
     escape: (e) => { record(`${e.def.name}が逃げた`); remove(e); },
@@ -193,7 +193,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
     }
     if (!m.hp) { if (dir) { m.vx = (m.vx ?? 0) + dir.x * 2; m.vz = (m.vz ?? 0) + dir.z * 2; } down(m); return dmg; }
     const fl = knock * m.def.flinch;
-    if (fl > 0) { // のけぞる: ためが止まり、少し後ろへ
+    if (fl > 0 && !(m.state === 'flinch' && m.t > fl)) { // のけぞる: ためが止まり、少し後ろへ（受け流しの長い隙は短くしない）
       m.state = 'flinch'; m.t = fl;
       m.model.setPose(m.model.poses.includes('stagger') ? 'stagger' : 'windup');
       if (dir && !m.def.dummy) { m.x += dir.x * 0.3 * m.def.flinch; m.z += dir.z * 0.3 * m.def.flinch; }
@@ -242,7 +242,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
 
   return {
     list, log, shots, mfx,
-    setWorld(w) { clear(); world = w; mfx.setWorld(w); mud?.setWorld(w); rock?.setWorld(w); steer = w?.terrain ? createSteer({ terrain: w.terrain, blockers }) : null; for (const at of w?.dummies ?? (w?.dummyAt ? [w.dummyAt] : [])) { const m = spawn('dummy', at.x, at.z); m.yaw = Math.atan2(w.spawn.x - m.x, w.spawn.z - m.z); m.fixed = true; } }, // 練習用の的は島の決まった場所に（訓練島は射撃の道に並べる。fixed: 全部消すで消さない）
+    setWorld(w) { clear(); world = w; mfx.setWorld(w); mud?.setWorld(w); rock?.setWorld(w); sand?.setWorld(w); steer = w?.terrain ? createSteer({ terrain: w.terrain, blockers }) : null; for (const at of w?.dummies ?? (w?.dummyAt ? [w.dummyAt] : [])) { const m = spawn('dummy', at.x, at.z); m.yaw = Math.atan2(w.spawn.x - m.x, w.spawn.z - m.z); m.fixed = true; } }, // 練習用の的は島の決まった場所に（訓練島は射撃の道に並べる。fixed: 全部消すで消さない）
     spawn, remove, stash, clear, rayMob, damageMob, barrierMob,
     // 敵の体（プレイヤーの当たり判定に足す。firstPerson.js）。倒れた敵は通り抜ける
     bodies(x, z, r) {
@@ -255,7 +255,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
       return out;
     },
     // 受け流された敵が崩れる（隙のポーズ。なければためのポーズ）
-    stagger(m, secs) { if (m.state === 'down') return; m.state = 'flinch'; m.t = secs; m.model.setPose(m.model.poses.includes('stagger') ? 'stagger' : 'windup'); record(`受け流し→${m.def.name}`); },
+    stagger(m, secs) { if (m.state === 'down') return; const pr = m.def.parry; m.state = 'flinch'; m.t = pr?.secs ?? secs; m.model.setPose(pr?.pose ?? (m.model.poses.includes('stagger') ? 'stagger' : 'windup')); record(`受け流し→${m.def.name}`); },
     // 照準の先の敵の名前と残り HP（なければ null）
     aimedInfo(held) {
       if (!world || !list.length) return null;
@@ -323,7 +323,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
       fx?.update(dt);
       wind?.update(dt);
       mud?.update(dt);
-      rock?.update(dt);
+      rock?.update(dt); sand?.update(dt);
       mfx.update(dt);
       hud?.setMarks(list.filter((m) => m.state !== 'down' && (m.aware === 'sus' || m.alertT > 0 || (m.asleep && Math.hypot(m.x - ps.x, m.z - ps.z) < Z_SEE)) && markSeen(m)).map((m) => ({ p: new THREE.Vector3(m.x, m.y + bodyBox(m.kind).max.y + 0.15, m.z), kind: m.aware === 'sus' ? '?' : m.alertT > 0 ? '!' : 'z' })));
     },

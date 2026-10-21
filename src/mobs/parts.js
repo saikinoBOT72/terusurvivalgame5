@@ -14,7 +14,8 @@ function put(geo, { at = [0, 0, 0], rot = [0, 0, 0], scale } = {}) {
   return geo.translate(...at);
 }
 
-const paintAs = (geo, pal, rand, o) => shape(put(geo, o), typeof pal === 'string' ? pal : byFace(pal), rand, { vary: 0.03 });
+// pal: 色 1 つ、色の 3 段（面の向きで塗る）、または面 → 色の関数（場所で塗り分ける。カニの脚の暗い先など）
+const paintAs = (geo, pal, rand, o) => shape(put(geo, o), typeof pal === 'string' || typeof pal === 'function' ? pal : byFace(pal), rand, { vary: 0.03 });
 
 export const robot = {
   // 箱（胴、装甲板、足の裏）。薄くすれば板
@@ -49,11 +50,11 @@ export const robot = {
     const v = [], tri = (a, b, c) => v.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
     for (let i = 0; i < n - 1; i++) for (let k = 0; k < 4; k++) {
       const a = rings[i][k], b = rings[i][(k + 1) % 4], c = rings[i + 1][(k + 1) % 4], d = rings[i + 1][k];
-      tri(a, c, b);
+      if (radii[i] > 0) tri(a, c, b); // 太さ 0 の点（とがった端）では、つぶれた三角形を作らない
       if (radii[i + 1] > 0) tri(a, d, c);
     }
     const c0 = rings[0];
-    tri(c0[0], c0[1], c0[2]); tri(c0[0], c0[2], c0[3]);
+    if (radii[0] > 0) { tri(c0[0], c0[1], c0[2]); tri(c0[0], c0[2], c0[3]); }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
     return paintAs(g, pal, rand, o);

@@ -15,6 +15,7 @@ import { createHitFx } from './mobs/hitFx.js';
 import { createWindFx } from './mobs/windFx.js';
 import { createMudFx } from './mobs/mudFx.js';
 import { createRockFx } from './mobs/rockFx.js';
+import { createSandFx } from './mobs/sandFx.js';
 import { createCombatHud } from './ui/combatHud.js';
 import { createPlayerCombat } from './combat/playerCombat.js';
 import { createRanged } from './combat/ranged.js';
@@ -83,9 +84,10 @@ const hitFx = createHitFx({ scene, hud: combatHud });
 const windFx = createWindFx({ scene, camera }); // 風の演出（ブンブン）
 const mudFx = createMudFx({ scene, fx: hitFx }); // 泥と歯の火花（犬）
 const rockFx = createRockFx({ scene, fx: hitFx, player }); // 岩と土（採掘ロボ）
+const sandFx = createSandFx({ scene, fx: hitFx }); // 砂と水（カニ）
 // 弾・敵がぶつかる木・岩・建築パーツ
 const blockers = (x, z, r) => (world.colliders?.(x, z, r) ?? []).concat(structuresOf.get(world)?.query(x, z, r) ?? []);
-const combat = createCombat({ camera, inventory, player, fx: hitFx, wind: windFx, mud: mudFx, rock: rockFx, hud: combatHud, blockers, onDead: (m) => spawner.onDead(m), playerDead: () => stats.state.dead, onPlayerHit: (n, m, atk) => pc.onHit(n, m, atk), onMessage: (t) => invHud.message(t), onAlarm: (cam) => spawner.call(cam), onGain: (id, n) => invHud.gained(id, n), hasBp: (bp) => keyItems.hasBp(bp) });
+const combat = createCombat({ camera, inventory, player, fx: hitFx, wind: windFx, mud: mudFx, rock: rockFx, sand: sandFx, hud: combatHud, blockers, onDead: (m) => spawner.onDead(m), playerDead: () => stats.state.dead, onPlayerHit: (n, m, atk) => pc.onHit(n, m, atk), onMessage: (t) => invHud.message(t), onAlarm: (cam) => spawner.call(cam), onGain: (id, n) => invHud.gained(id, n), hasBp: (bp) => keyItems.hasBp(bp) });
 player.setBodies((x, z, r) => combat.bodies(x, z, r)); // 敵にめり込まない（player.md）
 const spawner = createSpawner({ combat, time, player }); // 敵の出方（islands.md）
 const pc = createPlayerCombat({ player, stats, hud: combatHud, statusHud, gear: () => equip.stats(), onStagger: (m, secs) => combat.stagger(m, secs) });

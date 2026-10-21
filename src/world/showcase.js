@@ -53,7 +53,7 @@ const BED = ['鉱床', 0, [300, 900], [10, 40]]; // 鉱床（style.md「鉱床�
 const MACHINE = ['機械', 0, [400, 1200], [8, 80]]; // 自動化の機械（style.md「機械（例外）」）
 // 敵: 大きさでなく、見本の段階（mob）で決める（enemies.md。仮の数字）
 const MOBS = {
-  小型: ['小型（敵）', 0, [150, 400], [8, 24]],
+  小型: ['小型（敵）', 0, [150, 400], [8, 26]],
   中型: ['中型（敵）', 0, [300, 700], [16, 40]],
   大型: ['大型（敵）', 0, [600, 1500], [24, 60]],
   生き物小型: ['小型（生き物）', 0, [300, 800], [6, 18]], // creatures.md「大きさの段階」
@@ -172,6 +172,7 @@ function catalog() {
     windupBite: 'かみつきのため', bite: 'かみつき', bite2: 'かみつき 2', windupPounce: '跳びかかりのため', pounce: '跳びかかり', windupMud: '泥飛ばしのため', mud: '泥飛ばし', stumble: 'つんのめる',
     sleep: '寝る', drink: '補給', idleSniff: 'においを嗅ぐ', idleSit: '座る', idleScratch: '頭をかく', idleShake: '脚を振る',
     windupSmash: '振り下ろしのため', smash: '振り下ろし', stuck: '刺さって抜けない', windupSweep: 'なぎ払いのため', sweep: 'なぎ払い', windupQuake: '地割れのため', quake: '地割れ', fake: '死んだふり', fakeWake: '死んだふり（目が点く）', idleCarry: 'かつぐ', leapSmash: '振り下ろしの跳び', roar: '吠える', idleTap: 'コツコツ', idleBlade: '刃を見る',
+    windupPinch: 'はさみ打ちのため', pinch: 'はさみ打ち', windupDouble: '両ばさみのため', pinchL: '両ばさみ（左）', pinchR: '両ばさみ（右）', windupRush: '横ばい突進のため', rush: '横ばい突進', flip: '裏返る', idleLook: '見回す', idleClack: 'カチカチ', idleScoop: '掃除',
     dig: '掘る', threat: '威嚇', fall: '倒れる', graze: '草をはむ', flee: '逃げる', peck: 'ついばむ', fly: '飛ぶ' };
   const MOB_LIST = [[createDrone, 'ブンブン', '小型'], [createCrab, 'カニ', '小型'], [createDog, 'ガラクタ犬', '中型'], [createMining, '採掘ロボ', '中型'], [createCamera, '監視カメラ', '中型'], [createGangi, 'ガンギ', '大型'], [createRabbit, 'ウサギ', '生き物小型'], [createBird, '鳥', '生き物小型'], [createBoar, 'イノシシ', '生き物中型']];
   for (const [make, name, mob] of MOB_LIST) {

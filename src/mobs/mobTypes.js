@@ -13,6 +13,8 @@
 // track: 跳ぶこの秒前まで向きをねらい直す。feint: 跳ばずに横へ跳ねる確率。miss: 外したときのつんのめりの秒。n・fan: 弾の数と扇の角度（ラジアン）。shake: 揺れの重さを攻撃力この値として扱う（かみつきの 2 回目は 1.3 倍）。smear: 画面に泥がつく。slow: [歩く速さの倍率, 秒]（当たってガードしなかったとき）。wander・vary・noRepeat: 犬の間合いのランダムさ（brain.js）
 // pick: 'weight' 近距離の技を重み w で選ぶ（melee.js。同じ技は続けない）。cone: 振る・噛むの左右の角度（なければ 45）。around: 向いていなくても出せる。ground: 地面の上だけに当たる。stuck: 放出のあと刺さって動けない秒。hitR: 当たる距離（reach は使う距離）。lunge: { time 秒, hop 跳ぶ高さ, stop プレイヤーの何 m 手前まで, air 空中のポーズ（あれば着地の瞬間だけ当たる） } 踏み込み（melee.js）。roar: 岩の殻から出て吠える秒。leash: スポットの中心からあきらめる m。farGive: [m, 秒] これより遠いまま秒たつとあきらめる。fx: 'rock' 岩と土（rockFx.js）
 // shot.g: 弾の重力（m/秒²。横は speed で、ねらった所に落ちる）
+// カニの項目（enemies.md「カニ」）: fight 戦うときの速さ。pack に flank がなければ加勢だけ（役・挟み撃ちなし）。parry: 受け流しで崩れたときのポーズと秒。
+// 敵の fx（攻撃でなく敵の行）: いつもの演出（sandFx.js の tick。排水口のしずく、逃げる間はしぶき）。low.pose: 逃げる間のポーズ。fx: 'sand' 砂と水（sandFx.js）
 // disguise: 岩のふり（気づくまで disguise のポーズで動かない。見つけたらすぐ戦う）。swim: 水に入れる
 // dummy: 練習用の的（攻撃しない。倒れず、3 秒で HP が戻る）
 import { createDrone } from './drone.js';
@@ -47,10 +49,16 @@ export const MOBS = {
     low: { at: 0.3, act: 'flee' },
     drops: [['screw', 1, 2, 1]],
   },
-  crab: {
-    name: 'カニ', make: createCrab, hp: 40, speed: 1.2, sight: 10, giveUp: 40, flinch: 1, turn: 1.6, swim: true, // 向きを変えるのが遅い: 背中へ回るとはさみが来ない
-    attacks: [{ name: 'はさみ', dmg: 10, windup: 0.7, reach: 1.2, rest: 1.5, push: 0.8 }],
-    low: { at: 0.3, act: 'sea' },
+  crab: { // enemies.md「カニ」: 横歩きで回り、近ははさみ・中は横ばい突進。向きを変えるのが遅い: 背中へ回るとはさみが来ない
+    name: 'カニ', make: createCrab, hp: 40, speed: 1.2, fight: 2.2, sight: 10, giveUp: 40, flinch: 1, turn: 1.6, swim: true,
+    bands: { near: [0.9, 1.25], mid: [3.5, 5.5], every: [2, 4], weight: [55, 45, 0] }, // 間合い取り（spacing.js。遠はなし）
+    pick: 'weight', pack: { call: 12 }, parry: { pose: 'flip', secs: 1.5 }, fx: 'sand', // 重みで選ぶ（melee.js）、加勢だけ（pack.js）、受け流しで裏返る、いつもの演出（排水口のしずく）
+    attacks: [
+      { name: 'はさみ打ち', w: 40, band: 'near', dmg: 10, windup: 0.6, reach: 1.4, cone: 40, rest: 1.2, push: 0.8, fx: 'sand', style: 'pinch', wind: 'windupPinch', hit: 'pinch' },
+      { name: '両ばさみ', w: 35, band: 'near', dmg: 8, hits: 2, gap: 0.25, step: 0.5, windup: 0.5, reach: 1.4, cone: 50, rest: 1.5, push: 1, pushEach: 0.3, fx: 'sand', style: 'double', wind: 'windupDouble', hit: 'pinchL', hit2: 'pinchR' },
+      { name: '横ばい突進', w: 25, band: 'mid', dmg: 12, windup: 0.5, min: 3, reach: 6, over: 1, dash: 8, rest: 2, cd: 4, push: 1.2, miss: 0.8, fx: 'sand', style: 'rush', dust: true, wind: 'windupRush', hit: 'rush' },
+    ],
+    low: { at: 0.3, act: 'sea', pose: 'flee' },
     drops: [['scrap', 1, 2, 1]],
   },
   dog: { // enemies.md「ガラクタ犬」

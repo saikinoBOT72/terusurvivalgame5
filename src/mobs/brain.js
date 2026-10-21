@@ -43,15 +43,15 @@ const ARC = 0.3; // 弧を描いて追う曲げ方（ラジアン。表の arc �
 const FEINT = 0.35; // フェイントで横へ跳ねる秒
 const DASH = [0.6, 1.2]; // 突進の緩急: 速さ = dash × (DASH[0] + DASH[1] × (1 - 進み)²)。出だし 1.8 倍 → 終わり 0.6 倍（平均 1 倍）
 
-export function think(m, dt, { player, dead, hurt, steer, list, terrain, escape, wind, mud, rock, shoot, dust, touch = 0, playerSpeed = 0 }) { // touch: 体がプレイヤーにふれる近さ（combat.js。これより近づけない）
+export function think(m, dt, { player, dead, hurt, steer, list, terrain, escape, wind, mud, rock, sand, shoot, dust, touch = 0, playerSpeed = 0 }) { // touch: 体がプレイヤーにふれる近さ（combat.js。これより近づけない）
   const p = player.state, def = m.def;
   const dx = p.x - m.x, dz = p.z - m.z, dist = Math.hypot(dx, dz);
   const low = def.low && m.hp / m.maxHp <= def.low.at ? def.low : null;
   const rage = low?.act === 'rage';
-  const speed = def.speed * m.tier.speed * (rage ? low.speed ?? 1 : 1);
+  const speed = (m.aware === 'fight' ? def.fight ?? def.speed : def.speed) * m.tier.speed * (rage ? low.speed ?? 1 : 1);
   m.model.setRage?.(rage);
-  if (rage && m.aware === 'fight') { mud?.rage(m, dt); rock?.rage(m, dt); } // 怒り: 口から火花（口のある敵だけ）、排気管から火の粉（採掘ロボ）
-  const efx = (a) => (a?.fx === 'wind' ? wind : a?.fx === 'mud' ? mud : a?.fx === 'rock' ? rock : null); // 攻撃の演出（windFx.js・mudFx.js）
+  const efx = (a) => ({ wind, mud, rock, sand })[a?.fx] ?? null; // 攻撃の演出（windFx.js・mudFx.js・rockFx.js・sandFx.js）。敵の行の fx はいつもの演出（tick）
+  if (rage && m.aware === 'fight') { mud?.rage(m, dt); rock?.rage(m, dt); } efx(def)?.tick?.(m, dt, !!low && !rage && m.aware === 'fight'); // 怒り: 口から火花（口のある敵だけ）、排気管から火の粉（採掘ロボ）。カニの排水口のしずく（逃げる間はしぶき）
   m.alertT = Math.max(0, (m.alertT ?? 0) - dt);
   m.snapT = Math.max(0, (m.snapT ?? 0) - dt);
   if (m.aware === 'fight' && m.lastAware !== 'fight' && m.lastAware !== undefined) { m.model.alert?.(); m.snapT = 0.4; if (m.model.disguised) { rock?.shell(m); if (def.roar) { m.state = 'stagger'; m.t = def.roar; m.model.setPose('roar', def.roar); } } } // 叩かれて気づいた・2 秒見えて気づいた。岩の殻から出て吠える（go はこの下で作るので直接）
@@ -161,7 +161,7 @@ export function think(m, dt, { player, dead, hurt, steer, list, terrain, escape,
 
   // ---- 戦う ----
   if (low && low.act !== 'rage') { // 逃げる（海へ・遠くへ）
-    m.model.setPose('move');
+    m.model.setPose(low.pose ?? 'move'); // カニははさみを上げてばたばた
     if (low.act === 'sea') {
       m.sea ??= seaNear(m, terrain);
       if (m.sea) walk(m.sea.x - m.x, m.sea.z - m.z, speed * 1.3);
@@ -173,7 +173,7 @@ export function think(m, dt, { player, dead, hurt, steer, list, terrain, escape,
     return;
   }
   let front = null; // 群れ（pack.js）: 正面の犬
-  if (def.pack) { front = packRole(m, list, p); m.sinceRel = (m.sinceRel ?? 9) + dt; }
+  if (def.pack?.flank) { front = packRole(m, list, p); m.sinceRel = (m.sinceRel ?? 9) + dt; }
   const aim = (a) => { // 向きと跳ぶ距離をプレイヤーへ合わせる
     m.dir = { x: dx / (dist || 1), z: dz / (dist || 1) };
     m.dashLeft = a.lunge ? Math.max(0, dist - a.lunge.stop) : a.dash ? (a.min ? dist + (a.over ?? 2) : a.reach + 1.5) : 0;
