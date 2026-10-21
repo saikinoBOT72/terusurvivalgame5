@@ -34,6 +34,7 @@ const CATS = [
   ['wall', '壁', ['wall', 'halfWall', 'pillar', 'door', 'window', 'stoneWall', 'brickWall']],
   ['roof', '屋根', ['roof', 'steepRoof']],
   ['furniture', '家具', []],
+  ['machine', '機械', ['generator', 'windmill', 'pole', 'drill', 'autoFurnace', 'autoBench', 'belt']],
   ['water', '水', ['raftCore', 'raft', 'sail', 'helm', 'boat']],
 ];
 const catOf = (t) => (CATS.find(([, , list]) => list.includes(t)) ?? CATS[3])[0];

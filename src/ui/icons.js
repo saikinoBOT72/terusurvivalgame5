@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
 import { itemMesh } from '../survival/itemShapes.js';
+import { ITEMS } from '../survival/items.js';
 
 const SIZE = 160, OUT = 112; // 描く大きさ、切りつめたあとの絵の大きさ（ui.md「持ち物の操作」）
 let renderer = null, scene = null, camera = null;
@@ -24,7 +25,7 @@ export function iconUrl(id, make = () => itemMesh(id)) {
   if (urls.has(id)) return urls.get(id);
   if (!renderer) setup();
   const m = make();
-  m.rotation.set(0.35, -0.8, m.userData.upright ? 0 : 0.5); // 斜め上から見る（道具は斜めに倒す）
+  m.rotation.set(0.35, -0.8, m.userData.upright || ITEMS[id]?.equip ? 0 : 0.5); // 斜め上から見る（道具は斜めに倒す。装備は立てたまま）
   scene.add(m);
   const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3());
   const r = box.getSize(new THREE.Vector3()).length() / 2;

@@ -4,9 +4,11 @@ import { createDeathScreen } from '../ui/statusHud.js';
 import { dropBag } from '../survival/death.js';
 
 // world(): 今の世界。setMode・lockPointer は main.js の画面の切り替え
-export function createLife({ player, inventory, invHud, statusHud, sky, time, structuresOf, world, setMode, lockPointer }) {
+// gear(): 装備の効き目の合計（equip.stats()）
+export function createLife({ player, inventory, invHud, statusHud, sky, time, structuresOf, world, setMode, lockPointer, gear }) {
   let sleeping = false; // 眠って暗転している間は、時間も空腹も止める
   const stats = createStats({
+    gear,
     onDamage: () => statusHud.hurt(),
     onDeath: () => (world()?.range ? (stats.reset(), invHud.message('HP を戻した（訓練島）')) : fallDown()), // 訓練島では倒れない
   });

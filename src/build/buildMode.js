@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { PARTS, PART_LIST, COSTS, partGeometry, PREVIEW_MAT } from './parts.js';
 import { toI, angleOf, snap } from './grid.js';
 import { findTarget } from './snap.js';
-import { createArrow, arrowYaw, createRemoveMarks } from './buildMarks.js';
+import { createArrow, arrowYaw, createRemoveMarks, createPortArrows } from './buildMarks.js';
 import { pressed } from '../input/keymap.js';
 import { playing } from '../input/touch.js';
 
@@ -17,7 +17,7 @@ const DECK = [[0, 0], [-0.45, -0.45], [0.45, -0.45], [0.45, 0.45], [-0.45, 0.45]
 
 // canPay(type): 素材が足りるか。onPlaced(type) / onRemoved([part…]): 素材を減らす・戻す。onBreak(乗り物): いかだのコアを撤去した（バラバラになる）
 // onSwing(撤去か): 置く・撤去するときの腕の動き。swinging(): 腕を振っている最中か（撤去は振り終わるまで次ができない）
-export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = () => {}, onRemoved = () => {}, onBreak = () => {}, onSwing = () => {}, swinging = () => false }) {
+export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = () => {}, onRemoved = () => {}, onBreak = () => {}, onWire = () => {}, onSwing = () => {}, swinging = () => false }) {
   let enabled = false, hammer = false, sel = 0, rot = 0, level = 1, world = null, st = null, target = null, removing = null;
   const ray = new THREE.Raycaster();
   ray.far = REACH;
@@ -26,6 +26,8 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
   preview.renderOrder = 2;
   const arrow = createArrow();
   preview.add(arrow);
+  const portArrows = createPortArrows(); // 機械の入れる口・出す口の矢印
+  preview.add(portArrows.group);
   const marks = createRemoveMarks();
   const type = () => PART_LIST[sel];
   const active = () => enabled && hammer;
@@ -49,10 +51,11 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
     ray.setFromCamera({ x: 0, y: 0 }, camera);
     const vs = world.vehicles?.list ?? [];
     const groups = [st.group, ...vs.map((v) => v.st.group)].flatMap((g) => g.children);
-    const ph = ray.intersectObjects(groups, true).find((x) => x.object.userData.part);
+    const ph = ray.intersectObjects(groups, true).find((x) => x.object.userData.part || (active() && sel === REMOVE && x.object.userData.wire)); // 電線は撤去の状態のときだけ狙える（機械の上の碍子で、機械の右クリックを邪魔しない）
     const o = ray.ray.origin, d = ray.ray.direction, th = terrainHit(o, d);
     if (ph && (!th || ph.distance <= th.distance + 0.3)) {
       const part = ph.object.userData.part;
+      if (!part) return { wire: ph.object.userData.wire, point: ph.point }; // 電線（automation/wires.js）
       return { part, point: ph.point, v: world.vehicles?.owner(part) ?? null };
     }
     const tw = water && d.y < 0 ? (world.terrain.waterLevel - o.y) / d.y : Infinity; // 水面までの距離
@@ -108,6 +111,7 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
   // 撤去。いかだのコアならバラバラに。いかだの床なら、コアから切れた床もいっしょに（physics.md「いかだ」）
   function removeAimed() {
     const h = aim();
+    if (h?.wire) return st.wires.unlink(h.wire) && onWire(); // 電線を外す（銅線が戻る）
     if (!h || !h.part) return;
     if (h.v && PARTS[h.part.type].core) return onBreak(h.v);
     const out = ownerSt(h).remove(h.part);
@@ -117,6 +121,7 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
   // 撤去を選んでいるとき: 見ているパーツと、いっしょに消えるパーツ
   function removalPreview() {
     const h = aim();
+    if (h?.wire) return { parts: [], wire: h.wire, breaks: false };
     if (!h || !h.part) return null;
     const parts = h.v ? world.vehicles.removalOf(h.v, h.part) : [...st.chainOf(h.part)];
     return { parts, breaks: !!(h.v && PARTS[h.part.type].core) };
@@ -166,6 +171,7 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
       preview.visible = !!target;
       if (!target) return;
       preview.geometry = partGeometry(target.type);
+      portArrows.show(target.type);
       preview.material = target.ok && canPay(target.type) ? PREVIEW_MAT.ok : PREVIEW_MAT.ng;
       const { pos, v } = target, ay = arrowYaw(target.type);
       arrow.visible = ay !== null;
@@ -182,6 +188,7 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
     // 確認用: 照準の先に置く／撤去する（クリックと同じ動き）
     place, removeAimed,
     toggleAimed() { const h = aim(); return !!(h && h.part && ownerSt(h).toggle(h.part)); },
+    aimPoint() { if (!st) return null; const h = aim(); return h ? h.point : null; }, // 照準の先（電線ののびる先）
     aimedPart() { if (!st) return null; const h = aim(); return h && h.part; },
     refund: (parts) => parts.reduce((a, p) => { for (const [id, n] of Object.entries(COSTS[p.type])) a[id] = (a[id] ?? 0) + Math.floor(n / 2); return a; }, {}),
   };

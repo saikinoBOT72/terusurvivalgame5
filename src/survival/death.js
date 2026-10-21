@@ -13,7 +13,7 @@ const DENSITY = {
   stick: 0.6, wood: 0.6, sapling: 0.6, torch: 0.6, sling: 0.6, paddle: 0.6,
   coconut: 0.75, berry: 0.8, cookedBerry: 0.8, mushroom: 0.7, cookedMushroom: 0.7, fish: 0.95, cookedFish: 0.9,
   tubeSea: 0.9, tubeFresh: 0.9, bag: 0.8,
-  egg: 1.05, cookedEgg: 1.05, clay: 1.8, brick: 1.9, stone: 2.5, flint: 2.5,
+  rawMeat: 1.05, cookedMeat: 1.0, hide: 0.9, egg: 1.05, cookedEgg: 1.05, clay: 1.8, brick: 1.9, stone: 2.5, flint: 2.5,
   woodAxe: 0.7, woodPick: 0.7, sand: 1.6, glass: 2.4, stoneAxe: 1.5, stonePick: 1.5, stoneHammer: 1.5, stoneSpear: 1.2, stoneKnife: 1.5,
 };
 const ROUND = new Set(['stone', 'coconut', 'egg', 'cookedEgg', 'berry', 'cookedBerry']); // 球で転がる物

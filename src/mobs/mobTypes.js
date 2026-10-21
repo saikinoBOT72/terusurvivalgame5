@@ -22,6 +22,13 @@ import { createMining } from './mining.js';
 import { createGangi } from './gangi.js';
 import { createDummy } from './dummy.js';
 import { createCamera } from './camera.js';
+import { createBird } from '../creatures/bird.js';
+import { createRabbit } from '../creatures/rabbit.js';
+import { createBoar } from '../creatures/boar.js';
+// creature: 原生生物（docs/rules/creatures.md。animalBrain.js が動かす）。notice: 気づく距離 m（動き方ごと）。downPose: 倒れたポーズ。
+// fly: 鳥 { speed 飛ぶ m/秒, alt 高さ m, far 降りる先の距離 [最小, 最大], alert 降りてから警戒する秒 }。flee: ウサギ { speed, stop 離れると止まる m }
+// charge: イノシシ { dmg, windup ため秒, dist 突進の距離 m, speed, rest 外したあとの隙 秒, push, angry 怒る秒, calm 怒りがおさまる距離 m, flee 逃げる速さ, fleeAt 逃げる HP の割合 }
+// carve: 右クリックで取る物 { meat: [[物, 数]], hide: [[物, 数]]（石のナイフのとき） }
 
 // AI のバージョンごとの強さの倍率（enemies.md「強さの倍率」）。島ごとに使う段は islandMap.js の tier（なければ v0）
 export const TIERS = {
@@ -70,7 +77,7 @@ export const MOBS = {
       { name: '地割れ', w: 25, kind: 'spin', around: true, ground: true, dmg: 15, windup: 0.8, reach: 3.2, area: 3.5, secs: 0.2, rest: 2.5, cd: 5, push: 1.5, lift: 3, fx: 'rock', style: 'quake', wind: 'windupQuake', hit: 'quake', dust: true },
     ],
     low: { at: 0.5, act: 'rage', windup: 0.7 },
-    drops: [['scrap', 3, 3, 1]],
+    drops: [['scrap', 3, 3, 1]], firstDrop: 'bpDrill', // 設計図を持っていなければ必ず落とす（automation.md）
   },
   gangi: { // 設計図「航海装置」はステップ 9
     name: 'ガンギ', make: createGangi, hp: 600, speed: 2.5, sight: 25, giveUp: 40, flinch: 0.2, turn: 2.5,
@@ -85,6 +92,21 @@ export const MOBS = {
   camera: { // 監視カメラ（enemies.md「監視カメラ」）: 動かない。見つけると警報でブンブンを呼ぶ（cameraBrain.js）。sight は水平の距離
     name: '監視カメラ', make: createCamera, hp: 40, speed: 0, sight: 25, giveUp: 999, flinch: 0, camera: true,
     attacks: [], drops: [['copperWire', 1, 1, 1], ['screw', 2, 2, 1]],
+  },
+  bird: {
+    name: '鳥', make: createBird, creature: 'bird', hp: 5, speed: 0.6, sight: 0, giveUp: 999, flinch: 0, downPose: 'fall',
+    notice: { sneak: 2.5, walk: 5, run: 9, crouch: 2 }, fly: { speed: 7, alt: 4.5, far: [20, 35], alert: 10 },
+    attacks: [], drops: [], carve: { meat: [['rawMeat', 1], ['feather', 1]] },
+  },
+  rabbit: {
+    name: 'ウサギ', make: createRabbit, creature: 'rabbit', hp: 10, speed: 1.0, sight: 0, giveUp: 999, flinch: 0, downPose: 'fall',
+    notice: { sneak: 3, walk: 6, run: 10, crouch: 2.5 }, flee: { speed: 7, stop: 30 },
+    attacks: [], drops: [], carve: { meat: [['rawMeat', 1]], hide: [['hide', 1]] },
+  },
+  boar: {
+    name: 'イノシシ', make: createBoar, creature: 'boar', hp: 100, speed: 1.0, sight: 0, giveUp: 999, flinch: 0, downPose: 'fall',
+    notice: { sneak: 2, walk: 4, run: 7.5, crouch: 1.5 }, charge: { dmg: 25, windup: 0.9, dist: 10, speed: 8, rest: 1.2, push: 3, angry: 15, calm: 20, flee: 6, fleeAt: 0.3 },
+    attacks: [], drops: [], carve: { meat: [['rawMeat', 2]], hide: [['hide', 2]] },
   },
   dummy: {
     name: '練習用の的', make: createDummy, hp: 100, speed: 0, sight: 0, giveUp: 999, flinch: 1, dummy: true,

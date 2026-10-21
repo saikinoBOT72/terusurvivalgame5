@@ -9,7 +9,8 @@ import { takeKeys } from '../survival/keyItems.js';
 // VERSION 3（2026-10-16）: 島がランダムから固定の「墜落島」になった。前のセーブ（別の島）は読まない
 // VERSION 4（2026-10-17）: 墜落島にスポットが入り、島の物の並び（消えた物の番号）が変わった。前のセーブは読まない
 // VERSION 5（2026-10-19）: 鉱石の密集地と自然湧き（段階 6）で島の物の並びが変わった。4 は持ち物・建物・箱・大事な物・時刻を読み、島の状態（消えた物・倒した敵）は捨てる
-const KEY = 'oasobi5.save', VERSION = 5, KEEP_FROM = 4; // KEEP_FROM: ここから前の版でも、島の状態のほかは読む
+// VERSION 6（2026-10-21）: 自動化（機械の向き・中身、電線、ベルトの上の物）が入った。島の物の並びは 5 と同じなので、5 は島の状態も読む（線・ベルトの欄は省いてよい）
+const KEY = 'oasobi5.save', VERSION = 6, KEEP_FROM = 4, SAME_FROM = 5; // KEEP_FROM: ここから前の版でも、島の状態のほかは読む
 
 export function hasSave() {
   return !!readSave(); // 前の島のセーブは「つづきから」に出さない
@@ -22,13 +23,14 @@ export function readSave() {
 }
 
 // 建てたパーツ（島と乗り物で共通）。open: 帆を張っている・ドアが開いている
-const partData = (p) => ({ type: p.type, i: p.i, rot: p.rot, y: p.y, store: p.store, ...stationData(p), ...planterData(p), open: p.open || undefined });
+const partData = (p) => ({ type: p.type, i: p.i, rot: p.rot, y: p.y, store: p.store, ...stationData(p), ...planterData(p), open: p.open || undefined, item: p.item ? { id: p.item.id, t: +p.item.t.toFixed(2) } : undefined });
 function addPart(st, x, keys) {
   const p = st.add(x.type, x.i, x.rot, x.y === undefined ? {} : { y: x.y });
   if (x.store) x.store.forEach((s, i) => { p.store[i] = s; }); // 中身の配列は設備のスロットと同じ物なので、入れかえずに写す
   if (p.store) takeKeys(p.store, keys, true); // 前のセーブの箱にあった設計図は大事な物へ
   loadStation(p, x);
   loadPlanter(p, x);
+  if (x.item) st.auto.belts.load(p, x.item); // ベルトの上の物
   if (x.open) st.toggle(p);
 }
 
@@ -52,6 +54,7 @@ export function snapshot(g) {
     drops: island.resources.entries().filter((e) => e.store && e.ready && !island.resources.base.includes(e)).map((e) => ({ kind: e.kind, x: e.x, y: e.y, z: e.z, store: e.store })),
     planting: island.planting.save(),
     parts: st.list.map(partData),
+    wires: st.wires.save(st.list), // 電線（つないだ 2 つの番号）
     // 乗り物（physics.md）: 位置と向き、上のパーツ。小舟の傾きは保存しない
     vehicles: vs.map((v) => ({ kind: v.kind, x: v.shown.x, z: v.shown.z, yaw: v.shown.yaw, parts: v.st.list.map(partData) })),
   };
@@ -67,7 +70,7 @@ export function restore(d, g) {
   // 大事な物: 前のセーブは、読んだ設計図の名前（blueprints）と、持ち物・箱・落とし物にある設計図を移す
   g.keyItems.load(d.keys ?? Object.keys(ITEMS).filter((id) => ITEMS[id].bp && d.blueprints?.includes(ITEMS[id].bp)));
   g.equip.load(d.equip);
-  const same = d.v === VERSION; // 前の版: 島の物の番号が違うので、消えた物・倒した敵は戻さない
+  const same = d.v >= SAME_FROM; // 前の版: 島の物の番号が違うので、消えた物・倒した敵は戻さない
   g.spawner?.load(same ? d.mobs : null);
   if (same) island.restoreHidden(d.hidden);
   island.planting.load(d.planting);
@@ -90,6 +93,7 @@ export function restore(d, g) {
     placeDrop(island, x.store, x.x, x.y, x.z, x.kind === 'bag' ? { kind: 'bag' } : { kind: 'drop', geo: dropGeometry(x.store[0].id) });
   }
   for (const x of d.parts) addPart(st, x, g.keyItems);
+  st.wires.load(d.wires, st.list);
   inventory.slots.splice(0, inventory.slots.length, ...d.inventory.slots.map((s) => (s && REMOVED.has(s.id) ? null : s))); // 長さは保存した広さ（前のセーブは 24 マス）
   takeKeys(inventory.slots, g.keyItems, true);
   inventory.select(d.inventory.sel);

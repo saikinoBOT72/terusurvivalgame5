@@ -101,6 +101,13 @@ export function createHitFx({ scene, hud = null }) {
     sparks: (p, n, speed) => addSparks(p, n, speed), // 傷みの火花（mobFx.js）
     // 当たった: 星形の閃光・火花（弱点は青白いのも）・赤い破片・金属片・数字・照準の ×
     hit(m, point, dmg, weak) {
+      if (m.def.creature) { // 原生生物: 火花でなく、小さな閃光と毛・羽の色の破片
+        addStar(point, 0.3, false);
+        addBits(point, 3, 0.03, 2, [P[m.kind][m.kind === 'bird' ? 'feather' : 'fur']], 0.8);
+        hud?.number(point, dmg, weak);
+        hud?.mark(weak);
+        return;
+      }
       const big = Math.min(1, dmg / 40);
       addStar(point, (weak ? 0.55 : 0.35) + big * 0.25, weak);
       addSparks(point, (weak ? 18 : 10) + Math.round(big * 8), weak ? 7 : 5.5);

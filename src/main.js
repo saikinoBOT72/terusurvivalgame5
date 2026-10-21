@@ -73,7 +73,7 @@ const statusHud = createStatusHud();
 const keysPanel = createKeysPanel();
 const aimMark = createAimHighlight(scene);
 const time = createDayNight();
-const life = createLife({ player, inventory, invHud, statusHud, sky, time, structuresOf, world: () => world, setMode: (m) => setMode(m), lockPointer }); // game/life.js
+const life = createLife({ player, inventory, invHud, statusHud, sky, time, structuresOf, world: () => world, setMode: (m) => setMode(m), lockPointer, gear: () => equip.stats() }); // game/life.js
 const { stats, deathScreen } = life;
 const { build, hud: buildHud, menu: buildMenu } = createBuilding({ scene, camera, dom, player, inventory, invHud, keyItems, world: () => world, closeMenu: () => input.setBuildMenuOpen(false) }); // 建築（game/building.js）
 const farm = createFarm({ inventory, onGain: (id, n) => invHud.gained(id, n), onMessage: (t) => invHud.message(t) });
@@ -85,10 +85,10 @@ const mudFx = createMudFx({ scene, fx: hitFx }); // 泥と歯の火花（犬）
 const rockFx = createRockFx({ scene, fx: hitFx, player }); // 岩と土（採掘ロボ）
 // 弾・敵がぶつかる木・岩・建築パーツ
 const blockers = (x, z, r) => (world.colliders?.(x, z, r) ?? []).concat(structuresOf.get(world)?.query(x, z, r) ?? []);
-const combat = createCombat({ camera, inventory, player, fx: hitFx, wind: windFx, mud: mudFx, rock: rockFx, hud: combatHud, blockers, onDead: (m) => spawner.onDead(m), playerDead: () => stats.state.dead, onPlayerHit: (n, m, atk) => pc.onHit(n, m, atk), onMessage: (t) => invHud.message(t), onAlarm: (cam) => spawner.call(cam) });
+const combat = createCombat({ camera, inventory, player, fx: hitFx, wind: windFx, mud: mudFx, rock: rockFx, hud: combatHud, blockers, onDead: (m) => spawner.onDead(m), playerDead: () => stats.state.dead, onPlayerHit: (n, m, atk) => pc.onHit(n, m, atk), onMessage: (t) => invHud.message(t), onAlarm: (cam) => spawner.call(cam), onGain: (id, n) => invHud.gained(id, n), hasBp: (bp) => keyItems.hasBp(bp) });
 player.setBodies((x, z, r) => combat.bodies(x, z, r)); // 敵にめり込まない（player.md）
 const spawner = createSpawner({ combat, time, player }); // 敵の出方（islands.md）
-const pc = createPlayerCombat({ player, stats, hud: combatHud, statusHud, onStagger: (m, secs) => combat.stagger(m, secs) });
+const pc = createPlayerCombat({ player, stats, hud: combatHud, statusHud, gear: () => equip.stats(), onStagger: (m, secs) => combat.stagger(m, secs) });
 const tools = createTools({ camera, scene, inventory, now: () => time.total, onGain: (id, n) => invHud.gained(id, n), onMessage: (t) => invHud.message(t) });
 const ranged = createRanged({
   scene, camera, inventory, combat, player, hud: combatHud, onTarget: (t) => tools.hitTarget(t), onMessage: (t) => invHud.message(t),
@@ -157,6 +157,7 @@ function newGame(kit = false) {
 // 設定（ui.md「設定と舵の表示」）: マウスの感度・視野の広さ・UI の大きさ
 const settings = loadSettings();
 const fpsMeter = createFpsMeter({ fps: perf.fps });
+let creativeInv = null; // 開発用（dev/creativeInv.js）。読み込めたら入る
 const fovOf = (m) => (m === 'fps' || m === 'dead' ? vfovOf(settings.hfov) : 45); // 1人称は設定の視野角、タイトルは 45 度
 function applySettings(v) {
   player.setSensitivity(sensRad(v.vsens));
@@ -164,6 +165,7 @@ function applySettings(v) {
   camera.updateProjectionMatrix();
   document.documentElement.style.setProperty('--ui-zoom', v.ui);
   fpsMeter.setOn(v.fps);
+  creativeInv?.setOn(v.creative);
   setTouchMode(v.touch, v.tsens);
 }
 applySettings(settings);
@@ -237,7 +239,7 @@ buildThen('crash', () => { islandFresh = true; useWorld(island); titleView(); se
 // 遊び中の操作（controls.js）
 const input = createControls({
   dom, lockPointer, invHud, buildMenu, build, gather, combat, pc, ranged, tools, farm, inventory, stats, sleep: life.sleep, canSleep: () => time.isNight, player, keysPanel,
-  mode: () => mode, setMode, held: () => held.id, vehicles: () => world.vehicles,
+  mode: () => mode, setMode, held: () => held.id, vehicles: () => world.vehicles, st: () => structuresOf.get(world), hasBp: (bp) => keyItems.hasBp(bp),
   toggleGrid: () => world.setGrid(gridOn = !gridOn),
   toggleDebug: () => { world.setDebug(debugOn = !debugOn); world.physics?.setDebug(debugOn); },
 });
@@ -279,6 +281,7 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   combatHud.setCooldown(mode === 'fps' ? ranged.cdFrac(held.id) ?? pc.cdFrac() : null); // 照準の下の攻撃間隔の線
   combatHud.setStance(mode === 'fps' && !player.state.ride ? ({ sneak: '忍び足', crouch: 'しゃがみ' })[player.state.gait] ?? null : null); // 動き方の札
   combatHud.setLowHp(stats.state.hp / MAX_HP, mode !== 'fps' || stats.state.dead); // HP が低いと画面のふちが赤く脈打つ
+  if (!life.sleeping) input.update(); // 左長押しで斧・ピッケルを振りつづける
   build.update();
   buildHud.update(mode === 'fps' ? build.status() : null);
   statusHud.setUnderwater(mode === 'fps' && player.state.underwater);
@@ -295,6 +298,8 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
     if ((saveT += dt) >= 60) { saveT = 0; saveNow(); }
   } else if (fighting()) statusHud.update(stats.state, time); // 訓練島: HP とスタミナだけ（空腹・時刻は進まない）
   perf.lap('サバイバル');
+  const wires = structuresOf.get(world)?.wires;
+  if (wires?.first) { if (mode === 'fps' && held.id === 'copperWire') wires.showAim(build.aimPoint()); else wires.cancel(); } // 持ち替えたら線を張るのをやめる
   structuresOf.get(world)?.update(dt, mode === 'fps');
   if (invHud.open && (stationT += dt) > 0.15) { stationT = 0; invHud.refreshStation(); } // 開いている設備の窓（進み具合・燃料）
   world.vehicles?.update(dt, mode === 'fps');
@@ -312,5 +317,6 @@ renderer.setAnimationLoop(() => frame());
 if (import.meta.env.DEV) {
   // run(ms): 画面が隠れていても ms だけ進める（確認用）
   window.__game = { renderer, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, keyItems, equip, invHud, sleep: life.sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, camera, cat, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; } };
+  import('./dev/creativeInv.js').then(({ createCreativeInv }) => { creativeInv = createCreativeInv({ inventory, equip, invHud }); creativeInv.setOn(settings.creative); }).catch(console.error); // 開発用クリエイティブ（消すときは src/dev/ とこの行）
   import('./debug.js').then(({ createDebug, modelStats, createPhysicsTest }) => { window.__game.debug = createDebug(window.__game); window.__game.stats = modelStats; window.__game.physics = createPhysicsTest(window.__game); });
 }

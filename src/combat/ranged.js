@@ -55,6 +55,7 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
     const start = o.clone().addScaledVector(d, 0.4);
     const v = dir.multiplyScalar(R.speed * power);
     shots.push({ id, R, power, p: start, from: start.clone(), v, t: 0, mesh, travel: 0 });
+    if (R.mag) combat.noise(); // 銃声: まわり 15m の生き物が気づいて逃げる（creatures.md）
     if (R.recoil) player.kick(THREE.MathUtils.degToRad(R.recoil));
     if (R.mag) { // 銃口の火と、銃口から先に当たる所までの軌道の線
       if (!player.arms.muzzleWorld(mz)) {
@@ -113,6 +114,7 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
       if (m.def.barrier && Math.hypot(m.x - p.x, m.z - p.z) > m.def.barrier) { combat.barrierMob(m, h.mob.point); return; } // 遠すぎる所からはバリアで 0
       const k = falloff(s.R.falloff, s.travel + h.dist);
       combat.damageMob(h.mob.m, s.R.dmg * s.power * k, { weak: h.mob.weak, point: h.mob.point, dir, knock: s.R.knock ?? 0.2, src: ITEMS[s.id].name });
+      combat.noise(); // 当たった音で、近くの生き物が気づく
     } else if (h.target) onTarget(h.target);
   }
 

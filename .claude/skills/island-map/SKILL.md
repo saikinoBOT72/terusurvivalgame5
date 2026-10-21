@@ -19,4 +19,5 @@ description: 遊んでいる島を上から見た図をウィジェットで出�
 - 固定湧きの行は `src/world/islandMap.js` の `spawns`。「行 N」は spawns の番号（0 から）。足す敵は末尾へ。セーブの倒した記録のキーはスポットの番号か `at` の場所なので、行の番号は変わってもよい。
 - スポットから動かした番人・新しく置いた敵は、`at: { x, z }` の行にする（`mode`: guard / sleep / fake、`n`、`when: 'always'`、`back: 2`）。「夜に来る」（visit）はスポットの行（`spot` と `when: 'night'`）だけ。
 - 自然湧きの上限は `wild` の行の `night` / `day`。
+- 生き物（鳥・ウサギ・イノシシ。`docs/rules/creatures.md`）の範囲は `wild` の行のうち `creature: true` のもの（1 種類ずつ、`day` だけが昼夜共通の数、倒すと 3 日で戻る）。図では色つきの点線の円と、下の「種類ごとの数」の表に出る。生き物は固定湧きを持たない。
 - 入れたら `docs/rules/islands.md`「敵の出方」と「スポット」の表も直す。

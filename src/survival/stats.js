@@ -13,11 +13,11 @@ const SAFE_FALL = 4, FALL_DMG = 10; // 4m を超えた 1m ごとに HP −10
 const WAKE_FOOD = 60, WAKE_WATER = 60; // 倒れて起きたとき
 const SLEEP_HP = 50; // 眠ったときの HP の回復
 
-// onDamage(n): ダメージを受けたとき。onDeath(): HP が 0 になったとき
-export function createStats({ onDamage = () => {}, onDeath = () => {} } = {}) {
-  const state = { hp: MAX_HP, food: MAX_FOOD, water: MAX_WATER, breath: MAX_BREATH, dead: false };
+// onDamage(n): ダメージを受けたとき。onDeath(): HP が 0 になったとき。gear(): 装備の効き目（fall・breath。survival.md「装備の中身」）
+export function createStats({ onDamage = () => {}, onDeath = () => {}, gear = () => ({}) } = {}) {
+  const state = { hp: MAX_HP, food: MAX_FOOD, water: MAX_WATER, breath: MAX_BREATH, maxBreath: MAX_BREATH, dead: false }; // maxBreath: 装備を足した息
   let foodT = 0, waterT = 0, hurtT = 0, healT = 0, drownT = 0;
-  const set = (v) => { Object.assign(state, { breath: MAX_BREATH }, v); foodT = waterT = hurtT = healT = drownT = 0; };
+  const set = (v) => { Object.assign(state, { breath: state.maxBreath }, v); foodT = waterT = hurtT = healT = drownT = 0; };
 
   function damage(n) {
     if (state.dead || n <= 0) return;
@@ -38,7 +38,7 @@ export function createStats({ onDamage = () => {}, onDeath = () => {} } = {}) {
       state.hp = Math.min(MAX_HP, state.hp + SLEEP_HP);
     },
     // 落ちた高さ（m）
-    fell(h) { if (h > SAFE_FALL) damage(Math.round((h - SAFE_FALL) * FALL_DMG)); },
+    fell(h) { const safe = SAFE_FALL + (gear().fall ?? 0); if (h > safe) damage(Math.round((h - safe) * FALL_DMG)); },
     // 食べる・飲む: 空腹度か水分のどちらかが増やせるときだけ（持ち物から減らすのは呼ぶ側）
     canEat(id) {
       const it = ITEMS[id];
@@ -53,10 +53,11 @@ export function createStats({ onDamage = () => {}, onDeath = () => {} } = {}) {
     // nearFire: たき火から 3m 以内、underwater: 目が水の中
     update(dt, { nearFire = false, underwater = false } = {}) {
       if (state.dead) return;
+      state.maxBreath = MAX_BREATH + (gear().breath ?? 0);
       if (underwater) { // 息
         state.breath = Math.max(0, state.breath - dt);
         if (!state.breath && (drownT += dt) >= 1) { drownT -= 1; damage(DROWN); }
-      } else { state.breath = Math.min(MAX_BREATH, state.breath + BREATH_BACK * dt); drownT = 0; }
+      } else { state.breath = Math.min(state.maxBreath, state.breath + BREATH_BACK * dt); drownT = 0; }
       foodT += dt;
       while (foodT >= FOOD_EVERY) { foodT -= FOOD_EVERY; state.food = Math.max(0, state.food - 1); }
       waterT += dt;

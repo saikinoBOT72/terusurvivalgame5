@@ -13,13 +13,14 @@
 <select id="kind"><option value="drone">ブンブン</option><option value="crab">カニ</option><option value="dog" selected>ガラクタ犬</option><option value="mining">採掘ロボ</option><option value="camera">監視カメラ</option><option value="gangi">ガンギ</option></select>
 <select id="mode"><option value="guard">いつもいる</option><option value="sleep">寝ている</option><option value="fake">死んだふり</option><option value="visit">夜に来る</option></select>
 <select id="n"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select>
-<label><input type="checkbox" id="showSpot" checked> スポット番号</label><label><input type="checkbox" id="showWild" checked> 自然湧きの範囲</label></div>
+<label><input type="checkbox" id="showSpot" checked> スポット番号</label><label><input type="checkbox" id="showWild" checked> ロボットの湧く範囲</label><label><input type="checkbox" id="showCre" checked> 生き物の湧く範囲</label></div>
 <div style="position:relative;max-width:600px">
 <canvas id="cv" width="960" height="960" style="width:100%;border-radius:8px;cursor:crosshair;display:block;touch-action:none"></canvas>
 <div id="tip" style="position:absolute;left:8px;top:8px;font-size:12px;background:var(--surface-2);color:var(--text-primary);padding:2px 8px;border-radius:6px;border:0.5px solid var(--border)">空いた所をクリックで置く・敵をクリックで選ぶ・ドラッグで動かす</div>
 </div>
 <div class="box" id="ed"><span class="cap">敵を選ぶと、ここで種類・動き・数を変えたり消したりできる</span></div>
 <div class="box nit" id="night"></div>
+<div class="box" id="sum"></div>
 <div class="lg" id="lgz"></div><div class="lg" id="lgk"></div>
 <div id="chg"></div>
 <div class="row"><button id="send">この変更を送る ↗</button><button id="reset">元に戻す</button><span id="err" style="font-size:13px;color:var(--text-danger)"></span></div>
@@ -30,8 +31,10 @@ const dec=s=>{let o=[],num='';for(const c of s){if(c>='0'&&c<='9')num+=c;else{co
 const Z=dec(D.ZR),H=dec(D.HR).map(c=>c==='.'?-1:c.charCodeAt(0)-97);
 const ZC={'~':[133,183,235],B:[250,199,117],L:[240,190,150],M:[93,202,165],G:[151,196,89],F:[99,153,34],D:[59,109,17],K:[192,221,151],r:[55,138,221],P:[24,95,165],Q:[180,178,169],C:[216,140,100],H:[136,135,128],S:[95,94,90]};
 const ZN={B:'浜',L:'入り江',M:'湿地',G:'草原と丘',F:'林',D:'深い森',K:'見晴らしの丘',r:'川',P:'滝つぼ',Q:'岩場',C:'峡谷',H:'高台',S:'海食崖','~':'海'};
-const KC={drone:'#0F6E56',crab:'#D85A30',dog:'#A32D2D',mining:'#534AB7',camera:'#993556',gangi:'#2C2C2A'};
-const KN={drone:'ブンブン',crab:'カニ',dog:'ガラクタ犬',mining:'採掘ロボ',camera:'監視カメラ',gangi:'ガンギ'};
+const KC={drone:'#0F6E56',crab:'#D85A30',dog:'#A32D2D',mining:'#534AB7',camera:'#993556',gangi:'#2C2C2A',bird:'#EF9F27',rabbit:'#888780',boar:'#854F0B'};
+const KN={drone:'ブンブン',crab:'カニ',dog:'ガラクタ犬',mining:'採掘ロボ',camera:'監視カメラ',gangi:'ガンギ',bird:'鳥',rabbit:'ウサギ',boar:'イノシシ'};
+const ROBOT=['drone','crab','dog','mining','camera','gangi'];
+const el=(p,w)=>document.getElementById(p+w[0]);
 const MN={guard:'いつもいる',sleep:'寝ている',fake:'死んだふり',visit:'夜に来る'};
 const SP=D.SP,spotOf=n=>SP.find(s=>s[0]===n);
 const init=()=>D.OLD.map((o,i)=>{const dup=D.OLD.slice(0,i).filter(p=>p[2]&&p[2]===o[2]).length,x=o[5]+dup*7,z=o[6];return{row:o[0],kind:o[1],spot:o[2],n:o[3],mode:o[4],x,z,orig:{kind:o[1],n:o[3],mode:o[4],x,z}};});
@@ -42,19 +45,27 @@ for(let j=0;j<N;j++)for(let i=0;i<N;i++){const k=j*N+i,c=ZC[Z[k]]||ZC['~'];let f
 bg.putImageData(img,0,0);
 const P=(x,z)=>[(x+HALF)*R,(z+HALF)*R],FS=8+R*1.5;
 const zoneAt=(x,z)=>{const i=Math.floor((x+HALF)/ST),j=Math.floor((z+HALF)/ST);return i<0||j<0||i>=N||j>=N?'~':Z[j*N+i];};
+const WC=w=>w[9]?KC[w[6].split(',')[0].split('×')[0]]:'#ffffff';
+const cellsOf=w=>w.cells??(w.cells=(()=>{const o=document.createElement('canvas');o.width=o.height=N;const x=o.getContext('2d'),c=WC(w);x.fillStyle=`rgba(${parseInt(c.slice(1,3),16)},${parseInt(c.slice(3,5),16)},${parseInt(c.slice(5,7),16)},${w[9]?0.5:0.3})`;for(let j=0;j<N;j++)for(let i=0;i<N;i++){const px=-HALF+i*ST+ST/2,pz=-HALF+j*ST+ST/2;if(Math.hypot(px-w[3],pz-w[4])<=w[5]&&w[2].includes(Z[j*N+i]))x.fillRect(i,j,1,1);}return o;})());
+const showWild=document.getElementById('showWild'),showCre=document.getElementById('showCre');
 const changed=it=>!it.orig||['kind','n','mode','x','z'].some(k=>it[k]!==it.orig[k]);
 const rad=it=>(3.5+it.n*0.4)*R;
 function draw(){g.imageSmoothingEnabled=false;g.drawImage(base,0,0,cv.width,cv.height);
 g.strokeStyle='rgba(255,255,255,0.25)';g.lineWidth=1;for(let v=-Math.floor(HALF/100)*100;v<HALF;v+=100){const[a]=P(v,0),[,b]=P(0,v);g.beginPath();g.moveTo(a,0);g.lineTo(a,cv.height);g.moveTo(0,b);g.lineTo(cv.width,b);g.stroke();}
 if(document.getElementById('showSpot').checked)for(const s of SP){const[px,py]=P(s[2],s[3]);g.fillStyle='rgba(0,0,0,0.55)';g.font=`500 ${FS}px sans-serif`;g.textAlign='left';g.textBaseline='bottom';g.fillText(s[0],px+2.5*R,py-1.5*R);}
-if(document.getElementById('showWild').checked)for(const w of D.WILD){const[px,py]=P(w[3],w[4]);g.setLineDash([6,5]);g.strokeStyle='rgba(255,255,255,0.8)';g.lineWidth=1.5;g.beginPath();g.arc(px,py,w[5]*R,0,7);g.stroke();g.setLineDash([]);g.fillStyle='rgba(255,255,255,0.9)';g.font=`500 ${FS}px sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(w[1],px,py);}
+for(const w of D.WILD){if(!(w[9]?showCre:showWild).checked)continue;g.drawImage(cellsOf(w),0,0,cv.width,cv.height);const[px,py]=P(w[3],w[4]);g.setLineDash(w[9]?[2,4]:[6,5]);g.strokeStyle=w[9]?WC(w):'rgba(255,255,255,0.85)';g.lineWidth=w[9]?2.5:1.5;g.beginPath();g.arc(px,py,w[5]*R,0,7);g.stroke();g.setLineDash([]);g.fillStyle=w[9]?WC(w):'rgba(255,255,255,0.95)';g.font=`500 ${FS}px sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(w[1],px,py);}
 for(const it of items){if(it.orig&&(it.x!==it.orig.x||it.z!==it.orig.z)){const[a,b]=P(it.orig.x,it.orig.z),[c,d]=P(it.x,it.z);g.setLineDash([4,4]);g.strokeStyle='rgba(0,0,0,0.5)';g.lineWidth=1.5;g.beginPath();g.moveTo(a,b);g.lineTo(c,d);g.stroke();g.setLineDash([]);}
 const[px,py]=P(it.x,it.z),r=rad(it);g.beginPath();g.arc(px,py,r,0,7);g.fillStyle=KC[it.kind];g.fill();g.lineWidth=(it===sel?4:changed(it)?3:1.5)*R/2;g.strokeStyle=it===sel?'#185FA5':changed(it)?'#FAC775':'#fff';g.stroke();
 g.fillStyle='#fff';g.font=`500 ${FS}px sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(it.mode==='sleep'?'z':it.mode==='fake'?'x':it.mode==='visit'?'v':it.n,px,py+0.5);}}
 const lgz=document.getElementById('lgz'),zs=new Set(Z);for(const k of Object.keys(ZN))if(k!=='~'&&zs.has(k))lgz.innerHTML+=`<span><i class="sw" style="background:rgb(${ZC[k]})"></i>${ZN[k]}</span>`;
-const lgk=document.getElementById('lgk');for(const k in KN)lgk.innerHTML+=`<span><i class="sw" style="background:${KC[k]};border-radius:50%"></i>${KN[k]}</span>`;lgk.innerHTML+='<span>数字=数・z=寝ている・x=死んだふり・v=夜に来る・黄の縁=変えた・青の縁=選択中</span>';
+const lgk=document.getElementById('lgk');for(const k in KN)lgk.innerHTML+=`<span><i class="sw" style="background:${KC[k]};border-radius:50%"></i>${KN[k]}</span>`;lgk.innerHTML+='<span>数字=数・z=寝ている・x=死んだふり・v=夜に来る・黄の縁=変えた・青の縁=選択中・色を塗った所=自然湧きが出る場所（円の中の、その区域の字のマス）・白=ロボット・色つき=生き物（昼夜とも）。マウスを重ねると範囲の名前が出る</span>';
 const KS=s=>s.split(',').map(t=>{const[k,n]=t.split('×');return KN[k]+(n?'×'+n:'');}).join('か');
-const nightEl=document.getElementById('night');nightEl.innerHTML='<span class="cap">自然湧きの範囲（夜 / 昼の上限。点線の円）:</span><br>'+D.WILD.map(w=>`<label>${w[1]}（${KS(w[6])}） <input type="number" min="0" max="10" step="1" id="wn${w[0]}" value="${w[7]}"> / <input type="number" min="0" max="10" step="1" id="wd${w[0]}" value="${w[8]}"></label>`).join('<br>');
+const nightEl=document.getElementById('night');
+const wlabel=w=>`<label>${w[1]}（${KS(w[6])}・${w[2]}・半径${w[5]}m・${w[10][0]}〜${w[10][1]}秒ごと） ${w[9]?`昼 <input type="number" min="0" max="10" step="1" id="wd${w[0]}" value="${w[8]}">`:`<input type="number" min="0" max="10" step="1" id="wn${w[0]}" value="${w[7]}"> / <input type="number" min="0" max="10" step="1" id="wd${w[0]}" value="${w[8]}">`}</label>`;
+nightEl.innerHTML='<span class="cap">ロボットの自然湧き（夜 / 昼の上限。白い破線の円）:</span><br>'+D.WILD.filter(w=>!w[9]).map(wlabel).join('<br>')+'<br><span class="cap">生き物の自然湧き（昼夜とも同じ数。倒すと 3 日で戻る。色つきの点線の円）:</span><br>'+D.WILD.filter(w=>w[9]).map(wlabel).join('<br>');
+const val=(p,w,d)=>{const e=el(p,w);return e?+e.value:d;};
+// 種類ごとの数: 固定湧きの体の数と、自然湧きの範囲（その種類を含む範囲の数と上限の計）
+function summary(){const rows=Object.keys(KN).map(k=>{const fx=items.filter(i=>i.kind===k).reduce((a,i)=>a+i.n,0),ws=D.WILD.filter(w=>w[6].split(',').some(t=>t.split('×')[0]===k)),n=ws.reduce((a,w)=>a+val('wn',w,0),0),d=ws.reduce((a,w)=>a+val('wd',w,0),0);return`<tr><td>${KN[k]}${ROBOT.includes(k)?'':'（生き物）'}</td><td align=center>${fx||'-'}</td><td align=center>${ws.length?ws.length+'か所':'-'}</td><td align=center>${ws.length?n:'-'}</td><td align=center>${ws.length?d:'-'}</td></tr>`;}).join('');document.getElementById('sum').innerHTML=`<table style="width:100%;font-size:12px;border-collapse:collapse"><tr><th align=left>種類</th><th>固定湧き（体）</th><th>自然湧き</th><th>夜の上限</th><th>昼の上限</th></tr>${rows}</table><span class="cap">自然湧きの上限は 1 組ずつ。ロボットは範囲ごとに種類を選ぶ（または）ので目安。生き物は 1 種類ずつで昼夜とも</span>`;}
 const W=e=>{const b=cv.getBoundingClientRect();return[(e.clientX-b.left)/b.width*SZ-HALF,(e.clientY-b.top)/b.height*SZ-HALF];};
 const hitAt=(x,z)=>{let best=null,bd=1e9;for(const it of items){const d=Math.hypot(it.x-x,it.z-z);if(d<rad(it)/R+2&&d<bd){bd=d;best=it;}}return best;};
 const tip=document.getElementById('tip'),err=document.getElementById('err');
@@ -69,14 +80,14 @@ const desc=it=>`${KN[it.kind]}×${it.n}（${MN[it.mode]}）x ${it.x}, z ${it.z}`
 const od=it=>`${where(it)} ${KN[it.orig.kind]}×${it.orig.n}（${MN[it.orig.mode]}）`;
 function changes(){const L=[];for(const it of removed)L.push(`- 消す: ${od(it)}`);
 for(const it of items){if(!it.orig)L.push(`- 足す: ${it.kind} ${desc(it)}・${ZN[zoneAt(it.x,it.z)]}`);else if(changed(it))L.push(`- 変える: ${od(it)} → ${it.kind} ${desc(it)}${it.x!==it.orig.x||it.z!==it.orig.z?'（場所を移す・'+ZN[zoneAt(it.x,it.z)]+'）':''}`);}
-for(const w of D.WILD){const a=+document.getElementById('wn'+w[0]).value,b=+document.getElementById('wd'+w[0]).value;if(a!==w[7]||b!==w[8])L.push(`- 自然湧き「${w[1]}」の上限: 夜 ${w[7]} → ${a}、昼 ${w[8]} → ${b}`);}return L;}
-function upd(){draw();editor();const L=changes();document.getElementById('chg').innerHTML=L.length?'<span class="cap">変更（'+L.length+'）</span><br>'+L.map(s=>s.slice(2)).join('<br>'):'';}
+for(const w of D.WILD){const a=val('wn',w,w[7]),b=val('wd',w,w[8]);if(a!==w[7]||b!==w[8])L.push(`- 自然湧き「${w[1]}」の上限: 夜 ${w[7]} → ${a}、昼 ${w[8]} → ${b}`);}return L;}
+function upd(){draw();editor();summary();const L=changes();document.getElementById('chg').innerHTML=L.length?'<span class="cap">変更（'+L.length+'）</span><br>'+L.map(s=>s.slice(2)).join('<br>'):'';}
 cv.addEventListener('pointerdown',e=>{const[x,z]=W(e);err.textContent='';const h=hitAt(x,z);if(h){sel=h;drag=h;cv.setPointerCapture(e.pointerId);upd();}else{if(zoneAt(x,z)==='~'){err.textContent='海には置けない';return;}const it={kind:kind.value,mode:mode.value,n:+n.value,x:Math.round(x),z:Math.round(z)};items.push(it);sel=it;upd();}});
-cv.addEventListener('pointermove',e=>{const[x,z]=W(e);if(drag){if(zoneAt(x,z)!=='~'){drag.x=Math.round(x);drag.z=Math.round(z);draw();}return;}let t=`x ${Math.round(x)}, z ${Math.round(z)}　${ZN[zoneAt(x,z)]||''}`;const s=SP.find(s=>Math.hypot(s[2]-x,s[3]-z)<8);if(s)t+=`　スポット${s[0]} ${s[1]}`;const h=hitAt(x,z);if(h)t+=`　${desc(h)}`;tip.textContent=t;});
+cv.addEventListener('pointermove',e=>{const[x,z]=W(e);if(drag){if(zoneAt(x,z)!=='~'){drag.x=Math.round(x);drag.z=Math.round(z);draw();}return;}let t=`x ${Math.round(x)}, z ${Math.round(z)}　${ZN[zoneAt(x,z)]||''}`;const s=SP.find(s=>Math.hypot(s[2]-x,s[3]-z)<8);if(s)t+=`　スポット${s[0]} ${s[1]}`;const rs=D.WILD.filter(w=>Math.hypot(w[3]-x,w[4]-z)<=w[5]&&w[2].includes(zoneAt(x,z)));if(rs.length)t+='　湧く範囲: '+rs.map(w=>w[1]).join('・');const h=hitAt(x,z);if(h)t+=`　${desc(h)}`;tip.textContent=t;});
 cv.addEventListener('pointerup',()=>{if(drag){drag=null;upd();}});
-D.WILD.forEach(w=>{document.getElementById('wn'+w[0]).oninput=upd;document.getElementById('wd'+w[0]).oninput=upd;});
-document.getElementById('showSpot').onchange=draw;document.getElementById('showWild').onchange=draw;
-document.getElementById('reset').onclick=()=>{items=init();removed=[];sel=null;D.WILD.forEach(w=>{document.getElementById('wn'+w[0]).value=w[7];document.getElementById('wd'+w[0]).value=w[8];});err.textContent='';upd();};
+D.WILD.forEach(w=>{for(const p of['wn','wd']){const e=el(p,w);if(e)e.oninput=upd;}});
+document.getElementById('showSpot').onchange=draw;showWild.onchange=draw;showCre.onchange=draw;
+document.getElementById('reset').onclick=()=>{items=init();removed=[];sel=null;D.WILD.forEach(w=>{const a=el('wn',w);if(a)a.value=w[7];el('wd',w).value=w[8];});err.textContent='';upd();};
 document.getElementById('send').onclick=()=>{const L=changes();if(!L.length){err.textContent='まだ何も変えていない';return;}sendPrompt(D.name+'の敵の配置をこう変えて（島の図のウィジェットから）:\n'+L.join('\n'));};
 upd();
 </script>

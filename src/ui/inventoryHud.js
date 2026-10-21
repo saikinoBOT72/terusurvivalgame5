@@ -7,8 +7,8 @@ import { partIcon } from './buildMenu.js';
 import { corner } from './hud.js';
 import { el, winHead } from './uiKit.js';
 import { createStationWindow } from './stationHud.js';
-import { createEquipColumn, keyListHtml } from './equipHud.js';
-import { STATIONS, accepts, stationChanged } from '../survival/stations.js';
+import { createEquipColumn, keyListHtml, fillEquipSum, slotTitle } from './equipHud.js';
+import { STATIONS, accepts, insertInto, stationChanged } from '../survival/stations.js';
 
 const slotHtml = (i, kind = 'inv', key = '') => `<div class="slot" data-kind="${kind}" data-i="${i}"><img alt=""><span class="n"></span><i class="dur"></i>${key}</div>`;
 const range = (a, b) => Array.from({ length: b - a }, (_, k) => a + k);
@@ -63,7 +63,7 @@ export function createInventoryHud(inventory, { vitals = () => null, known = () 
       <button type="button">${rc.station ? `作る<small>長押し ${rc.time ?? 2} 秒</small>` : '作る'}</button>
     </div>`;
   RECIPES.forEach((rc, i) => { if (!rc.station) el(recipeHtml(rc, i), recipes); }); // 設備で作る物は、その設備の窓に出す
-  const station = createStationWindow(panel, { slotHtml, recipeHtml });
+  const station = createStationWindow(panel, { slotHtml, recipeHtml, known, onPick: pickBench });
   const cur = () => station.part; // 開いている設備
   const nearAt = (type) => cur()?.type === type; // 設備のレシピは、その設備の窓を開いているときだけ作れる
 
@@ -75,7 +75,7 @@ export function createInventoryHud(inventory, { vitals = () => null, known = () 
     node.querySelector('.role')?.toggleAttribute('hidden', !!s);
     if (s) { img.src = iconUrl(s.id); img.hidden = false; } else img.hidden = true;
     node.querySelector('.n').textContent = s && s.n > 1 ? s.n : '';
-    node.title = s ? ITEMS[s.id].name : '';
+    node.title = s ? slotTitle(s.id) : '';
     dur.hidden = !s || s.dur === undefined;
     if (!dur.hidden) { // 耐久: 半分より多いと緑、2 割まで黄、それより少ないと赤
       const k = s.dur / ITEMS[s.id].dur;
@@ -89,6 +89,7 @@ export function createInventoryHud(inventory, { vitals = () => null, known = () 
     if (panel.hidden) return;
     syncRows();
     panel.querySelectorAll('.slot[data-kind]').forEach(fillSlot);
+    fillEquipSum(panel, equip);
     if (cur()) tab = 'bag'; // 設備を開いている間は持ち物を出しておく（右の窓と物をやりとりする）
     panel.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.dataset.tab === tab));
     panel.querySelector('.bag').hidden = tab !== 'bag';
@@ -126,7 +127,7 @@ export function createInventoryHud(inventory, { vitals = () => null, known = () 
   // ---- マスの操作（ui.md「持ち物の操作」）: ドラッグで入れかえ・重ねる、Shift＋クリックでまとめて移す ----
   const arr = (kind) => (kind === 'st' ? cur().slots : kind === 'eq' ? equip.slots : inventory.slots);
   // 設備のスロットに置けるか（ui.md「設備の窓」: 燃料は燃料のスロット、入れる物は入れるスロット、出るスロットには置けない）。装備の枠は合う物だけ
-  const fits = (kind, i, item) => !item || (kind === 'st' ? accepts(cur().type, i, item.id) : kind === 'eq' ? equip.fits(i, item.id) : true);
+  const fits = (kind, i, item) => !item || (kind === 'st' ? accepts(cur().type, i, item.id, cur()) : kind === 'eq' ? equip.fits(i, item.id) : true);
   const done = () => { if (cur()) stationChanged(cur()); inventory.changed(); };
   function dropOn(fk, i, tk, j) {
     const A = arr(fk), B = arr(tk), a = A[i], b = B[j];
@@ -141,18 +142,19 @@ export function createInventoryHud(inventory, { vitals = () => null, known = () 
   }
   // 持ち物 → 設備: 置ける所へ（同じ物の上に重ねてから、空いた所へ）
   function intoStation(i) {
-    const a = inventory.slots[i], S = cur().slots;
-    if (!a) return;
-    const spots = S.map((_, j) => j).filter((j) => accepts(cur().type, j, a.id));
-    for (const j of [...spots.filter((j) => S[j]?.id === a.id), ...spots.filter((j) => !S[j])]) {
-      if (!a.n) break;
-      if (a.dur !== undefined) { if (!S[j]) { S[j] = a; inventory.slots[i] = null; } return; } // 道具は重ねない
-      if (!S[j]) S[j] = { id: a.id, n: 0 };
-      if (S[j].id !== a.id) continue;
-      const k = Math.min(a.n, ITEMS[a.id].stack - S[j].n);
-      S[j].n += k; a.n -= k;
-    }
-    if (!a.n) inventory.slots[i] = null;
+    const a = inventory.slots[i];
+    if (a && insertInto(cur(), a) && !a.n) inventory.slots[i] = null;
+  }
+  // 自動作業台: 作る物を選ぶ。いらなくなった素材は持ち物へ戻す（入りきらない分は残る）
+  function pickBench(p, idx) {
+    p.recipe = idx;
+    p.prog[0] = 0;
+    p.slots.forEach((s, i) => {
+      if (STATIONS[p.type].slots[i] !== 'in' || !s || RECIPES[idx].need[s.id] !== undefined) return;
+      s.n -= inventory.add(s.id, s.n);
+      if (!s.n) p.slots[i] = null;
+    });
+    done();
   }
   function quickMove(kind, i) {
     const it = arr(kind)[i], spot = kind === 'inv' && it ? equip.spotFor(it.id) : -1;

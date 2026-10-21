@@ -17,6 +17,8 @@ export function createControls(g) {
   const { dom, lockPointer, invHud, buildMenu, build, gather, combat, pc, ranged, tools, farm, inventory, stats, player, keysPanel } = g;
   const fps = () => g.mode() === 'fps';
   const uiOpen = () => invHud.open || buildMenu.open; // マウスの固定を外して使う画面
+  const isDigTool = (id) => ['axe', 'pick'].includes(ITEMS[id]?.tool); // ため攻撃・ガードなし（weapons.md）
+  let holdL = false; // 左を押し続けている（斧・ピッケル）
 
   // Esc でマウスの固定が外れたら一時停止してメニューへ。1人称中のクリックで固定し直す。
   document.addEventListener('pointerlockchange', () => {
@@ -49,8 +51,20 @@ export function createControls(g) {
     const held = g.held(), vs = g.vehicles();
     if (player.state.ride) { if (player.state.ride.kind === 'helm') vs.leave(); return; } // 舵は右クリックでも離す
     if (build.hammer) { openingPress = true; return setBuildMenuOpen(true); }
+    if (combat.butcher(held)) return; // 倒した生き物の体: 肉を取る（石のナイフで皮も。creatures.md）
     const aimed = build.aimedPart();
     if (aimed && vs?.use(aimed)) return; // 舵を持つ・小舟に座る・起こす
+    if (held === 'copperWire' && g.st()) {
+      if (!g.hasBp('generator')) return invHud.message('設計図「発電機」が要る'); // 銅線: 電気の物を 2 つ右クリックして線を張る（automation/wires.js）
+      const r = g.st().wires.click(aimed, inventory.count('copperWire') > 0);
+      if (r.used) inventory.remove('copperWire', 1);
+      return invHud.message(r.msg);
+    }
+    if (aimed?.type === 'belt') { // ベルトの上の物を拾う
+      const id = aimed.item?.id;
+      if (id && inventory.add(id, 1)) { g.st().auto.belts.take(aimed); invHud.gained(id, 1); }
+      return;
+    }
     if (aimed?.type === 'bed') return g.sleep(); // 寝床で眠る
     if (aimed?.type === 'planter' && farm.use(aimed, held)) return; // 畑: 植える・水をやる・収穫（持って右クリック）
     if (stationOf(aimed)) return setInventoryOpen(true, aimed); // 設備の窓（ui.md「設備の窓」。食べるより先）
@@ -72,14 +86,15 @@ export function createControls(g) {
     if (!fps() || !playing(dom)) return;
     if (e.button === 2) { // 近接武器で何も狙っていなければガード、銃は覗き込む（weapons.md）
       if (ITEMS[g.held()]?.ranged?.aim) return ranged.aim(g.held(), true);
-      if (isMelee(g.held()) && !gather.aimedEntity() && !build.aimedPart()) return pc.guardStart(g.held());
+      if (isMelee(g.held()) && !isDigTool(g.held()) && !gather.aimedEntity() && !build.aimedPart() && !combat.carcassAimed()) return pc.guardStart(g.held());
       return useAimed();
     }
     if (e.button !== 0 || player.state.ride || pc.guarding) return; // 乗っている間・ガード中の左クリックは何もしない（weapons.md）
     const held = g.held(), tool = ITEMS[held]?.tool;
     if (ITEMS[held]?.ranged) return ranged.press(held); // 遠距離武器（combat/ranged.js）
+    holdL = isDigTool(held); // 斧・ピッケルは押し続けると振りつづける（update）
     if (pc.cooling) return; // 攻撃間隔が満ちるまで振れない（weapons.md「攻撃間隔」）
-    if (isMelee(held) && tool !== 'hammer') return pc.chargeStart(); // 近接武器は離したときに振る（ため攻撃。weapons.md）
+    if (isMelee(held) && tool !== 'hammer' && !holdL) return pc.chargeStart(); // 近接武器は離したときに振る（ため攻撃。weapons.md）
     swingNow(held, 1);
   });
   // 振り（構え → 振り → 戻り。動きは avatar/fpMotion.js）の当たる所で叩く。敵が先（mobs/combat.js）。叩く物がなければ道具の働き（ピッケルで粘土）
@@ -95,7 +110,12 @@ export function createControls(g) {
       if (hit) combat.noise(); else tools.leftClick(held); // 叩いた音で、まわり 15m の寝ている番人が起きる
     }, at * 1000);
   }
+  // 左を押し続けている間、斧・ピッケルを間隔が満ちるたびに振る
+  function update() {
+    if (holdL && fps() && !uiOpen() && !player.state.ride && !pc.cooling && isDigTool(g.held())) swingNow(g.held(), 1);
+  }
   addEventListener('mouseup', (e) => {
+    if (e.button === 0) holdL = false;
     if (e.button === 2) { pc.guardEnd(); ranged.aim(g.held(), false); }
     if (e.button === 0) ranged.release(g.held());
     if (e.button === 0 && pc.charging) { const held = g.held(), mult = pc.chargeEnd(held); if (fps()) swingNow(held, mult); }
@@ -138,6 +158,11 @@ export function createControls(g) {
     if (part?.type === 'bed') return { name: PARTS.bed.name, key: g.canSleep() ? '右クリック 眠る' : '夜に眠れる' };
     if (part?.type === 'planter') return farm.hint(part, held);
     const S = stationOf(part);
+    if (part && PARTS[part.type].wirePts) { // 電気の物: ⚡の状態を名前に添える
+      const power = part.net ? (part.net.ok ? '⚡OK' : '⚡足りない') : '線なし';
+      return { name: `${PARTS[part.type].name} ${power}`, key: held === 'copperWire' ? '右クリック 線をつなぐ' : S ? '右クリック 開ける' : '' };
+    }
+    if (part?.type === 'belt') return { name: PARTS.belt.name, key: part.item ? '右クリック 拾う' : '' };
     if (S) return { name: S.name + (part.burning ? '（燃えている）' : ''), key: '右クリック 開ける' };
     if (part?.type === 'door') return { name: PARTS[part.type].name, key: '右クリック 開け閉め' };
     if (held && stats.canEat(held)) return { name: ITEMS[held].name, key: ITEMS[held].food ? '右クリック 食べる' : '右クリック 飲む' };
@@ -147,5 +172,5 @@ export function createControls(g) {
     return null;
   }
 
-  return { uiOpen, setBuildMenuOpen, setInventoryOpen, aimHint };
+  return { update, uiOpen, setBuildMenuOpen, setInventoryOpen, aimHint };
 }

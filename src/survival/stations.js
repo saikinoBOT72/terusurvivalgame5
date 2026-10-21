@@ -8,9 +8,9 @@ import { rng, makeMesh } from '../style/lowpoly.js';
 import { campfire } from '../world/props.js';
 import { purifierWater, purifierWaterY, FURNACE_FIRE } from '../build/furniture.js';
 import { itemGeometry } from './itemShapes.js';
-import { ITEMS, REMOVED } from './items.js';
+import { ITEMS, REMOVED, RECIPES } from './items.js';
 
-const COOK = { berry: 'cookedBerry', mushroom: 'cookedMushroom', egg: 'cookedEgg', fish: 'cookedFish', potato: 'cookedPotato', shell: 'cookedShell', clay: 'brick' };
+const COOK = { berry: 'cookedBerry', mushroom: 'cookedMushroom', egg: 'cookedEgg', fish: 'cookedFish', rawMeat: 'cookedMeat', potato: 'cookedPotato', shell: 'cookedShell', clay: 'brick' };
 const SMELT = { copperOre: ['copperIngot', 1], ironOre: ['ironIngot', 1], scrap: ['ironIngot', 2], sand: ['glass', 2] }; // [できる物, 入れる数]
 
 // recipe(id): 入れる物 id から { out, need, time }（作れなければ null）
@@ -28,17 +28,53 @@ export const STATIONS = {
     recipe: (id) => (id === 'tubeSea' ? { out: 'tubeFresh', need: 1, time: 60 } : null),
   },
   chest: { name: 'チェスト', slots: Array(12).fill('store') },
+  // 自動化の機械（automation.md）。electric: 電気で動く（part.powered は machines.js が毎フレーム入れる）。timer: part.prog[0] に進みを持つ
+  generator: { name: '発電機', slots: ['fuel'], lanes: [], fuel: 0, fuels: { coal: 120 } },
+  drill: { name: '電動ドリル', slots: ['out', 'out'], lanes: [], electric: true, timer: true },
+  autoFurnace: {
+    name: '自動炉', slots: ['in', 'out'], lanes: [[0, 1]], electric: true,
+    recipe: (id) => (SMELT[id] ? { out: SMELT[id][0], need: SMELT[id][1], time: 30 } : null),
+  },
+  // 自動作業台: 作る物を窓で 1 つ選ぶ（part.recipe = RECIPES の番号）。入れるスロットは、その素材だけ受け付ける
+  autoBench: { name: '自動作業台', slots: ['in', 'in', 'in', 'in', 'in', 'in', 'out'], lanes: [], electric: true, timer: true, bench: true },
   workbench: { name: '作業台', slots: [], recipes: 'workbench' }, // 作業台で作るレシピ（items.js の station）
 };
 export const stationOf = (part) => (part && STATIONS[part.type]) || null;
 
-// そのスロットに id を入れられるか（出るスロットには入れられない）
-export function accepts(type, i, id) {
+// そのスロットに id を入れられるか（出るスロットには入れられない）。part: 自動作業台は選んだレシピの素材だけ
+export function accepts(type, i, id, part) {
   const S = STATIONS[type], role = S?.slots[i];
   if (role === 'store') return true;
   if (role === 'fuel') return !!S.fuels[id];
-  if (role === 'in') return !!S.recipe(id);
+  if (role === 'in') return S.bench ? benchNeed(part)?.[id] !== undefined : !!S.recipe(id);
   return false;
+}
+// 自動作業台の選んだレシピの素材 { id: 個数 }（なければ undefined）
+export const benchNeed = (part) => (part?.recipe != null ? RECIPES[part.recipe]?.need : undefined);
+
+// 設備のスロットに stack（{ id, n, dur? }）を入れられるだけ入れる（窓の Shift＋クリックもベルトの流れ込みも同じ）。入れた数を返す
+export function insertInto(part, stack) {
+  const S = part.slots, before = stack.n;
+  const spots = S.map((_, j) => j).filter((j) => accepts(part.type, j, stack.id, part));
+  for (const j of [...spots.filter((k) => S[k]?.id === stack.id), ...spots.filter((k) => !S[k])]) {
+    if (!stack.n) break;
+    if (stack.dur !== undefined) { if (!S[j]) { S[j] = { ...stack }; stack.n = 0; } return before - stack.n; } // 道具は重ねない
+    if (!S[j]) S[j] = { id: stack.id, n: 0 };
+    if (S[j].id !== stack.id) continue;
+    const k = Math.min(stack.n, ITEMS[stack.id].stack - S[j].n);
+    S[j].n += k; stack.n -= k;
+    if (!S[j].n) S[j] = null;
+  }
+  return before - stack.n;
+}
+// 出るスロットから 1 つ取る（ベルトへ出す）。取った物の id（なければ null）
+export function takeOutOne(part) {
+  const S = STATIONS[part.type], i = S?.slots.findIndex((role, k) => role === 'out' && part.slots[k]);
+  if (!S || i < 0) return null;
+  const s = part.slots[i], id = s.id;
+  if (!--s.n) part.slots[i] = null;
+  stationChanged(part);
+  return id;
 }
 
 // 置いたときに呼ぶ: 中身と、燃えているときの見た目（火）を用意する
@@ -47,7 +83,9 @@ export function initStation(part, def) {
   if (!S) return;
   part.slots = part.store ?? Array(S.slots.length).fill(null); // チェストは part.store がそのまま中身
   part.burn = 0;
-  part.prog = (S.lanes ?? []).map(() => 0);
+  part.prog = S.timer ? [0] : (S.lanes ?? []).map(() => 0);
+  part.powered = false;
+  if (S.bench) part.recipe = null;
   part.burning = false;
   if (part.type === 'furnace') { // 薪の上で燃える
     part.fire = campfire(rng(11), { base: false });
@@ -94,7 +132,7 @@ function showContents(part) {
 }
 
 // その列が動けるか: 入れる物が足り、出るスロットに入る
-function laneReady(part, S, [a, b]) {
+export function laneReady(part, S, [a, b]) {
   const s = part.slots[a], rc = s && S.recipe(s.id);
   if (!rc || s.n < rc.need) return null;
   const o = part.slots[b];
@@ -116,9 +154,9 @@ export function tickStation(part, dt) {
       changed = true;
     }
   }
-  part.burning = ready.some(Boolean) && (S.fuel === undefined || part.burn > 0);
+  part.burning = ready.some(Boolean) && (S.electric ? part.powered : S.fuel === undefined || part.burn > 0);
   if (part.burning) {
-    if (S.fuel !== undefined) part.burn = Math.max(0, part.burn - dt);
+    if (S.fuel !== undefined && !S.electric) part.burn = Math.max(0, part.burn - dt);
     S.lanes.forEach(([a, b], k) => {
       const rc = ready[k];
       if (!rc || (part.prog[k] += dt) < rc.time) return;
@@ -138,14 +176,15 @@ export function tickStation(part, dt) {
 export const stationChanged = (part) => showContents(part);
 
 // セーブ: 中身と燃え残り、進み。チェストは store に入っているので省く
-export const stationData = (p) => (STATIONS[p.type]?.lanes ? { slots: p.slots, burn: p.burn || undefined, prog: p.prog.some(Boolean) ? p.prog : undefined } : {});
+export const stationData = (p) => (STATIONS[p.type]?.lanes ? { slots: p.slots, burn: p.burn || undefined, prog: p.prog.some(Boolean) ? p.prog : undefined, recipe: p.recipe ?? undefined } : {});
 export function loadStation(part, d) {
   if (!part.slots || !d.slots) return;
   d.slots.forEach((s, i) => { part.slots[i] = s && REMOVED.has(s.id) ? null : s; });
   part.burn = d.burn ?? 0;
+  if (d.recipe != null) part.recipe = d.recipe;
   if (d.prog) part.prog = d.prog;
   showContents(part);
 }
 
 // 撤去したとき中の物を返す: [[id, n], ...]（チェストの中身も。燃えている途中の燃料は戻らない）
-export const stationRefund = (part) => (part.slots ?? []).filter(Boolean).map((s) => [s.id, s.n]);
+export const stationRefund = (part) => [...(part.slots ?? []).filter(Boolean).map((s) => [s.id, s.n]), ...(part.item ? [[part.item.id, 1]] : [])]; // ベルトの上の物も

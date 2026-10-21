@@ -8,6 +8,7 @@ import { MATERIAL_SHAPES, berry, fish as fishShape } from './materialShapes.js';
 import { METAL_SHAPES } from './metalShapes.js';
 import { GUN_SHAPES } from './gunShapes.js';
 import { BAG_SHAPES } from './bagShapes.js';
+import { WEAR_SHAPES } from './wearShapes.js';
 import { CROP_ITEM_SHAPES } from '../world/crops.js';
 
 export const GRIP = 0.12;
@@ -86,6 +87,7 @@ const SHAPES = {
   ...METAL_SHAPES,
   ...GUN_SHAPES,
   ...BAG_SHAPES,
+  ...WEAR_SHAPES,
   ...CROP_ITEM_SHAPES,
   // 石のナイフ: 短い柄に、火打ち石の片刃の刃。背はまっすぐ、刃（+z）はふくらんで先がとがる。刃先ほど薄い
   stoneKnife: (r) => {

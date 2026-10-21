@@ -82,4 +82,10 @@ export const METAL_SHAPES = {
   bpIronTools: blueprintRoll,
   bpLantern: blueprintRoll,
   bpJunkPistol: blueprintRoll,
+  bpGenerator: blueprintRoll,
+  bpWindmill: blueprintRoll,
+  bpDrill: blueprintRoll,
+  bpAutoFurnace: blueprintRoll,
+  bpAutoBench: blueprintRoll,
+  bpBelt: blueprintRoll,
 };

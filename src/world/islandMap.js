@@ -66,19 +66,43 @@ export const ISLANDS = {
       { kind: 'dog', spot: 26, n: 2, mode: 'guard', when: 'always', back: 2, d: 4 },
     ],
     // 自然湧き（islands.md「敵の出方」）: 円（x, z, r）の中の区域 zones に出る。mobs: [種類, 1 組の数] から 1 つ選ぶ
-    // night / day: 生きている数（組）の上限（day は 5 日目から）、every: 出す間隔の幅（秒）
+    // night / day: 生きている数（組）の上限（日数は関係ない）、every: 出す間隔の幅（秒）。範囲は重なってよい（2026-10-21 見直し）
     wild: [
-      { name: '浜の西', zones: 'B', x: -95, z: 180, r: 45, mobs: [['crab', 1]], night: 2, day: 1, every: [40, 100] },
-      { name: '浜の東', zones: 'B', x: 15, z: 180, r: 45, mobs: [['crab', 1]], night: 2, day: 1, every: [40, 100] },
-      { name: '入り江', zones: 'L', x: 130, z: 110, r: 55, mobs: [['crab', 1]], night: 2, day: 1, every: [40, 100] },
-      { name: '湿地', zones: 'M', x: -155, z: 115, r: 50, mobs: [['crab', 1]], night: 2, day: 1, every: [40, 100] },
-      { name: '林の南', zones: 'F', x: 20, z: 110, r: 60, mobs: [['drone', 1], ['crab', 1]], night: 2, day: 0, every: [60, 140] },
-      { name: '西の草原の南', zones: 'G', x: -180, z: 30, r: 55, mobs: [['drone', 1], ['dog', 2]], night: 2, day: 1, every: [60, 140] },
-      { name: '西の草原の北', zones: 'G', x: -180, z: -70, r: 55, mobs: [['drone', 1], ['dog', 2]], night: 2, day: 1, every: [60, 140] },
-      { name: '林の北', zones: 'F', x: 40, z: -5, r: 60, mobs: [['drone', 1], ['dog', 2]], night: 3, day: 1, every: [50, 120] },
-      { name: '深い森', zones: 'D', x: 0, z: -85, r: 85, mobs: [['drone', 1], ['dog', 2]], night: 3, day: 1, every: [50, 120] },
-      { name: '岩場', zones: 'Q', x: -155, z: -150, r: 60, mobs: [['dog', 2], ['drone', 1]], night: 2, day: 1, every: [60, 140] },
-      { name: '峡谷', zones: 'C', x: 140, z: -130, r: 55, mobs: [['dog', 2], ['drone', 1]], night: 2, day: 1, every: [60, 140] },
+      { name: '浜の西', zones: 'B', x: -95, z: 180, r: 75, mobs: [['crab', 1]], night: 4, day: 2, every: [25, 70] },
+      { name: '浜の東', zones: 'B', x: 15, z: 180, r: 75, mobs: [['crab', 1]], night: 4, day: 2, every: [25, 70] },
+      { name: '入り江', zones: 'L', x: 130, z: 110, r: 85, mobs: [['crab', 1]], night: 4, day: 2, every: [25, 70] },
+      { name: '湿地', zones: 'M', x: -155, z: 115, r: 80, mobs: [['crab', 1]], night: 4, day: 2, every: [25, 70] },
+      { name: '林の南', zones: 'F', x: 20, z: 110, r: 100, mobs: [['drone', 1], ['crab', 1]], night: 4, day: 2, every: [40, 100] },
+      { name: '林の西', zones: 'F', x: -70, z: 50, r: 90, mobs: [['drone', 1], ['dog', 2]], night: 4, day: 2, every: [40, 100] },
+      { name: '林の東', zones: 'F', x: 125, z: 20, r: 100, mobs: [['drone', 1], ['dog', 2]], night: 4, day: 2, every: [40, 100] },
+      { name: '西の草原の南', zones: 'G', x: -180, z: 30, r: 90, mobs: [['drone', 1], ['dog', 2]], night: 4, day: 2, every: [40, 100] },
+      { name: '西の草原の北', zones: 'G', x: -180, z: -70, r: 90, mobs: [['drone', 1], ['dog', 2]], night: 4, day: 2, every: [40, 100] },
+      { name: '林の北', zones: 'F', x: 40, z: -5, r: 100, mobs: [['drone', 1], ['dog', 2]], night: 5, day: 2, every: [35, 90] },
+      { name: '深い森', zones: 'D', x: 0, z: -85, r: 130, mobs: [['drone', 1], ['dog', 2]], night: 5, day: 2, every: [35, 90] },
+      { name: '深い森の西', zones: 'D', x: -110, z: -80, r: 80, mobs: [['drone', 1], ['dog', 2]], night: 4, day: 2, every: [40, 100] },
+      { name: '岩場', zones: 'Q', x: -130, z: -150, r: 90, mobs: [['dog', 2], ['drone', 1]], night: 4, day: 2, every: [40, 100] },
+      { name: '峡谷', zones: 'C', x: 125, z: -135, r: 90, mobs: [['dog', 2], ['drone', 1]], night: 4, day: 2, every: [40, 100] },
+      { name: '北の高台', zones: 'H', x: -10, z: -165, r: 110, mobs: [['dog', 2], ['drone', 1]], night: 3, day: 2, every: [50, 120] },
+      // 生き物（creatures.md）: creature は昼夜とも day の数だけ出る（night は使わない）。倒した分は 3 日で戻る。島全体で鳥 30・ウサギ 11・イノシシ 8（遠い範囲は出ない）
+      { name: '西の草原の南 ウサギ', creature: true, zones: 'G', x: -180, z: 30, r: 90, mobs: [['rabbit', 1]], day: 3, every: [15, 40] },
+      { name: '西の草原の北 ウサギ', creature: true, zones: 'G', x: -180, z: -70, r: 90, mobs: [['rabbit', 1]], day: 3, every: [15, 40] },
+      { name: '西の草原の北 イノシシ', creature: true, zones: 'G', x: -180, z: -70, r: 90, mobs: [['boar', 1]], day: 2, every: [25, 60] },
+      { name: '林の北 鳥', creature: true, zones: 'F', x: 40, z: -5, r: 100, mobs: [['bird', 1]], day: 4, every: [15, 40] },
+      { name: '林の北 イノシシ', creature: true, zones: 'F', x: 40, z: -5, r: 100, mobs: [['boar', 1]], day: 2, every: [25, 60] },
+      { name: '林の南 鳥', creature: true, zones: 'F', x: 20, z: 110, r: 100, mobs: [['bird', 1]], day: 3, every: [15, 40] },
+      { name: '風の丘の一本木 鳥', creature: true, zones: 'G', x: -190, z: -70, r: 35, mobs: [['bird', 1]], day: 3, every: [15, 40] },
+      { name: '浜の西 鳥', creature: true, zones: 'B', x: -95, z: 180, r: 75, mobs: [['bird', 1]], day: 2, every: [20, 50] },
+      { name: '浜の東 鳥', creature: true, zones: 'B', x: 15, z: 180, r: 75, mobs: [['bird', 1]], day: 2, every: [20, 50] },
+      { name: '入り江 鳥', creature: true, zones: 'L', x: 130, z: 110, r: 85, mobs: [['bird', 1]], day: 2, every: [20, 50] },
+      { name: '湿地 鳥', creature: true, zones: 'M', x: -155, z: 115, r: 80, mobs: [['bird', 1]], day: 2, every: [20, 50] },
+      { name: '林の西 ウサギ', creature: true, zones: 'F', x: -70, z: 50, r: 90, mobs: [['rabbit', 1]], day: 3, every: [15, 40] },
+      { name: '林の東 イノシシ', creature: true, zones: 'F', x: 125, z: 20, r: 100, mobs: [['boar', 1]], day: 2, every: [25, 60] },
+      { name: '林の東 鳥', creature: true, zones: 'F', x: 125, z: 20, r: 100, mobs: [['bird', 1]], day: 3, every: [15, 40] },
+      { name: '深い森 イノシシ', creature: true, zones: 'D', x: 0, z: -85, r: 130, mobs: [['boar', 1]], day: 2, every: [25, 60] },
+      { name: '深い森の西 ウサギ', creature: true, zones: 'D', x: -110, z: -80, r: 80, mobs: [['rabbit', 1]], day: 2, every: [20, 50] },
+      { name: '岩場 鳥', creature: true, zones: 'Q', x: -130, z: -150, r: 90, mobs: [['bird', 1]], day: 3, every: [20, 50] },
+      { name: '見晴らしの丘 鳥', creature: true, zones: 'K', x: 0, z: -40, r: 60, mobs: [['bird', 1]], day: 3, every: [20, 50] },
+      { name: '北の高台 鳥', creature: true, zones: 'H', x: -10, z: -165, r: 110, mobs: [['bird', 1]], day: 3, every: [20, 50] },
     ],
     wreck: { x: -52, z: 178, rot: 0.35 },     // 飛行機の残骸（機首が北）
     sandBed: { x: -32, z: 184 },              // 砂の鉱床（stonePlace.js）
@@ -94,6 +118,8 @@ export const ISLANDS = {
     ],
     // AI の跡（islands.md「設計図の置き場所」）。端末の形はステップ 10。今は設計図だけ地面に置く
     traces: [{ x: -150, z: -132, item: 'bpIronTools' }, { x: 121, z: -149, item: 'bpLantern' }, { x: 141, z: -127, item: 'bpJunkPistol' }],
+    // 自動化の設計図（端末のそば）: 発電機は銅の鉱脈の壁（26）、自動炉・ベルトは露天掘りの大穴（22）、風車は見晴らしの岩（19）のてっぺん
+    autoTraces: [{ x: 123, z: -149, item: 'bpGenerator' }, { x: -152, z: -132, item: 'bpAutoFurnace' }, { x: -148, z: -131, item: 'bpBelt' }, { x: -10, z: -30, item: 'bpWindmill', dy: 3 }],
     // スポット（islands.md「スポット」）: 番号・名前・中心・r（区域の木・岩・小物を置かない半径）。bed: 鉱床（kind、x・z がなければ中心。survival.md「鉱床」）
     spots: [
       { n: 1, name: '墜落地点', x: -52, z: 178, r: 0 },

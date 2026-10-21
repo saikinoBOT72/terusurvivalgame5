@@ -236,6 +236,8 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
   const spots = placeSpots({ group, terrain, gen, colliders, addCollider, removeCollider, resources, slingTargets, seed });
   // ---- 石の密集地・石の鉱床・砂の塊・砂の鉱床（登録は島の物の最後。islands.md「鉱石の密集地」） ----
   const stone = placeStone({ group, terrain, gen, colliders, addCollider, resources, seed });
+  // 自動化の設計図（islands.md「設計図の置き場所」）: セーブの番号をずらさないよう、島の物の最後に登録する
+  for (const t of gen.def.autoTraces ?? []) placeLoot({ group, terrain, resources }, t.item, t.x, t.z, true, t.dy);
   const planting = createPlanting({ group, terrain, colliders, addCollider, resources, protos, leafCollider, leaves, treeTop: TREE_TOP });
 
   resources.freeze(); // ここまでが島の最初の姿。あとの変化はセーブで記録する

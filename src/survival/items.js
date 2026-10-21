@@ -43,6 +43,13 @@ export const ITEMS = {
   bpIronTools: { key: true, name: '設計図「鉄の道具」', stack: 1, bp: 'ironTools', desc: '鉄の斧・ピッケル・やりが作れる' },
   bpLantern: { key: true, name: '設計図「銅線」', stack: 1, bp: 'lantern', desc: '銅の延べ棒から銅線が作れる' },
   bpJunkPistol: { key: true, name: '設計図「ガラクタ拳銃」', stack: 1, bp: 'junkPistol', desc: 'ガラクタ拳銃とガラクタ弾が作れる' }, // weapons.md
+  // 自動化の設計図（automation.md「コストと設計図」）
+  bpGenerator: { key: true, name: '設計図「発電機」', stack: 1, bp: 'generator', desc: '建築で発電機・電柱が作れる。銅線で電線が張れる' },
+  bpWindmill: { key: true, name: '設計図「風車」', stack: 1, bp: 'windmill', desc: '建築で風車が作れる' },
+  bpDrill: { key: true, name: '設計図「電動ドリル」', stack: 1, bp: 'drill', desc: '建築で電動ドリルが作れる（鉱床の上に置く）' },
+  bpAutoFurnace: { key: true, name: '設計図「自動炉」', stack: 1, bp: 'autoFurnace', desc: '建築で自動炉が作れる' },
+  bpAutoBench: { key: true, name: '設計図「自動作業台」', stack: 1, bp: 'autoBench', desc: '建築で自動作業台が作れる' },
+  bpBelt: { key: true, name: '設計図「ベルト」', stack: 1, bp: 'belt', desc: '建築でベルトコンベアが作れる' },
   mushroom: { name: 'キノコ', stack: 50, food: 5 },
   egg: { name: '卵', stack: 20 },
   coconut: { name: 'ヤシの実', stack: 20, food: 5, water: 15 },
@@ -51,12 +58,25 @@ export const ITEMS = {
   cookedMushroom: { name: '焼いたキノコ', stack: 50, food: 15 },
   cookedEgg: { name: '焼いた卵', stack: 20, food: 15 },
   cookedFish: { name: '焼いた魚', stack: 20, food: 25 },
+  rawMeat: { name: '生肉', stack: 20 }, // 鳥・ウサギ・イノシシ（creatures.md）。生では食べられない。たき火で焼く
+  cookedMeat: { name: '焼いた肉', stack: 20, food: 15 },
+  hide: { name: '皮', stack: 20 }, // ウサギ・イノシシを石のナイフで。使い道はまだなし（survival.md）
   shell: { name: '貝', stack: 20, food: 4 }, // 潮だまり（survival.md「スポットの物と中身」）
   cookedShell: { name: '焼いた貝', stack: 20, food: 14 },
   glowShroom: { name: '光るキノコ', stack: 1, tool: 'light', dur: 600 }, // 持っている間だけ青緑に光る（松明と同じく 1 秒に 1 減る）
   // 持ち物を広げる（survival.md「持ち物の広さ・大事な物・装備」）
   grassBag: { name: '草の袋', stack: 1, expand: 3 },
   toughBag: { name: '丈夫なかばん', stack: 1, expand: 4 },
+  // 装備（survival.md「装備の中身」）。equipStats: def 防御・stamMax スタミナの最大・stamRegen 戻り %・runCost 走る消費 %・fall 落下 m・breath 息 秒
+  bambooHat: { name: '竹のかさ', stack: 1, equip: 'head', equipStats: { def: 5 } },
+  grassVest: { name: '草の胸当て', stack: 1, equip: 'body', equipStats: { def: 8 } },
+  strawSandals: { name: '草のわらじ', stack: 1, equip: 'feet', equipStats: { def: 2, runCost: -15 } },
+  junkHelmet: { name: 'ガラクタのヘルメット', stack: 1, equip: 'head', equipStats: { def: 10 } },
+  junkPlate: { name: 'ガラクタの胸当て', stack: 1, equip: 'body', equipStats: { def: 16, runCost: 10 } },
+  ironBoots: { name: '鉄底のブーツ', stack: 1, equip: 'feet', equipStats: { def: 5, fall: 2 } },
+  shellCharm: { name: '貝のお守り', stack: 1, equip: 'acc', equipStats: { breath: 10 } },
+  featherCharm: { name: '羽根の飾り', stack: 1, equip: 'acc', equipStats: { stamRegen: 25 } },
+  copperBangle: { name: '銅線の腕輪', stack: 1, equip: 'acc', equipStats: { stamMax: 25 } },
   tubeEmpty: { name: '竹筒（空）', stack: 5 },
   tubeSea: { name: '竹筒（生水）', stack: 5 }, // 海・川・泉の水。そのままは飲めない
   tubeFresh: { name: '竹筒（真水）', stack: 5, water: 30, after: 'tubeEmpty' },
@@ -100,6 +120,15 @@ export const RECIPES = [
   { out: 'stoneKnife', n: 1, need: { stick: 1, flint: 2, rope: 2 } },
   { out: 'grassBag', n: 1, need: { fiber: 10, rope: 4 } },
   { out: 'toughBag', n: 1, need: { rope: 6, wood: 2, scrap: 3, screw: 2 }, station: 'workbench', time: 2 },
+  { out: 'bambooHat', n: 1, need: { bamboo: 3, palmLeaf: 2, rope: 1 } },
+  { out: 'grassVest', n: 1, need: { fiber: 12, rope: 3 } },
+  { out: 'strawSandals', n: 1, need: { fiber: 6, rope: 2 } },
+  { out: 'shellCharm', n: 1, need: { shell: 3, rope: 1 } },
+  { out: 'featherCharm', n: 1, need: { feather: 4, rope: 1 } },
+  { out: 'junkHelmet', n: 1, need: { scrap: 6, screw: 2, rope: 2 }, station: 'workbench', time: 2 },
+  { out: 'junkPlate', n: 1, need: { scrap: 10, ironIngot: 2, rope: 3 }, station: 'workbench', time: 3 },
+  { out: 'ironBoots', n: 1, need: { ironIngot: 2, scrap: 3, rope: 2 }, station: 'workbench', time: 2 },
+  { out: 'copperBangle', n: 1, need: { copperWire: 3, screw: 1 }, station: 'workbench', time: 2 },
   { out: 'sling', n: 1, need: { stick: 2, rope: 3 } },
   { out: 'junkPistol', n: 1, need: { ironIngot: 3, screw: 4, scrap: 6, rope: 2 }, station: 'workbench', bp: 'junkPistol', time: 5 },
   { out: 'junkAmmo', n: 5, need: { scrap: 1, coal: 1 }, station: 'workbench', bp: 'junkPistol', time: 1.5 },

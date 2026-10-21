@@ -17,6 +17,8 @@
 | `docs/rules/physics.md` | 物理（転がる・浮く・投げる・乗り物） |
 | `docs/rules/weapons.md` | 武器（近接・遠距離・銃）、スタミナ・ステップ・ガード、当てた・受けたときの見せ方 |
 | `docs/rules/enemies.md` | 敵の種類、出る場所、動き |
+| `docs/rules/creatures.md` | 原生生物（鳥・ウサギ・イノシシ）の種類・動き・狩り・出る場所・作り方 |
+| `docs/rules/automation.md` | 電気・電線・機械（ドリル・自動炉など）・ベルトコンベア |
 | `docs/rules/islands.md` | 島ごとの地図・区域・資源の量・敵の配置・出口 |
 | `docs/rules/story.md` | ストーリー・世界観・世界の決まり（背景。作る順番は決めない） |
 | `src/style/palette.js` | 色（色の値の唯一の置き場所） |

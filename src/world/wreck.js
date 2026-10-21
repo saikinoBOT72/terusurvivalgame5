@@ -89,10 +89,10 @@ export function placeWreck({ group, terrain, at, addCollider, removeCollider, re
 }
 
 // 地面に 1 つ置く（右クリックで拾う）。AI の跡の設計図など
-export function placeLoot({ group, terrain, resources }, id, x, z) {
-  const y = terrain.heightAt(x, z), box = new THREE.InstancedMesh(itemGeometry(id), makeMesh(itemGeometry(id)).material, 1);
+export function placeLoot({ group, terrain, resources }, id, x, z, late = false, dy = 0) { // dy: 地面からの高さ（岩の上など）
+  const y = terrain.heightAt(x, z) + dy, box = new THREE.InstancedMesh(itemGeometry(id), makeMesh(itemGeometry(id)).material, 1);
   box.setMatrixAt(0, new THREE.Matrix4().makeRotationY(x * 7.3).setPosition(x, y, z));
   box.castShadow = box.receiveShadow = true;
   group.add(box);
-  return resources.add({ kind: 'drop', x, y, z, r: 0.35, h: 0.3, parts: [{ mesh: box, index: 0 }], store: [{ id, n: 1 }] });
+  return resources.add({ kind: 'drop', x, y, z, r: 0.35, h: 0.3, parts: [{ mesh: box, index: 0 }], store: [{ id, n: 1 }] }, late);
 }

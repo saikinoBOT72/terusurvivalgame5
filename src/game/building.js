@@ -24,6 +24,7 @@ export function createBuilding({ scene, camera, dom, player, inventory, invHud, 
     onRemoved: (parts) => {
       const back = {};
       const left = []; // 設備の中身（チェストも）は持ち物へ。入りきらない分は、その場に袋で落とす
+      for (const p of parts) if (p.wireRefund) invHud.gained('copperWire', inventory.add('copperWire', p.wireRefund)); // 機械の線
       for (const p of parts) for (const [id, n] of [...stationRefund(p), ...planterRefund(p)]) {
         const got = inventory.add(id, n);
         if (got) invHud.gained(id, got);
@@ -39,6 +40,7 @@ export function createBuilding({ scene, camera, dom, player, inventory, invHud, 
       for (const [id, n] of Object.entries(back)) if (n) invHud.gained(id, inventory.add(id, n));
     },
     // いかだのコアを撤去: バラバラになって、素材が水に浮かぶ（physics.md「いかだ」）
+    onWire: () => invHud.gained('copperWire', inventory.add('copperWire', 1)), // 電線を外した
     onBreak: (v) => { world().vehicles.breakUp(v, (p) => [...stationRefund(p), ...planterRefund(p)]); invHud.message('いかだが壊れた'); },
   });
   scene.add(build.preview);

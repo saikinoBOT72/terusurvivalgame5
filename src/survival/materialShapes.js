@@ -81,7 +81,31 @@ const ore = (r, color) => {
   g.scale(1.2, 0.8, 1).translate(0, 0.08, 0);
   return shape(g, color, r, { jit: 0.025 });
 };
-const itemPotato = (r) => shape(new THREE.IcosahedronGeometry(0.08, 1).scale(1.35, 0.85, 1).translate(0, 0.07, 0), () => pick(r, P.potato), r, { jit: 0.01 });
+// 骨付き肉: 赤身のかたまり（上に脂）に骨が横へ突き出る。長い向きが x
+function meat(r) {
+  const lump = new THREE.IcosahedronGeometry(0.11, 1);
+  lump.scale(1.2, 0.8, 0.9).translate(-0.02, 0.09, 0);
+  const bone = new THREE.CylinderGeometry(0.018, 0.022, 0.16, 5);
+  bone.rotateZ(Math.PI / 2).translate(0.17, 0.1, 0);
+  const knob = new THREE.IcosahedronGeometry(0.032, 0);
+  knob.translate(0.255, 0.1, 0);
+  return merge([
+    shape(lump, (f) => (f.ny > 0.55 ? pick(r, P.meat.fat) : pick(r, P.meat.lean)), r, { jit: 0.012 }),
+    shape(bone, P.meat.bone[0], r), shape(knob, P.meat.bone[1], r),
+  ]);
+}
+// 皮: 平たく広げた毛皮。四すみに足の部分
+function hide(r) {
+  const sheet = new THREE.IcosahedronGeometry(0.14, 1);
+  sheet.scale(1.3, 0.1, 0.9).translate(0, 0.02, 0);
+  const flaps = [[0.17, 0.09], [0.17, -0.09], [-0.18, 0.08], [-0.18, -0.08]].map(([x, z]) => {
+    const g = new THREE.IcosahedronGeometry(0.05, 0);
+    g.scale(1.2, 0.25, 0.8).translate(x, 0.015, z);
+    return shape(g, () => pick(r, P.hide.skin), r, { jit: 0.006 });
+  });
+  return merge([shape(sheet, (f) => (f.ny < -0.3 ? pick(r, P.hide.under) : pick(r, P.hide.skin)), r, { jit: 0.01 }), ...flaps]);
+}
+const itemPotato =(r) => shape(new THREE.IcosahedronGeometry(0.08, 1).scale(1.35, 0.85, 1).translate(0, 0.07, 0), () => pick(r, P.potato), r, { jit: 0.01 });
 export const MATERIAL_SHAPES = {
   // 植物繊維: 細い草の束を 3 本、真ん中でゆわえる
   fiber: (r) => {
@@ -205,6 +229,9 @@ export const MATERIAL_SHAPES = {
   cookedMushroom: (r) => toasted(mushrooms(r)),
   cookedEgg: (r) => toasted(egg(r), 0.75),
   cookedFish: (r) => toasted(fish(r), 0.7),
+  rawMeat: meat,
+  cookedMeat: (r) => toasted(meat(r), 0.6),
+  hide,
   cookedPotato: (r) => toasted(itemPotato(r), 0.6),
   shell: (r) => shellGeo(r), // 貝（世界に置く形と同じ）
   cookedShell: (r) => shellGeo(r, true),

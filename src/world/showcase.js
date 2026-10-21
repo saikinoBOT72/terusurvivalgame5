@@ -2,7 +2,7 @@
 // 今ある物と見本を、大きさの段階ごとに並べる。札に三角形の数と部品の数を出し、目安から外れた物は赤くする。
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
-import { rng, makeMesh, merge } from '../style/lowpoly.js';
+import { rng, makeMesh, merge, shape } from '../style/lowpoly.js';
 import { createTerrain } from './terrain.js';
 import { conifer, broadleaf, stump, rock, grassTuft, mountain, oreRock } from './nature.js';
 import { oreBed } from './oreBed.js';
@@ -19,6 +19,9 @@ import { createGangi } from '../mobs/gangi.js';
 import { createCrab } from '../mobs/crab.js';
 import { createMining } from '../mobs/mining.js';
 import { createDummy } from '../mobs/dummy.js';
+import { createBoar } from '../creatures/boar.js';
+import { createRabbit } from '../creatures/rabbit.js';
+import { createBird } from '../creatures/bird.js';
 import { itemMesh } from '../survival/itemShapes.js';
 import { planeWreck, crate } from './wreck.js';
 import { planterGeo, crop } from './crops.js';
@@ -30,6 +33,8 @@ import { tentRuin, deadFire, flagPole, notebook, waterWheel, millHut } from './s
 import { deadTree, stoneWall, giantTree, mossBoulder, spring, glowShrooms, GLOW_MAT, poolMesh } from './spotNature.js';
 import { loggerWreck, logPile, robotHeap } from './spotAI.js';
 import { createCamera } from '../mobs/camera.js';
+import { beltCurveGeo } from '../automation/beltShapes.js';
+import { drillGeo, generatorGeo, windmillGeo, poleGeo, smelterGeo, benchGeo, beltGeo, portSampleGeo } from '../automation/machineShapes.js';
 
 // style.md の表と同じ数（変えるときは両方）。[名前, 一番長い辺の上限, 三角形, 部品]
 export const BUDGET = [
@@ -45,13 +50,16 @@ const AMMO = ['弾の束', 0, [80, 200], [1, 8]]; // 銃の弾の束（style.md�
 const BIGTREE = ['特大の木', 0, [250, 1000], [2, 12]]; // 一本木（style.md「特大の木（例外）」）
 const HEAP = ['ロボの山', 0, [600, 3000], [8, 160]]; // 壊れたロボの山: 敵 4 体分まで（objects.md）
 const BED = ['鉱床', 0, [300, 900], [10, 40]]; // 鉱床（style.md「鉱床（例外）」）
+const MACHINE = ['機械', 0, [400, 1200], [8, 80]]; // 自動化の機械（style.md「機械（例外）」）
 // 敵: 大きさでなく、見本の段階（mob）で決める（enemies.md。仮の数字）
 const MOBS = {
   小型: ['小型（敵）', 0, [150, 400], [8, 24]],
   中型: ['中型（敵）', 0, [300, 700], [16, 40]],
   大型: ['大型（敵）', 0, [600, 1500], [24, 60]],
+  生き物小型: ['小型（生き物）', 0, [300, 800], [6, 18]], // creatures.md「大きさの段階」
+  生き物中型: ['中型（生き物）', 0, [600, 1200], [10, 24]],
 };
-const classOf = (m) => (m.mob ? MOBS[m.mob] : m.chara ? CHARA : m.gun ? GUN : m.ammo ? AMMO : m.bigTree ? BIGTREE : m.heap ? HEAP : m.bed ? BED : BUDGET.find((b) => m.size < b[1]));
+const classOf = (m) => (m.mob ? MOBS[m.mob] : m.chara ? CHARA : m.gun ? GUN : m.ammo ? AMMO : m.bigTree ? BIGTREE : m.heap ? HEAP : m.bed ? BED : m.machine ? MACHINE : BUDGET.find((b) => m.size < b[1]));
 const fits = (m) => { const [, , t, p] = classOf(m); return m.tris >= t[0] && m.tris <= t[1] && m.parts >= p[0] && m.parts <= p[1]; };
 
 // 1つの物の大きさ（一番長い辺 m）、三角形の数、部品の数（同じ位置の頂点でつながった面のかたまり）
@@ -121,6 +129,27 @@ function catalog() {
   list.push({ name: '滝', obj: fall.root, update: fall.update });
   list.push({ name: '伐採ロボの残骸', obj: mesh(loggerWreck(r())) }, { name: '丸太の山', obj: mesh(logPile(r())) }, { name: '壊れたロボの山', obj: robotHeap(r()), heap: true });
   for (const [k, n] of [['coal', '石炭'], ['copper', '銅'], ['iron', '鉄'], ['stone', '石']]) list.push({ name: `${n}の鉱床`, obj: oreBed(r(), k), bed: true });
+  // 自動化の機械（automation.md）: ドリルは刃が回る。ベルトと並べて口の高さを見比べる
+  const drill = (withBelt) => {
+    const d = drillGeo(r()), bit = makeMesh(d.bit), g = new THREE.Group().add(makeMesh(d.body), bit);
+    const slab = makeMesh(shape(new THREE.BoxGeometry(1.4, 0.4, 1.4).translate(0, -0.2, 0), P.rockGray[1], r())); // 刃が入る鉱床の岩の代わり（数えない）
+    slab.userData.fx = true; g.add(slab);
+    if (withBelt) for (const [x, z] of [[-0.25, 0.75], [0.25, 0.75], [0.25, 1.25]]) { const b = makeMesh(beltGeo(r())); b.position.set(x, 0, z); g.add(b); }
+    return { obj: g, update: (t, dt) => { bit.rotation.y -= dt * 3; } };
+  };
+  list.push({ name: '電動ドリル', ...drill(false), machine: true }, { name: '電動ドリルとベルト', ...drill(true) });
+  // 動く部分を、決まった点（at）を中心に置いた Object3D にする
+  const pivot = (geo, at) => { const m = makeMesh(geo), p = new THREE.Group(); p.position.set(...at); m.position.set(0, 0, 0); p.add(m); return p; };
+  const gen = generatorGeo(r()), wind = windmillGeo(r()), sm = smelterGeo(r()), bench = benchGeo(r());
+  const rotor = pivot(wind.rotor, wind.rotorAt), arm = pivot(bench.arm, bench.armAt);
+  list.push(
+    { name: '発電機（燃えている）', obj: new THREE.Group().add(makeMesh(gen.body), makeMesh(gen.glow)), machine: true },
+    { name: '風車', obj: new THREE.Group().add(makeMesh(wind.body), rotor), update: (t, dt) => { rotor.rotation.z -= dt * 1.5; }, machine: true },
+    { name: '電柱', obj: mesh(poleGeo(r())) },
+    { name: '自動炉（動いている）', obj: new THREE.Group().add(makeMesh(sm.body), makeMesh(sm.glow)), machine: true },
+    { name: '自動作業台', obj: new THREE.Group().add(makeMesh(bench.body), arm), update: (t) => { arm.rotation.y = Math.sin(t * 1.5) * 0.6; }, machine: true },
+  );
+  list.push({ name: 'ベルト', obj: mesh(beltGeo(r())) }, { name: 'ベルト（曲がり・右から）', obj: mesh(beltCurveGeo(r(), 1)) }, { name: 'ベルト（曲がり・左から）', obj: mesh(beltCurveGeo(r(), -1)) }, { name: '機械の口（見本）', obj: mesh(portSampleGeo(r())) });
   list.push({ name: '砂の鉱床', obj: mesh(sandBed(r())), bed: true }, { name: '砂の塊', obj: mesh(sandMound(r())) });
   // 浄水器: 止まっている（受け皿が空）と、火にかけている（受け皿に 6 割）
   const purifier = (level, lit) => {
@@ -142,8 +171,9 @@ function catalog() {
   const POSE_NAMES = { idle: '待機', move: '移動', windup: 'ため', attack: '攻撃', stagger: '隙', crouch: '突進のため', charge: '突進', windupSpin: 'つむじ風のため', spin: 'つむじ風', windupShot: '風の弾のため', shoot: '風の弾', disguise: '岩のふり', down: '撃墜',
     windupBite: 'かみつきのため', bite: 'かみつき', bite2: 'かみつき 2', windupPounce: '跳びかかりのため', pounce: '跳びかかり', windupMud: '泥飛ばしのため', mud: '泥飛ばし', stumble: 'つんのめる',
     sleep: '寝る', drink: '補給', idleSniff: 'においを嗅ぐ', idleSit: '座る', idleScratch: '頭をかく', idleShake: '脚を振る',
-    windupSmash: '振り下ろしのため', smash: '振り下ろし', stuck: '刺さって抜けない', windupSweep: 'なぎ払いのため', sweep: 'なぎ払い', windupQuake: '地割れのため', quake: '地割れ', fake: '死んだふり', fakeWake: '死んだふり（目が点く）', idleCarry: 'かつぐ', leapSmash: '振り下ろしの跳び', roar: '吠える', idleTap: 'コツコツ', idleBlade: '刃を見る' };
-  const MOB_LIST = [[createDrone, 'ブンブン', '小型'], [createCrab, 'カニ', '小型'], [createDog, 'ガラクタ犬', '中型'], [createMining, '採掘ロボ', '中型'], [createCamera, '監視カメラ', '中型'], [createGangi, 'ガンギ', '大型']];
+    windupSmash: '振り下ろしのため', smash: '振り下ろし', stuck: '刺さって抜けない', windupSweep: 'なぎ払いのため', sweep: 'なぎ払い', windupQuake: '地割れのため', quake: '地割れ', fake: '死んだふり', fakeWake: '死んだふり（目が点く）', idleCarry: 'かつぐ', leapSmash: '振り下ろしの跳び', roar: '吠える', idleTap: 'コツコツ', idleBlade: '刃を見る',
+    dig: '掘る', threat: '威嚇', fall: '倒れる', graze: '草をはむ', flee: '逃げる', peck: 'ついばむ', fly: '飛ぶ' };
+  const MOB_LIST = [[createDrone, 'ブンブン', '小型'], [createCrab, 'カニ', '小型'], [createDog, 'ガラクタ犬', '中型'], [createMining, '採掘ロボ', '中型'], [createCamera, '監視カメラ', '中型'], [createGangi, 'ガンギ', '大型'], [createRabbit, 'ウサギ', '生き物小型'], [createBird, '鳥', '生き物小型'], [createBoar, 'イノシシ', '生き物中型']];
   for (const [make, name, mob] of MOB_LIST) {
     for (const pose of make().poses) {
       const d = make();
@@ -177,13 +207,13 @@ function label(lines, ok, k = 1) { // k: 札の大きさ（小さい物には小
 
 export function buildShowcase() {
   const group = new THREE.Group();
-  const W = 64, D = 96, X0 = -32, Z0 = -90, GROUND = 0.5;
+  const W = 64, D = 160, X0 = -32, Z0 = -154, GROUND = 0.5; // 並べる物が増えたら D と Z0 を広げる
   const terrain = createTerrain({ w: W, d: D, x0: X0, z0: Z0, corner: () => GROUND, waterLevel: 0 });
   const chunk = terrain.buildChunk(0, 0, W, D);
   group.add(chunk.mesh, chunk.grid, chunk.steep);
 
   // 大きさの段階ごとに、小さい順に左から並べる。幅 50m で折り返す
-  const items = catalog().map((it, i) => ({ ...it, i, m: { ...measure(it.obj), chara: it.chara, mob: it.mob, gun: it.gun, ammo: it.ammo, bigTree: it.bigTree, heap: it.heap, bed: it.bed } }));
+  const items = catalog().map((it, i) => ({ ...it, i, m: { ...measure(it.obj), chara: it.chara, mob: it.mob, gun: it.gun, ammo: it.ammo, bigTree: it.bigTree, heap: it.heap, bed: it.bed, machine: it.machine } }));
   const order = (it) => (it.mob ? 3 + Object.keys(MOBS).indexOf(it.mob) : it.chara ? 2.5 : it.gun || it.ammo ? 1.5 : BUDGET.indexOf(classOf(it.m)));
   items.sort((a, b) => order(a) - order(b) || (a.mob ? a.i - b.i : a.m.size - b.m.size)); // 敵は一覧の順（同じ敵のポーズが並ぶ）
   const colliders = [], updates = [], out = [];

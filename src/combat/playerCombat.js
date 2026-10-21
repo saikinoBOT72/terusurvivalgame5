@@ -31,10 +31,14 @@ export function shakeOf(n) {
   return T[T.length - 1];
 }
 
+// 防御で減らしたダメージ（攻撃力 × 100 ÷（100 ＋ 防御）、四捨五入・最低 1。survival.md「装備の中身」）
+export const armored = (n, def = 0) => (def > 0 ? Math.max(1, Math.round((n * 100) / (100 + def))) : n);
+
 // 近接で戦える物か（敵への攻撃力がある、遠距離武器でない）
 export const isMelee = (id) => !!ITEMS[id]?.dmg?.mob && !ITEMS[id]?.ranged;
 
-export function createPlayerCombat({ player, stats, hud, statusHud, onStagger = () => {} }) {
+// gear(): 装備の効き目の合計（def・stamMax・stamRegen・runCost。survival.md「装備の中身」）
+export function createPlayerCombat({ player, stats, hud, statusHud, gear = () => ({}), onStagger = () => {} }) {
   const s = { stam: STAM.max, rest: 0, iframe: 0, charge: -1, guard: -1, now: 0, slowT: 0, slowK: 1 }; // slowT・slowK: 泥などの鈍足（秒・倍率）
   let cdEnd = 0, cdLen = 0; // 攻撃間隔（weapons.md「攻撃間隔」）。遊びの外でも進むように時計の秒で持つ
   const clock = () => performance.now() / 1000;
@@ -91,6 +95,7 @@ export function createPlayerCombat({ player, stats, hud, statusHud, onStagger = 
         got = n - paid;
         if (s.stam <= 0) this.guardEnd();
       }
+      if (got > 0) got = armored(got, gear().def);
       if (got > 0) stats.damage(got);
       s.iframe = STAM.iframe; s.hitIframe = true;
       if (atk.push) player.shove(-dx, -dz, atk.push * STAM.push, atk.pushSecs ?? STAM.pushSecs);
@@ -119,12 +124,14 @@ export function createPlayerCombat({ player, stats, hud, statusHud, onStagger = 
       p().slow = Math.min(s.charge >= STAM.tap || s.guard >= 0 ? STAM.slow : 1, s.slowT > 0 ? s.slowK : 1);
       // 走る・泳ぐのスタミナ（weapons.md）: 使っている間は戻らない。0 で走れなくなり、20 たまるまで走れない。泳いで 0 だと浮けない
       const st = p(), cost = st.swimming ? (st.gait === 'run' ? COST.swimFast : st.moving ? COST.swim : COST.float) : st.gait === 'run' && st.moving ? COST.run : 0;
-      if (cost) { s.rest = 0; s.stam = Math.max(0, s.stam - cost * dt); }
+      const g = gear(), max = STAM.max + (g.stamMax ?? 0);
+      if (cost) { s.rest = 0; s.stam = Math.max(0, s.stam - cost * (1 + (g.runCost ?? 0) / 100) * dt); }
       if (s.stam <= 0) s.tired = true; else if (s.stam >= COST.resume) s.tired = false;
       st.canRun = !s.tired;
       st.canFloat = s.stam > 0;
-      if ((s.rest += dt) >= STAM.wait) s.stam = Math.min(STAM.max, s.stam + STAM.regen * dt);
-      statusHud.stamina(Math.round(s.stam), STAM.max);
+      if ((s.rest += dt) >= STAM.wait) s.stam = s.stam + STAM.regen * (1 + (g.stamRegen ?? 0) / 100) * dt;
+      s.stam = Math.min(max, s.stam); // 装備を外したら最大に合わせて減る
+      statusHud.stamina(Math.round(s.stam), max);
     },
   };
 }

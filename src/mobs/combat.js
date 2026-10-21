@@ -9,6 +9,8 @@ import { thinkCamera } from './cameraBrain.js';
 import { createSteer } from './steer.js';
 import { createMobShots } from './mobShot.js';
 import { createMobFx } from './mobFx.js';
+import { thinkAnimal } from '../creatures/animalBrain.js';
+import { carcass, carcassAim, carcassHint, carveOf, CARCASS_SECS } from '../creatures/hunt.js';
 
 const DOWN_SECS = 2; // 倒れてから部品を落とすまで
 const WRECK_SECS = 10, SINK_SECS = 1; // 残骸が残る秒（倒れてから）、最後に沈む秒（enemies.md「戦闘の演出」）
@@ -45,7 +47,7 @@ export function weaponOf(id, kind = 'mob') {
 // 敵の体の当たり判定（player.md「敵の体にもぶつかる」）: 見た目の幅の半分の円柱。top は高くして上に乗れないように
 const bodyR = (kind) => { const b = bodyBox(kind); return Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * 0.5; };
 const PLAYER_R = 0.3, PLAYER_H = 1.1; // プレイヤーの太さ・高さ（firstPerson.js の RADIUS・HEAD くらい）
-export function createCombat({ camera, inventory, player, playerDead = () => false, fx = null, wind = null, mud = null, rock = null, hud = null, blockers = () => [], onPlayerHit = () => {}, onDead = () => {}, onMessage = () => {}, onAlarm = () => {} }) {
+export function createCombat({ camera, inventory, player, playerDead = () => false, fx = null, wind = null, mud = null, rock = null, hud = null, blockers = () => [], onPlayerHit = () => {}, onDead = () => {}, onMessage = () => {}, onAlarm = () => {}, onGain = () => {}, hasBp = () => true }) {
   let world = null, steer = null;
   const list = [], log = [];
   const shots = createMobShots({ wind, mud }); // 敵の弾（風の弾・泥）
@@ -99,7 +101,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
   }
   // 動きに渡す物
   const ctx = (m) => ({
-    player, dead: playerDead(), steer, list, terrain: world.terrain, touch: bodyR(m.kind) + PLAYER_R, playerSpeed,
+    player, dead: playerDead(), steer, list, terrain: world.terrain, blockers, touch: bodyR(m.kind) + PLAYER_R, playerSpeed,
     alarm: (cam) => { record(`${cam.def.name}の警報`); onAlarm(cam); }, // 監視カメラ（cameraBrain.js）
     hurt: (n, atk) => hurtBy(m, n, atk),
     wind, mud, rock, // 風の演出（windFx.js）、泥と歯の火花（mudFx.js）、岩と土（rockFx.js）
@@ -131,9 +133,10 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
 
   // 倒れる: 飛ぶ敵はきりもみで落ちて 2 回跳ねる（部品が外れる）。残骸は WRECK_SECS 残る
   function down(m) {
-    m.state = 'down'; m.t = m.def.dummy ? DUMMY_BACK : WRECK_SECS;
-    m.model.setPose('down');
+    m.state = 'down'; m.t = m.def.dummy ? DUMMY_BACK : m.def.creature ? CARCASS_SECS : WRECK_SECS;
+    m.model.setPose(m.def.downPose ?? 'down');
     if (m.def.dummy) return;
+    if (m.def.creature) { m.aware = 'none'; onDead(m); return; } // 原生生物: 体が残る。右クリックで肉（butcher）
     fx?.burst(m, WRECK_SECS);
     onDead(m);
     if (m.def.hover) {
@@ -144,6 +147,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
   }
   // 倒れている間（残骸）
   function wreck(m, dt) {
+    if (m.def.creature) { if (carcass(m, dt, world.terrain)) return true; remove(m); return false; }
     const g = world.terrain.floorAt(m.x, m.y + 0.5, m.z) - bodyBox(m.kind).min.y;
     if (m.falling) { // きりもみ: 前へ流れながら回って落ち、地面で跳ねる
       m.fallV -= 9.8 * dt;
@@ -169,6 +173,8 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
       const g = world.terrain.floorAt(m.x, m.y + 0.5, m.z);
       dropItem(world, id, between(a, b), m.x + (Math.random() - 0.5) * 0.6, m.z + (Math.random() - 0.5) * 0.6, Math.max(g, world.terrain.waterLevel));
     }
+    const fd = m.def.firstDrop; // 初めて倒したとき必ず落とす設計図
+    if (fd && !hasBp(ITEMS[fd].bp)) dropItem(world, fd, 1, m.x, m.z, Math.max(world.terrain.floorAt(m.x, m.y + 0.5, m.z), world.terrain.waterLevel));
   }
 
   // 敵にダメージ（近接・弾の共通）。n: 弱点の前の攻撃力。knock: のけぞる秒。dir: 当たった向き（押す）。src: 記録に出す武器の名前
@@ -177,7 +183,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
     const dmg = Math.max(1, Math.round(n * (weak ? m.def.weak.mult : 1)));
     m.hp = Math.max(0, m.hp - dmg);
     m.lastHit = dmg; m.flash = 0.1;
-    if (m.aware !== 'fight') m.alertT = 1;
+    if (m.aware !== 'fight' && !m.def.creature) m.alertT = 1;
     m.aware = 'fight'; m.asleep = false; // 叩かれたらすぐ気づく（寝ていても起きる）
     record(`${src}→${m.def.name} ${dmg}${weak ? ' 弱点' : ''}${m.hp ? '' : ' 撃墜'}`);
     fx?.hit(m, point ?? new THREE.Vector3(m.x, m.y + 0.5, m.z), dmg, weak);
@@ -255,8 +261,25 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
       if (!world || !list.length) return null;
       eye();
       const h = rayMob(o, d, Math.max(weaponOf(held).reach, ITEMS[held]?.ranged ? 60 : 0));
-      return h && { name: `${h.m.def.name} ${h.m.hp}/${h.m.maxHp}${h.weak ? '（弱点）' : ''}`, key: '左クリック 攻撃' };
+      if (!h) { const c = carcassAim(list, o, d, bodyBox); return c && carcassHint(c, held); }
+      return { name: `${h.m.def.name} ${h.m.hp}/${h.m.maxHp}${h.weak ? '（弱点）' : ''}`, key: '左クリック 攻撃' };
     },
+    // 右クリック: 照準の先の生き物の体から肉（石のナイフで皮も）を取る。体に向けていれば true（入りきらなければ何も取れない）
+    butcher(held) {
+      if (!world) return false;
+      eye();
+      const m = carcassAim(list, o, d, bodyBox);
+      if (!m) return false;
+      const out = carveOf(m, held);
+      if (out.some(([id, n]) => inventory.room(id) < n)) { onMessage('持ち物がいっぱい'); return true; }
+      for (const [id, n] of out) onGain(id, inventory.add(id, n));
+      if (m.def.carve.hide && ITEMS[held]?.tool === 'knife') { const broke = inventory.wear(); if (broke) onMessage(`${broke}が壊れた`); }
+      record(`${m.def.name}の体から肉を取った`);
+      remove(m);
+      return true;
+    },
+    // 照準が生き物の体に向いているか（右クリックのガードと取り合わない）
+    carcassAimed() { if (!world) return false; eye(); return !!carcassAim(list, o, d, bodyBox); },
     // 左クリックの振り下ろし: 照準の先の敵を叩く。当たれば true（道具の耐久が減る）
     hit(held, mult = 1) {
       const n = melee(held, mult);
@@ -264,7 +287,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
       return n > 0;
     },
     // 音: プレイヤーのまわり r m の、寝ている番人を起こす（叩いた・戦った。enemies.md「番人」）
-    noise(r = 15) { for (const m of list) if (m.asleep && Math.hypot(m.x - player.state.x, m.z - player.state.z) < r) m.noise = true; },
+    noise(r = 15) { for (const m of list) if ((m.asleep || (m.def.creature && m.state !== 'down')) && Math.hypot(m.x - player.state.x, m.z - player.state.z) < r) m.noise = true; },
     update(t, dt, active) {
       if (!world) return;
       const ps = player.state;
@@ -281,7 +304,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
           if (m.aware === 'none' && Math.hypot(m.x - player.state.x, m.z - player.state.z) > SLEEP) continue; // 遠くて気づいていない敵は休む
           m.moved = false;
           m.model.setHealth?.(m.hp / m.maxHp);
-          if (m.def.camera) thinkCamera(m, dt, ctx(m)); else think(m, dt, ctx(m));
+          if (m.def.camera) thinkCamera(m, dt, ctx(m)); else if (m.def.creature) thinkAnimal(m, dt, ctx(m)); else think(m, dt, ctx(m));
           if (!list.includes(m)) continue; // 逃げ切った
           if (!m.moved && !m.def.camera) steer.coast(m, dt); // 慣性で少し流れて止まる
           m.y += (groundY(m) - m.y) * Math.min(1, dt * (m.hopY ? 20 : 6));

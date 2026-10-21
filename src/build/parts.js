@@ -10,6 +10,7 @@ import { stoneFloorGeo, stoneWallGeo } from './stoneParts.js';
 import { brickFloorGeo, brickWallGeo } from './brickParts.js';
 import { raftFloorGeo, raftCoreGeo, sailGeo, sailFrameGeo, sailClothGeo, SAIL_TOP, helmGeo } from './raftParts.js';
 import { boat as boatGeo } from '../world/props.js';
+import { automationParts, AUTO_COSTS } from '../automation/partDefs.js';
 
 const box = (w, h, d, x, y, z) => {
   const g = new THREE.BoxGeometry(w, h, d);
@@ -205,7 +206,7 @@ Object.assign(PARTS, {
     shape: { poly: SQ, y: FLOOR_Y }, build: raftCoreGeo,
   },
   raft: { name: 'いかだの床', rotStep: 2, floor: true, raft: true, shape: { poly: SQ, y: FLOOR_Y }, build: raftFloorGeo },
-}, furnitureParts(FLOORS));
+}, furnitureParts(FLOORS), automationParts(FLOORS));
 // いかだを動かすパーツと小舟（physics.md「いかだを動かす」「小舟」）
 Object.assign(PARTS, {
   sail: {
@@ -228,7 +229,7 @@ export const COSTS = {
   stoneFoundation: { stone: 6 }, stoneWall: { stone: 5 },
   brickFoundation: { brick: 4 }, brickWall: { brick: 3 }, raft: { bamboo: 3, rope: 1 }, raftCore: { wood: 12, bamboo: 10, rope: 6, stone: 6 },
   sail: { wood: 4, fiber: 8, rope: 2 }, helm: { wood: 5, rope: 2 }, boat: { wood: 10, rope: 3 },
-  workbench: { wood: 10, stone: 6 }, campfire: { stick: 6, stone: 6, flint: 1 }, chest: { wood: 8, rope: 2 }, purifier: { bamboo: 4, clay: 5, stone: 6 }, furnace: { stone: 16, brick: 8 }, planter: { wood: 4, soil: 4 }, bed: { wood: 4, fiber: 6, palmLeaf: 3 },
+  workbench: { wood: 10, stone: 6 }, campfire: { stick: 6, stone: 6, flint: 1 }, chest: { wood: 8, rope: 2 }, purifier: { bamboo: 4, clay: 5, stone: 6 }, furnace: { stone: 16, brick: 8 }, planter: { wood: 4, soil: 4 }, bed: { wood: 4, fiber: 6, palmLeaf: 3 }, ...AUTO_COSTS,
 };
 export const localShapes = (def) => def.shapes || [def.shape];
 

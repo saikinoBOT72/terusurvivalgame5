@@ -1,6 +1,7 @@
 // 確認用（開発中だけ）: 今の状態を短い文字で返す。スクリーンショットの代わりに使う（CLAUDE.md「トークンを減らす」）
 // ブラウザのコンソールで __game.debug()
 import { ITEMS } from './survival/items.js';
+import { statsText } from './survival/equip.js';
 import * as THREE from 'three';
 import { PARTS, PREVIEW_MAT } from './build/parts.js';
 import { pebble } from './world/pickups.js';
@@ -52,6 +53,19 @@ const vehicleLine = (vs, ps) => {
   }).join(' ');
 };
 
+// 自動化（automation.md）: 電気の網ごとの出す量・使う量・動くか、機械ごとの状態と中身、ベルトの数と乗っている物
+const autoLines = (st) => {
+  const ms = (st?.list ?? []).filter((p) => PARTS[p.type].machine && !PARTS[p.type].belt), belts = (st?.list ?? []).filter((p) => PARTS[p.type].belt);
+  if (!ms.length && !belts.length) return [];
+  const nets = [...new Set(ms.map((p) => p.net).filter(Boolean))];
+  const slots = (p) => p.slots?.map((x) => (x ? `${ITEMS[x.id]?.name ?? x.id}x${x.n}` : '-')).join(' ') ?? '';
+  return [
+    `電気 ${nets.map((n, i) => `[網${i + 1} 出す ${n.gen} 使う ${n.use} ${n.ok ? (n.running ? '動く' : '仕事なし') : '足りなくて止まる'}: ${n.parts.map((p) => PARTS[p.type].name).join(' ')}]`).join(' ') || '網なし'}  線 ${st.wires.list.length}`,
+    `機械 ${ms.filter((p) => p.slots).map((p) => `[${PARTS[p.type].name} ${p.burning ? '動く' : p.net ? (p.net.ok ? '止まる' : '電気不足') : '線なし'} 進み ${(p.prog ?? []).map((v) => v.toFixed(1)).join(',')}${p.type === 'generator' ? ` 燃え残り ${p.burn.toFixed(0)}` : ''} ${slots(p)}]`).join(' ')}`,
+    `ベルト ${belts.length} 枚  乗っている物 ${belts.filter((p) => p.item).map((p) => ITEMS[p.item.id]?.name).join(' ') || 'なし'}`,
+  ];
+};
+
 export function createDebug(g) {
   // FPS: 直近 1 秒のフレーム数
   let fps = 0, frames = 0, last = performance.now();
@@ -79,16 +93,17 @@ export function createDebug(g) {
     const lines = [
       `画面 ${g.mode}  世界 ${w?.report ? '確認島' : w?.range ? '訓練島' : w ? '島' : 'なし'}  FPS ${fps}`,
       `HP ${g.vitals.state.hp}  空腹 ${g.vitals.state.food}  水分 ${g.vitals.state.water}${g.vitals.state.dead ? ' 倒れた' : ''}  ${g.time.label} ${g.time.phase}`,
-      `位置 ${f1(s.x)},${f1(s.y)},${f1(s.z)}  向き ${deg(s.yaw)}°/${deg(s.pitch)}°  ${s.swimming ? "泳ぐ" : s.onGround ? "地面" : "空中"}${s.underwater ? " 水中" : ""}${s.moving ? " 移動中" : ""}  息 ${f1(g.vitals.state.breath)}${w?.zoneAt ? `  島 ${w.name} 区域 ${w.zoneAt(s.x, s.z)}` : ""}`,
+      `位置 ${f1(s.x)},${f1(s.y)},${f1(s.z)}  向き ${deg(s.yaw)}°/${deg(s.pitch)}°  ${s.swimming ? "泳ぐ" : s.onGround ? "地面" : "空中"}${s.underwater ? " 水中" : ""}${s.moving ? " 移動中" : ""}  息 ${f1(g.vitals.state.breath)}/${g.vitals.state.maxBreath}${w?.zoneAt ? `  島 ${w.name} 区域 ${w.zoneAt(s.x, s.z)}` : ""}`,
       `動き ${s.gait}${s.sneak ? '(忍び足を入れている)' : ''}  目 ${f1(s.eyeH)} 頭 ${f1(s.headH)}  スタミナ ${Math.round(g.pc.state.stam)}${s.canRun ? '' : ' 走れない'}${s.canFloat ? '' : ' 浮けない'}`,
       ...(w?.spots ? [`スポット ${w.spots.map((p) => ({ p, d: Math.hypot(p.x - s.x, p.z - s.z) })).sort((a, b) => a.d - b.d).slice(0, 3)
         .map(({ p, d }) => `${p.n}.${p.name} ${Math.round(d)}m`).join(' / ')}`] : []),
       `手 [${inv.sel}] ${item(inv.held())}  列 ${inv.slots.slice(0, 6).map(item).join(' ')}`,
       `持ち物 ${Object.entries(bag).map(([k, n]) => `${ITEMS[k]?.name ?? k}${n}`).join(' ') || 'なし'}`,
-      `広さ ${inv.slots.length} マス（奥 ${inv.rows} 段）  大事な物 ${g.keyItems?.list().map((id) => ITEMS[id].name).join(' ') || 'なし'}  装備 ${g.equip?.slots.map(item).join(' ')}`,
+      `広さ ${inv.slots.length} マス（奥 ${inv.rows} 段）  大事な物 ${g.keyItems?.list().map((id) => ITEMS[id].name).join(' ') || 'なし'}  装備 ${g.equip?.slots.map(item).join(' ')}（${statsText(g.equip?.stats()) || '効き目なし'}）`,
       g.invHud?.station ? `設備 ${g.invHud.station.type} [${g.invHud.station.slots.map((x) => (x ? x.id + "x" + x.n : "-")).join(" ")}] 燃え残り ${f1(g.invHud.station.burn ?? 0)}秒 進み ${(g.invHud.station.prog ?? []).map(f1).join(",")}${g.invHud.station.burning ? " 燃えている" : ""}` : "設備 閉じている",
       `照準 ${aim ? `${aim.name}（${aim.key}）` : b.aimedPart() ? name(b.aimedPart().type) : '-'}`,
       `建築 ${b.hammer ? 'ハンマー' : '-'}${b.active ? ` 置く中 ${t ? `${name(t.type)} ${b.preview.material === PREVIEW_MAT.ok ? '置ける' : '置けない'}` : '対象なし'}` : ''}`,
+      ...autoLines(st),
       physicsLine(w?.physics),
       `敵の数 ${g.spawner?.counts ?? '-'}`,
       `戦闘の記録 ${g.combat?.log.join(' / ') || 'なし'}`,

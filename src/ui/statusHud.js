@@ -1,5 +1,5 @@
 // 状態の表示（docs/rules/ui.md「画面の整理」）: 左上に HP・「おなか」・水分のゲージ、右上に時計、ダメージで画面のふちが赤くなる
-import { MAX_HP, MAX_FOOD, MAX_WATER, MAX_BREATH } from '../survival/stats.js';
+import { MAX_HP, MAX_FOOD, MAX_WATER } from '../survival/stats.js';
 import { iconUrl } from './icons.js';
 import { UI_SHAPES } from './uiShapes.js';
 
@@ -30,8 +30,8 @@ export function createStatusHud() {
       const key = `${stats.hp}|${stats.food}|${stats.water}|${stats.breath.toFixed(1)}|${time.label}`;
       if (key === last) return;
       last = key;
-      box.querySelector('.breath').hidden = stats.breath >= MAX_BREATH; // 息は減っている間だけ
-      set('breath', stats.breath, MAX_BREATH);
+      box.querySelector('.breath').hidden = stats.breath >= stats.maxBreath; // 息は減っている間だけ
+      set('breath', stats.breath, stats.maxBreath);
       set('hp', stats.hp, MAX_HP);
       set('food', stats.food, MAX_FOOD);
       set('water', stats.water, MAX_WATER);

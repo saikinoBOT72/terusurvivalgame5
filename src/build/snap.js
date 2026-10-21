@@ -3,6 +3,7 @@
 import { PARTS, localShapes, WALL_H } from './parts.js';
 import { G, SQRT2, snap, angleOf, rotOfDir, edgesOf, makeShape } from './grid.js';
 import { keyName } from '../input/keymap.js';
+import { machineTarget } from '../automation/place.js';
 
 // 1m 四方の足元の地面の、一番高い所
 export function groundMax(world, x, z) {
@@ -175,6 +176,7 @@ export function findTarget(type, h, ctx) {
   const def = PARTS[type], T = ctx.world.terrain;
   // 洞窟の中（頭の上に地形がある所）には建てられない（terrain.md「洞窟」）
   if (ctx.world.inCave?.(h.point.x, h.point.z) && T.underRock(h.point.x, h.point.y + 0.2, h.point.z)) return { type, pos: { ...h.point }, rot: ctx.rot, ok: false, why: '洞窟の中には建てられない' };
+  if (def.machine) return machineTarget(type, h, ctx); // 機械・ベルト（automation/place.js）
   if (def.furniture) { const t = furnitureTarget(type, h, ctx); if (t) return t; }
   if (def.upper) return upperTarget(type, h, ctx) ?? { type, pos: { ...h.point }, rot: ctx.rot, ok: false, why: '壁・柱の上か床の辺に置く' };
   if (def.floor) return floorTarget(type, h, ctx);

@@ -58,7 +58,7 @@ export function paint(geo, color, rand, vary = 0.04, pairs = false) {
     _n.subVectors(_c, _b).cross(_b.clone().sub(_a)).normalize().negate();
     const face = {
       x: (_a.x + _b.x + _c.x) / 3, y: (_a.y + _b.y + _c.y) / 3, z: (_a.z + _b.z + _c.z) / 3,
-      nx: _n.x, ny: _n.y, nz: _n.z,
+      nx: _n.x, ny: _n.y, nz: _n.z, i: i / 3, // i: 三角形の番号
     };
     if (pairs && i + 5 < pos.count && sharesEdge(pos, i, i + 3) && !pairedPrev) {
       _col.set(fn(face)); // 隣の三角形と同じ色（次の三角形はこの色を使う）

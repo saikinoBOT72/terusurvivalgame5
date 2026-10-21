@@ -6,6 +6,9 @@ import { campfire } from '../world/props.js';
 import { PARTS, partGeometry, localShapes } from './parts.js';
 import { initStation, tickStation } from '../survival/stations.js';
 import { initPlanter, tickPlanter } from '../survival/farm.js';
+import { createWires } from '../automation/wires.js';
+import { createAutomation } from '../automation/machines.js';
+import { isBedCollider } from '../automation/place.js';
 import { fromI, toI, angleOf, makeShape, shapesOverlap, circleHitsShape } from './grid.js';
 
 const LEG = 0.15;      // 足の太さ
@@ -35,16 +38,18 @@ export function createStructures(world) {
   const group = new THREE.Group();
   const list = []; // {type, i, rot, pos, shapes, mesh, supportedBy, supports}
   const legs = new Map(); // 角の格子座標 → {x, z, users, mesh, top, bottom}
+  const wires = createWires(group); // 電線（automation/wires.js）
+  const auto = createAutomation(wires, list); // 機械の動き・ベルト（automation/machines.js）
 
   const ignores = (a, b) => PARTS[a].ignores?.includes(b) || PARTS[b].ignores?.includes(a);
   const overlaps = (type, mine) => list.some((p) => !ignores(type, p.type) && p.shapes.some((b) => mine.some((S) => shapesOverlap(S, b))));
   // 木の幹・葉や岩と重なるか（てっぺんがパーツの下端より低い物と、下の端がパーツの上端より高い物は除く）
-  const hitsNature = (S) => world.colliders(S.cx, S.cz, S.radius)
-    .some((c) => c.top > S.y0 + 0.01 && (c.bottom ?? -1e9) < S.y1 - 0.01 && circleHitsShape(c.x, c.z, c.r, S));
+  const hitsNature = (S, machine = false) => world.colliders(S.cx, S.cz, S.radius)
+    .some((c) => !(machine && isBedCollider(world, c)) && c.top > S.y0 + 0.01 && (c.bottom ?? -1e9) < S.y1 - 0.01 && circleHitsShape(c.x, c.z, c.r, S));
 
   function canPlace(type, pos, rot) {
     const mine = shapesOf(type, pos, rot);
-    return !overlaps(type, mine) && !mine.some(hitsNature);
+    return !overlaps(type, mine) && !mine.some((S) => hitsNature(S, !!PARTS[type].machine));
   }
 
   // 下で支えるパーツ: 種類が restsOn に入っていて、上面がこのパーツの下端に接しているもの
@@ -114,8 +119,10 @@ export function createStructures(world) {
     if (def.store) part.store = Array(def.store).fill(null); // チェストの中身
     if (def.planter) initPlanter(part); // 畑（farm.js）
     initStation(part, def); // 設備の中身（stations.js。チェストは store をそのまま使う）
+    if (def.machine) auto.init(part, world); // 動く部分・ドリルの鉱床
     group.add(mesh);
     list.push(part);
+    auto.touch();
     if (PARTS[type].grounded) { useLegs(part, true); world.cover?.(shapes, 1); }
     world.changed?.();
     return part;
@@ -127,6 +134,8 @@ export function createStructures(world) {
     out.push(part);
     group.remove(part.mesh);
     list.splice(list.indexOf(part), 1);
+    part.wireRefund = wires.removeFor(part); // 線も外れて銅線が戻る
+    auto.touch();
     for (const s of part.supportedBy) s.supports.delete(part);
     if (PARTS[part.type].grounded) { useLegs(part, false); world.cover?.(part.shapes, -1); }
     for (const up of [...part.supports]) {
@@ -183,9 +192,11 @@ export function createStructures(world) {
   let time = 0;
   function update(dt, run = true) {
     time += dt;
+    auto.animate(dt);
+    if (run) auto.tick(dt);
     for (const p of list) {
       if (p.fire) p.fire.update(time);
-      if (run) { tickStation(p, dt); if (p.type === 'planter') tickPlanter(p, dt); }
+      if (run) { if (!PARTS[p.type].machine) tickStation(p, dt); if (p.type === 'planter') tickPlanter(p, dt); }
       if (!p.panel) continue;
       if (PARTS[p.type].sail) { // 帆: 張ると下へのび、たたむと上の横木へ巻き上がる
         p.panel.scale.y += ((p.open ? 1 : FURLED) - p.panel.scale.y) * Math.min(1, dt * 4);
@@ -196,5 +207,5 @@ export function createStructures(world) {
     }
   }
 
-  return { group, list, canPlace, spanAt, add, remove, chainOf, query, solids, toggle, update };
+  return { group, list, wires, auto, canPlace, spanAt, add, remove, chainOf, query, solids, toggle, update };
 }

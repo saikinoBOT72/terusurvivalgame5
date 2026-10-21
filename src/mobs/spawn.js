@@ -87,7 +87,7 @@ export function createSpawner({ combat, time, player }) {
       }
     },
     // 倒した: いつもいる敵は時刻を残す
-    onDead(m) { if (m.spawnKey) dead[m.spawnKey] = time.total; },
+    onDead(m) { if (m.spawnKey) dead[m.spawnKey] = time.total; wild.kill(m); },
     update(dt) {
       if (world) wild.update(dt);
       if (!world || (t += dt) < EVERY) return;
@@ -128,8 +128,8 @@ export function createSpawner({ combat, time, player }) {
         break; // 2 秒に 1 組
       }
     },
-    save: () => ({ dead }),
-    load(d) { dead = { ...(d?.dead ?? {}) }; },
+    save: () => ({ dead, wild: wild.save() }),
+    load(d) { dead = { ...(d?.dead ?? {}) }; wild.load(d?.wild); },
     // 確認用: 種類ごとの今いる数（固定湧きはそのうち何体）と、自然湧きの範囲ごとの 数/上限（出るまでの秒）
     get counts() {
       if (!world) return 'なし';

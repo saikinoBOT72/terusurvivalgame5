@@ -53,7 +53,7 @@ export function placeNorth(ctx) {
   // ---- 20 滝の裏の洞窟: 崖の溝に岩の殻を置き、上を崖の高さまでふさぐ。奥に宝箱（滝は nature.js） ----
   {
     const c = ctx.cave(20).chest;
-    ctx.box(crate(r), c.x, c.z, [['copperIngot', 2], ['screw', 3]], { y: ctx.floor(c.x, c.z, 20) });
+    ctx.box(crate(r), c.x, c.z, [['copperIngot', 2], ['screw', 3], ['bpAutoBench', 1]], { y: ctx.floor(c.x, c.z, 20) }); // 設計図「自動作業台」（islands.md）
   }
 
 

@@ -11,6 +11,7 @@ export const SETTINGS = [
   { key: 'hfov', tab: 'screen', name: '視野角（横）', min: 60, max: 140, step: 1, def: 103, num: true, fmt: () => '度' },
   { key: 'ui', tab: 'screen', name: 'UI の大きさ', min: 0.8, max: 1.5, step: 0.05, def: 1, fmt: (v) => `${v.toFixed(2)} 倍` },
   { key: 'fps', tab: 'screen', name: 'フレームレート表示', toggle: true, def: false },
+  ...(import.meta.env.DEV ? [{ key: 'creative', tab: 'screen', name: 'クリエイティブインベントリ（開発用）', toggle: true, def: true }] : []),
 ];
 // Valorant の感度: 1 カウントで 0.07 度 × 数値（ラジアンで返す）
 export const sensRad = (vsens) => vsens * 0.07 * Math.PI / 180;

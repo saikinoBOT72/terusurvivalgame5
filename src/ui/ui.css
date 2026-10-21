@@ -205,6 +205,15 @@ html, body { background: var(--ui-edge); }
 .slot .role { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--ui-light); opacity: .55; pointer-events: none; }
 .slot .role[hidden] { display: none; }
 .station-win .recipes { width: 360px; }
+/* 電気の帯（automation.md「窓」）と自動作業台の作る物の選び */
+.st-power { font-size: 13px; font-weight: 700; padding: 4px 8px; border: 2px solid var(--ui-edge); border-radius: 6px; corner-shape: bevel; background: var(--ui-slot); color: var(--ui-textSub); }
+.st-power[data-state="ok"] { color: var(--ui-ok); }
+.st-power[data-state="lack"] { color: var(--ui-ng); }
+.st-ins { flex-wrap: wrap; width: 300px; gap: 4px; }
+.st-pick { display: flex; flex-wrap: wrap; gap: 6px; width: 340px; max-height: 190px; overflow: auto; touch-action: pan-y; }
+.st-pick .pick { display: flex; align-items: center; gap: 4px; padding: 3px 8px 3px 4px; border: 2px solid var(--ui-edge); border-radius: 6px; corner-shape: bevel; background: var(--ui-slot); color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.st-pick .pick img { width: 28px; height: 28px; }
+.st-pick .pick.on { border-color: var(--ui-ok); color: var(--ui-ok); font-weight: 700; }
 
 /* 戦闘の表示（ui.md「戦闘の表示」） */
 .combat-hud { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
@@ -254,3 +263,5 @@ html, body { background: var(--ui-edge); }
 .station-win .recipe button { position: relative; overflow: hidden; }
 .station-win .recipe button small { display: block; font-size: var(--fs-sub, 11px); font-weight: 400; opacity: .8; }
 .station-win .recipe button::before { content: ''; position: absolute; inset: auto 0 0 0; height: calc(var(--p, 0) * 100%); background: var(--ui-ok); opacity: .5; pointer-events: none; }
+.eq-sum { margin-top: 6px; white-space: pre-line; line-height: 1.35; } /* 効き目の合計（1 つ 1 行） */
+.eq-sum:empty { display: none; }
