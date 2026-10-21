@@ -48,7 +48,7 @@ export function think(m, dt, { player, dead, hurt, steer, list, terrain, escape,
   const dx = p.x - m.x, dz = p.z - m.z, dist = Math.hypot(dx, dz);
   const low = def.low && m.hp / m.maxHp <= def.low.at ? def.low : null;
   const rage = low?.act === 'rage';
-  const speed = (m.aware === 'fight' ? def.fight ?? def.speed : def.speed) * m.tier.speed * (rage ? low.speed ?? 1 : 1);
+  const speed = (m.aware === 'fight' && (!low || rage) ? def.fight ?? def.speed : def.speed) * m.tier.speed * (rage ? low.speed ?? 1 : 1);
   m.model.setRage?.(rage);
   const efx = (a) => ({ wind, mud, rock, sand })[a?.fx] ?? null; // 攻撃の演出（windFx.js・mudFx.js・rockFx.js・sandFx.js）。敵の行の fx はいつもの演出（tick）
   if (rage && m.aware === 'fight') { mud?.rage(m, dt); rock?.rage(m, dt); } efx(def)?.tick?.(m, dt, !!low && !rage && m.aware === 'fight'); // 怒り: 口から火花（口のある敵だけ）、排気管から火の粉（採掘ロボ）。カニの排水口のしずく（逃げる間はしぶき）
