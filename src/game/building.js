@@ -3,13 +3,14 @@ import { createBuildMode } from '../build/buildMode.js';
 import { PARTS, COSTS } from '../build/parts.js';
 import { createBuildMenu, costHtml, canPay, itemsHtml } from '../ui/buildMenu.js';
 import { createBuildHud } from '../ui/hud.js';
+import { createMapWin } from '../ui/mapWin.js';
 import { ITEMS } from '../survival/items.js';
 import { stationRefund } from '../survival/stations.js';
 import { planterRefund } from '../survival/farm.js';
 import { placeDrop } from '../survival/death.js';
 
 // world(): 今の世界。closeMenu(): 建築メニューを閉じる（操作は controls.js が持つ）
-export function createBuilding({ scene, camera, dom, player, inventory, invHud, keyItems, world, closeMenu }) {
+export function createBuilding({ scene, camera, dom, player, inventory, invHud, keyItems, world, closeMenu, openMenu }) {
   const free = () => !!world()?.mapMaker; // マップ作り: 素材なしで置き、撤去しても何も戻らない（building.md「コンクリートとマップ作り」）
   const hud = createBuildHud({ partName: (t) => PARTS[t].name, costHtml: (t) => (free() ? '' : costHtml(t, inventory)), refundHtml: (parts) => itemsHtml(build.refund(parts)) });
   const build = createBuildMode({
@@ -48,10 +49,13 @@ export function createBuilding({ scene, camera, dom, player, inventory, invHud, 
   });
   scene.add(build.preview);
   scene.add(build.marks); // 撤去で消えるパーツの赤い重ね
+  // マップの設定の窓（マップ作りだけ。建築窓のボタンから開き、閉じると建築窓に戻る。ui.md）
+  const mapWin = createMapWin({ api: () => world()?.mapApi, onClose: () => { mapWin.setOpen(false); openMenu(); } });
   const menu = createBuildMenu({
     inventory, onPick: (i) => { closeMenu(); build.start(i); }, known: (bp) => free() || keyItems.hasBp(bp),
     mapMode: free, color: () => build.color, onColor: (c) => build.setColor(c),
+    onSettings: () => { menu.setOpen(false); mapWin.setOpen(true); },
     onExport: () => world().io.exportFile(), onImport: (file) => world().io.importFile(file).then(() => closeMenu()), // game/mapMaker.js
   });
-  return { build, hud, menu };
+  return { build, hud, menu, mapWin };
 }

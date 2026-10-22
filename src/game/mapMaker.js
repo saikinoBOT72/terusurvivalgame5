@@ -1,6 +1,7 @@
 // マップ作り（docs/rules/building.md「コンクリートとマップ作り」）: 世界を作り、変えるたびに自動で保存、
 // ファイルへの書き出し・読み込み、ジャンプ台・飛ばし台で跳ばす（player.md「ジャンプ台」）
-import { buildMapWorld } from '../world/mapWorld.js';
+import { buildMapWorld, SIZES, DEFAULT_SIZE, GROUND } from '../world/mapWorld.js';
+import { createMapEnv } from './mapEnv.js';
 import { PARTS } from '../build/parts.js';
 import { COLORS } from '../build/concreteParts.js';
 import { angleOf } from '../build/grid.js';
@@ -16,12 +17,26 @@ const valid = (x) => x && PARTS[x.type]?.map && x.i && num(x.i.x) && num(x.i.y) 
   && Number.isInteger(x.rot) && x.rot >= 0 && x.rot < 8 && (x.c === undefined || (Number.isInteger(x.c) && x.c >= 0 && x.c < COLORS));
 
 // structuresOf: 世界 → 建築パーツ。playing(): 1 人称で遊んでいるか。onMessage(文): 画面に出す
-export function createMapMaker({ structuresOf, player, playing, onMessage }) {
+// sky: 空（world/sky.js）、current(): 今の世界がマップ作りか（空と色はそのときだけ上書きする）
+export function createMapMaker({ structuresOf, player, playing, onMessage, sky, current }) {
   const world = buildMapWorld();
   const st = () => structuresOf.get(world);
-  const data = () => ({ kind: KIND, v: 1, parts: st().list.map((p) => ({ type: p.type, i: p.i, rot: p.rot, c: p.c })) });
+  const data = () => ({ kind: KIND, v: 2, size: world.size, env: mapEnv.data(), parts: st().list.map((p) => ({ type: p.type, i: p.i, rot: p.rot, c: p.c })) });
+
+  // 空と色（mapEnv.js）。マップ作りの世界にいるときだけ、空と画面の色に反映する
+  function applyEnv() {
+    if (!current()) return;
+    world.hour = mapEnv.env.hour;
+    world.grade = mapEnv.grade();
+    sky.setOverride(mapEnv.skyOverride());
+    sky.setHour(mapEnv.env.hour);
+  }
+  const mapEnv = createMapEnv(() => { applyEnv(); schedule(); });
+  world.applyEnv = applyEnv; // 世界に入ったとき main.js が呼ぶ
+  world.grade = mapEnv.grade();
 
   let saveT = null, loading = false;
+  const schedule = () => { if (loading) return; clearTimeout(saveT); saveT = setTimeout(saveNow, 500); };
   const saveNow = () => {
     if (saveT === null) return;
     clearTimeout(saveT);
@@ -29,9 +44,7 @@ export function createMapMaker({ structuresOf, player, playing, onMessage }) {
     try { localStorage.setItem(KEY, JSON.stringify(data())); } catch { onMessage('マップを保存できなかった'); }
   };
   world.changed = () => { // パーツを置く・撤去する・塗るたびに（structures.js）。まとめて 0.5 秒後に保存
-    if (loading) return;
-    clearTimeout(saveT);
-    saveT = setTimeout(saveNow, 500);
+    schedule();
   };
   addEventListener('pagehide', saveNow); // 閉じる直前の変更も残す
   // 今のマップを消して、記録から置く。置いた数を返す
@@ -40,6 +53,8 @@ export function createMapMaker({ structuresOf, player, playing, onMessage }) {
     loading = true;
     for (const p of [...s.list]) s.remove(p);
     let n = 0;
+    world.setSize(SIZES.includes(d.size) ? d.size : DEFAULT_SIZE); // v1 には広さがない（120）
+    mapEnv.load(d.env);
     for (const x of d.parts) if (valid(x)) { s.add(x.type, x.i, x.rot, { c: x.c }); n++; }
     loading = false;
     world.changed();
@@ -52,6 +67,8 @@ export function createMapMaker({ structuresOf, player, playing, onMessage }) {
     const dt = Math.min(0.1, t - last), s = player.state;
     last = t;
     cool -= dt;
+    // 床の外へ落ちたらスタートへ戻す（床の外は何もない。見えない地面に立たないように）
+    if (playing() && !s.fly && s.y < GROUND - 3) Object.assign(s, { x: world.spawn.x, z: world.spawn.z, y: GROUND, vy: 0 });
     if (cool > 0 || !playing() || s.fly || s.vy > 0.5 || !st()) return;
     for (const p of st().list) {
       const kind = PARTS[p.type].pad, top = p.pos.y + PAD.top;
@@ -92,9 +109,23 @@ export function createMapMaker({ structuresOf, player, playing, onMessage }) {
     world,
     // 世界に入った後（建築パーツができてから）。初めてなら保存してあるマップを置く
     entered() {
+      applyEnv();
       if (loaded) return;
       loaded = true;
       try { const d = JSON.parse(localStorage.getItem(KEY)); if (d?.kind === KIND && Array.isArray(d.parts)) load(d); } catch { /* 保存がない・壊れている */ }
+    },
+    // 設定の窓（ui/mapWin.js）が使う
+    sizes: SIZES, env: mapEnv,
+    get size() { return world.size; },
+    outside: (n) => st().list.filter((p) => Math.max(Math.abs(p.pos.x), Math.abs(p.pos.z)) > n / 2).length, // 広さ n にすると外に出るパーツの数
+    // 広さを変える。外に出るパーツは消す。変えたら true
+    setSize(n) {
+      if (!SIZES.includes(n) || n === world.size) return false;
+      const s = st();
+      for (const p of s.list.filter((q) => Math.max(Math.abs(q.pos.x), Math.abs(q.pos.z)) > n / 2)) s.remove(p);
+      world.setSize(n);
+      schedule();
+      return true;
     },
     data, load, // 確認用（__game.map）
   };

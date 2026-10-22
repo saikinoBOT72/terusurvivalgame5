@@ -14,9 +14,9 @@ import { playing } from './input/touch.js';
 const TOOL_HINTS = { sling: '左を押して引く・離して撃つ', tubeEmpty: '右クリック 水をくむ', sapling: '右クリック 植える', paddle: '右クリック こぐ' };
 
 export function createControls(g) {
-  const { dom, lockPointer, invHud, buildMenu, build, gather, combat, pc, ranged, tools, farm, inventory, stats, player, keysPanel } = g;
+  const { dom, lockPointer, invHud, buildMenu, mapWin, build, gather, combat, pc, ranged, tools, farm, inventory, stats, player, keysPanel } = g;
   const fps = () => g.mode() === 'fps';
-  const uiOpen = () => invHud.open || buildMenu.open; // マウスの固定を外して使う画面
+  const uiOpen = () => invHud.open || buildMenu.open || mapWin.open; // マウスの固定を外して使う画面
   const isDigTool = (id) => ['axe', 'pick'].includes(ITEMS[id]?.tool); // ため攻撃・ガードなし（weapons.md）
   let holdL = false; // 左を押し続けている（斧・ピッケル）
 
@@ -28,6 +28,7 @@ export function createControls(g) {
     if (!fps() || playing(dom)) return;
     invHud.setOpen(false);
     buildMenu.setOpen(false);
+    mapWin.setOpen(false);
     lockPointer();
   });
   // 持ち物・建築メニュー: 開いている間はマウスの固定を外す（遊びは止めない）
@@ -37,6 +38,7 @@ export function createControls(g) {
   }
   function setInventoryOpen(v, chest = null) {
     buildMenu.setOpen(false);
+    mapWin.setOpen(false);
     invHud.setOpen(v, chest);
     if (v) document.exitPointerLock?.(); else lockPointer();
   }
@@ -141,6 +143,7 @@ export function createControls(g) {
     if (e.code === 'KeyG') g.toggleGrid();
     if (pressed(e, 'dodge') && fps()) pc.dodge(); // ステップ（weapons.md）
     if (pressed(e, 'reload') && fps() && !build.active) ranged.reload(g.held()); // 込め直し（建築中の R は回す）
+    if (pressed(e, 'inspect') && fps() && !build.active) ranged.inspect(g.held()); // 銃を眺める（weapons.md「銃の仕組み」）
     if (e.code === 'KeyH') g.toggleDebug();
   });
 

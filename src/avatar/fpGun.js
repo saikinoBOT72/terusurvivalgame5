@@ -10,7 +10,8 @@ const seg = (p, a, b) => ease((p - a) / (b - a)); // p が a → b の間で 0 �
 export function createGunMotion() {
   let rig = null, hammerT = 0, empty = false, spin = 0, spinTo = 0, reload = null;
   const v = new THREE.Vector3();
-  const out = { r: new Float32Array(6), left: new THREE.Vector3(), leftW: 0 };
+  const out = { r: new Float32Array(6), left: new THREE.Vector3(), leftW: 0, events: [] };
+  const SOUNDS = [[0.22, 'magOut'], [0.62, 'magIn'], [0.76, 'rack']]; // 込め直しの音を鳴らす割合（sound.md）
 
   return {
     attach(g) { rig = g?.userData.hammer ? g : null; hammerT = 0; empty = false; spin = spinTo = 0; reload = null; },
@@ -21,7 +22,7 @@ export function createGunMotion() {
     get reloading() { return !!reload; },
     // 右手のずれ out.r と、左手の行き先（hands の root の中の位置）out.left・重み out.leftW
     update(dt, hand, root) {
-      out.r.fill(0); out.leftW = 0;
+      out.r.fill(0); out.leftW = 0; out.events.length = 0;
       if (!rig) return out;
       const H = rig.userData.hammer, C = rig.userData.cyl;
       // 撃鉄: 0.05 秒で倒れ、0.08 秒で戻る（弾切れは倒れたまま）
@@ -34,7 +35,8 @@ export function createGunMotion() {
       spin += (spinTo - spin) * Math.min(1, dt * 30);
       C.position.copy(C.userData.home);
       if (reload) {
-        const p = (reload.t += reload.frozen ? 0 : dt) / reload.secs;
+        const p0 = reload.t / reload.secs, p = (reload.t += reload.frozen ? 0 : dt) / reload.secs;
+        for (const [at, ev] of SOUNDS) if (p0 < at && p >= at) out.events.push(ev);
         if (p >= 1) { reload = null; empty = false; hammerT = 0; spin = spinTo = 0; }
         else {
           // 傾けて銃口を下げる（0〜15%。手もとは画面の真ん中寄りへ上げて、弾倉の出し入れが見えるように）、構え直す（90〜100%）

@@ -20,7 +20,7 @@ const LANE_X = 16;             // 射撃の道（北へ 10〜50m）
 const TABLE = { x: -13.6, z: BOOTH_Z, len: 3.9, h: 0.45, slots: [-1.3, 0, 1.3] }; // 銃の見比べ台（召喚の台の西）。西から export のまま・作り直し・サイバー版
 const SUMMON = ['drone', 'crab', 'dog', 'mining', 'gangi', 'dummy'];
 // 地面の武器（islands.md）
-const WEAPONS = [['stoneSpear', 1], ['ironSpear', 1], ['stoneKnife', 1], ['ironAxe', 1], ['sling', 1], ['junkPistol', 1], ['junkAmmo', 30], ['stone', 20]];
+const WEAPONS = [['stoneSpear', 1], ['ironSpear', 1], ['stoneKnife', 1], ['ironAxe', 1], ['sling', 1], ['junkPistol', 1], ['junkAmmo', 30], ['ak47', 1], ['cyberAk47', 1], ['rifleAmmo', 120], ['stone', 20]];
 
 const oct = (r0, r1, h, y) => new THREE.CylinderGeometry(r0, r1, h, 8).rotateY(Math.PI / 8).translate(0, y + h / 2, 0);
 

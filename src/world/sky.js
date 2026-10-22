@@ -82,12 +82,13 @@ export function createSky(scene, { fogNear = 45, fogFar = 280 } = {}) {
   // 時刻（0〜24 時）で空・光・かすみ・雲の色と、太陽（月）の向きを変える
   const sky = [new THREE.Color(), new THREE.Color(), new THREE.Color()], c = new THREE.Color(), tmp = new THREE.Color();
   const W = new THREE.Color(1, 1, 1); // 雲の色をそのまま出す（掛け算の 1）
-  let hour = 12;
+  let hour = 12, lastFar = fogFar;
   function setHour(h) {
     hour = h;
     const day = smooth(5, 7, h) * (1 - smooth(19, 21, h)); // 1 = 昼、0 = 夜
     const dusk = Math.max(0, 1 - Math.min(Math.abs(h - 6), Math.abs(h - 20)) / 1.2); // 朝方・夕方に 1
     for (let k = 0; k < 3; k++) sky[k].lerpColors(NIGHT[k], DAY[k], day).lerp(DUSK[k], dusk * (k ? 0.75 : 0.45));
+    if (ov?.sky) for (let k = 0; k < 3; k++) sky[k].set(ov.sky[k]); // マップ作り: 空の色を決めたとき
     for (let i = 0; i < pos.count; i++) {
       const t = heights[i];
       if (t < 0.35) c.lerpColors(sky[2], sky[1], t / 0.35);
@@ -97,7 +98,9 @@ export function createSky(scene, { fogNear = 45, fogFar = 280 } = {}) {
     domeGeo.attributes.color.needsUpdate = true;
     scene.fog.color.copy(sky[2]);
     scene.background.copy(sky[2]);
-    starMat.opacity = 1 - smooth(0, 0.6, day);
+    starMat.opacity = ov?.stars === 'on' ? 1 : 1 - smooth(0, 0.6, day);
+    stars.visible = ov?.stars !== 'off'; // マップ作り: 星を出さない・いつも出す
+    for (const m of clouds) m.visible = ov?.clouds !== false; // マップ作り: 雲を出さない
     cloudMat.color.lerpColors(NIGHT[2], W, day).lerp(tmp.set(P.dusk[3]), dusk * 0.6);
 
     hemi.intensity = 0.55 + 1.15 * day;
@@ -108,21 +111,27 @@ export function createSky(scene, { fogNear = 45, fogFar = 280 } = {}) {
     const a = isDay ? Math.PI * (h - 6) / 14 : Math.PI * (((h - 20 + 24) % 24) / 10);
     const up = Math.sin(a);
     dir.x = Math.cos(a) * 20; dir.y = Math.max(up, 0.35) * 24; dir.z = 9;
+    if (ov?.az != null) { const az = ov.az * Math.PI / 180, el = ov.el * Math.PI / 180; dir.x = Math.cos(el) * Math.cos(az) * 24; dir.y = Math.sin(el) * 24; dir.z = Math.cos(el) * Math.sin(az) * 24; }
     sun.intensity = (isDay ? 2.3 : 0.45) * smooth(0, 0.3, up);
     sun.color.set(isDay ? P.sunLight : P.star);
     if (isDay) sun.color.lerp(tmp.set(P.dusk[3]), dusk);
+    if (ov?.sunC) sun.color.set(ov.sunC);
+    if (ov?.hemiC) hemi.color.set(ov.hemiC);
+    if (ov?.groundC) hemi.groundColor.set(ov.groundC);
     // 霧（fog.js）: 太陽（月）の方が明るい色。朝もやと夜は低い所の霧が濃い
-    FOG.fogSunDir.value.set(Math.cos(a) * 20, up * 24, 9).normalize();
+    FOG.fogSunDir.value.set(dir.x, ov?.az != null ? dir.y : up * 24, dir.z).normalize();
     FOG.fogSunColor.value.set(isDay ? P.grade.sunFog : P.star);
     if (isDay) FOG.fogSunColor.value.lerp(tmp.set(P.dusk[2]), dusk);
     sunFog = (isDay ? 0.5 + 0.3 * dusk : 0.12) * smooth(0, 0.3, up);
     mist = 1 + 2 * smooth(4, 5.5, h) * (1 - smooth(8, 10, h)) + 0.5 * (1 - day);
     applyFog();
-    baseHemi = hemi.intensity; baseSun = sun.intensity;
+    baseHemi = hemi.intensity * (ov?.hemiK ?? 1); baseSun = sun.intensity * (ov?.sunK ?? 1);
     applyDim();
   }
   // 洞窟の奥（terrain.md「洞窟」）: 空の光と日の光を弱める。dim 0〜1
   let dim = 0, baseHemi = 1, baseSun = 1;
+  let ov = null; // マップ作りの空と光の上書き（game/mapEnv.js）。null なら時刻の計算のまま（ほかの世界はいつも null）
+  let fogK = 1;
   // 低い所の霧（fog.js）: hf は世界ごとの値（world.heightFog）、mist は時刻の倍率、swamp は沼で足す濃さ
   let hf = null, mist = 1, swamp = 0, sunFog = 0;
   function applyFog() {
@@ -138,7 +147,9 @@ export function createSky(scene, { fogNear = 45, fogFar = 280 } = {}) {
     sun, hemi,
     setHour,
     get hour() { return hour; }, // 今の時刻（world/grade.js）
-    setFog(near, far) { scene.fog.density = density(far); },
+    setFog(near, far) { scene.fog.density = density(far) * fogK; lastFar = far; },
+    // マップ作りの上書きを入れる・外す（null）。入れたら今の時刻で計算し直す
+    setOverride(o) { ov = o; fogK = o?.fogK ?? 1; scene.fog.density = density(lastFar) * fogK; setHour(hour); },
     setHeightFog(cfg) { hf = cfg ?? null; applyFog(); }, // 世界が替わったとき（world.heightFog。なければ低い所の霧なし）
     setSwamp(k) { if (Math.abs(k - swamp) > 0.005) { swamp = k; applyFog(); } },
     setDim(k) { if (Math.abs(k - dim) > 0.005) { dim = k; applyDim(); applyFog(); } },

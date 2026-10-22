@@ -94,6 +94,10 @@ export const ITEMS = {
   junkPistol: { name: 'ガラクタ拳銃', stack: 1, tool: 'gun', dur: 400, hold: 1.6, // hold: 手に持ったときの大きさ（倍）
     ranged: { ammo: 'junkAmmo', dmg: 10, speed: 90, drop: 0.15, spread: [2, 5, 1], draw: 0, rate: 0.6, mag: 5, reload: 2.2, falloff: [10, 35, 0.35], recoil: 4, aim: true, knock: 0.3 } },
   junkAmmo: { name: 'ガラクタ弾', stack: 60 },
+  // クリップで動く銃（weapons.md「銃の仕組み」。形と動きは clipGuns.js）。auto: 押している間撃つ、flash: 銃口の火の大きさ、snd: 銃声（sound.md）
+  ak47: { name: 'AK47', stack: 1, tool: 'gun', clip: true, dur: 3000,
+    ranged: { ammo: 'rifleAmmo', dmg: 5, speed: 150, drop: 0.1, spread: [1.5, 4, 0.6], draw: 0, rate: 0.1, auto: true, mag: 30, reload: 2, falloff: [25, 70, 0.4], recoil: 0.8, aim: true, knock: 0.15, flash: 1.6, snd: 'rifle' } },
+  rifleAmmo: { name: '小銃弾', stack: 120 },
   fishingRod: { name: '釣り竿', stack: 1, tool: 'rod', dur: 40 },
   torch: { name: '松明', stack: 1, tool: 'torch', dur: 240 }, // 持っている間だけ 1 秒に 1 減る
   paddle: { name: 'かい', stack: 1, tool: 'paddle', dur: 150 }, // いかだをこぐ（physics.md）
@@ -102,6 +106,7 @@ export const ITEMS = {
   ironPick: { name: '鉄のピッケル', stack: 1, tool: 'pick', tier: 3, dur: 180, swing: 0.9, cd: 1, reach: 1.5, hit: 'arc', stam: 12, dmg: { rock: 20, coal: 20, copper: 20, iron: 20, junk: 20, stoneBed: 20, sand: 20, sandBed: 20, coalBed: 20, copperBed: 20, ironBed: 20, mob: 10 } },
   ironSpear: { name: '鉄のやり', stack: 1, tool: 'spear', dur: 120, swing: 0.6, cd: 0.7, reach: 2.5, knock: 0.4, stam: 8, dmg: { mob: 10 } },
 };
+ITEMS.cyberAk47 = { ...ITEMS.ak47, name: 'AK47（サイバー）' }; // 同じ値・同じ動き。形だけサイバーガンシリーズ（感想をもらう用）
 
 // 消した物（バッテリー・ランタン。survival.md）。古いセーブの持ち物・箱・落とし物にあれば、読むときに捨てる
 export const REMOVED = new Set(['battery', 'lantern']);

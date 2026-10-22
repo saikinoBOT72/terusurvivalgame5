@@ -192,7 +192,7 @@ export function createPhysics(world, structures) {
   }
 
   return {
-    add, remove, kinematic, update, setDebug, dispose, stats, get bodies() { return bodies; },
+    add, remove, kinematic, update, setDebug, dispose, stats, resetTerrain: () => statics?.resetTerrain(), get bodies() { return bodies; },
     onStep: (f) => stepHooks.push(f),   // 固定の歩みごと（物を動かす前）: f(歩みの秒)
     onFrame: (f) => frameHooks.push(f), // フレームごと（表示をつないだあと）: f(前の歩みとの間 0〜1, フレームの秒)
   };

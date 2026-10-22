@@ -1,10 +1,11 @@
 // 1人称で画面の下に見える両手（仮のキャラ。docs/rules/avatar.md、動きは weapons.md「武器の動きと演出」）。カメラの子にして使う
-// 動きの表は fpMotion.js、銃は fpGun.js、振りの軌跡は combat/swingFx.js。ここでは全部を足して手の位置と向きを決める
+// 動きの表は fpMotion.js、銃は fpGun.js（ガラクタ拳銃）と gunAnim.js（クリップで動く銃）、振りの軌跡は combat/swingFx.js。ここでは全部を足して手の位置と向きを決める
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
 import { rng, shape, makeMesh } from '../style/lowpoly.js';
 import { MOTIONS, swingPose, chargePose, strikeDir, pose0 } from './fpMotion.js';
 import { createGunMotion } from './fpGun.js';
+import { createClipGun } from './gunAnim.js';
 import { createSlingMotion } from './fpSling.js';
 import { createSwingFx } from '../combat/swingFx.js';
 
@@ -35,6 +36,8 @@ export function createFpHands({ seed = 9 } = {}) {
   R.add(hold0);
   const fx = createSwingFx(root);
   const gun = createGunMotion();
+  const clip = createClipGun(root);
+  let onGunEvent = () => {}; // 銃の出来事（eject・magOut・magIn・rack など。weapons.md「銃の仕組み」）
   const slingM = createSlingMotion();
   const tip = new THREE.Object3D(), tipIn = new THREE.Object3D(), tipInHeavy = new THREE.Object3D(); // 刃先と、軌跡の帯の手前のはし
   let held = null, hasTip = false;
@@ -46,9 +49,12 @@ export function createFpHands({ seed = 9 } = {}) {
     hold0.clear();
     gunHeld = !!gunInfo;
     held = obj; hasTip = false; equip = 0; sw = null;
-    gun.attach(gunInfo ? obj : null);
+    gun.attach(gunInfo && !gunInfo.clip ? obj : null);
+    clip.attach(gunInfo?.clip ? obj : null, gunInfo?.clip);
+    for (const h of hands) h.scale.setScalar(1);
     slingM.attach(gunInfo ? null : obj);
     if (!obj) return;
+    if (gunInfo?.clip) { gunHeld = false; return; } // 入れ物は gunAnim.js（手は銃についていく）
     obj.scale.setScalar(scale);
     if (gunInfo) {
       obj.rotation.set(-hold0.rotation.x, -Math.PI, 0); // 手の前への傾きを打ち消す
@@ -197,6 +203,14 @@ export function createFpHands({ seed = 9 } = {}) {
     );
     L.rotation.set(cur[9], cur[10], cur[11]);
     if (g.leftW > 0) L.position.lerp(g.left, g.leftW);
+    // クリップで動く銃: 歩く揺れを入れ物に足し、右手は握り・左手は lhand へ（手は銃の手と同じくらいに小さく）
+    if (clip.active && cam) {
+      const c = clip.update(dt, pose.aim, [bx + shake, by + idle + shake2, Math.sin(phase) * 0.03 * bobK], cam);
+      R.position.copy(c.R.p); R.quaternion.copy(c.R.q); L.position.copy(c.L.p); L.quaternion.copy(c.L.q);
+      for (const h of hands) h.scale.setScalar(c.handK);
+      for (const e of c.events) onGunEvent(e);
+    }
+    for (const e of g.events) onGunEvent(e);
     fx.update(frozen ? 0 : dt);
   }
 
@@ -216,19 +230,23 @@ export function createFpHands({ seed = 9 } = {}) {
     hurt(power) { knock.v += 1 + Math.min(1.5, power / 30); },
     // 受け流し: 武器の前に白い閃光と火花
     parry() { fx.parry(v.set(-0.08, -0.08, -0.5)); knock.v += 2; },
-    gunFire(empty) { recoil.v += pose.aim > 0.5 ? 3.5 : 5.5; gun.fire(empty); },
-    gunReload(secs) { gun.startReload(secs); },
+    gunFire(empty) { if (clip.active) return clip.fire(); recoil.v += pose.aim > 0.5 ? 3.5 : 5.5; gun.fire(empty); },
+    gunReload(secs) { if (clip.active) clip.reload(secs); else gun.startReload(secs); },
+    gunInspect() { return clip.active && clip.inspect(); }, // 眺める（込め直し中は false）
+    set onGunEvent(fn) { onGunEvent = fn; },
+    get clipGun() { return clip.active; },
     slingFire() { slingM.fire(); }, // スリングを放った（袋がはじける）
     slingLoaded(on) { slingM.setLoaded(on); }, // 持ち物に石があるか
-    previewReload(p) { gun.reloadAt(p); }, // 開発用
+    previewReload(p, name = 'reload') { if (clip.active) clip.poseAt(name, p * clip.dur(name)); else gun.reloadAt(p); }, // 開発用: クリップの銃は name のクリップ
     // 銃口の世界の位置（銃を持っていなければ null）
-    muzzleWorld(out) { return gun.rig ? gun.rig.userData.muzzle.getWorldPosition(out) : null; },
+    muzzleWorld(out) { const g = clip.rig ?? gun.rig; return g ? g.userData.muzzle.getWorldPosition(out) : null; },
+    ejectWorld(out) { return clip.rig ? clip.rig.userData.eject.getWorldPosition(out) : null; }, // 排莢口（クリップで動く銃だけ）
     // 開発用: 振りを u（0〜1）の所で止めて見る（軌跡も描く）。stop で戻す
     preview(kind, u, { heavy = false, alt: a = false } = {}) {
       if (kind === 'stop') { sw = null; return; }
       swing(kind, 0.5, { heavy });
       Object.assign(sw, { alt: a, dir: strikeDir(sw.kind, heavy, a, pose0()), blend: 1, pause: Infinity, at: u, u, trailFrom: MOTIONS[sw.kind].w - 0.04 });
     },
-    debug: () => `手 ${weapon.kind}${sw ? ` 振り${sw.heavy ? '(ため)' : ''}${sw.alt ? '(返し)' : ''} ${sw.u.toFixed(2)}` : ''}${gun.reloading ? ' リロード中' : ''} ため ${pose.charge.toFixed(2)} ガード ${pose.guard.toFixed(2)}`,
+    debug: () => `手 ${weapon.kind}${sw ? ` 振り${sw.heavy ? '(ため)' : ''}${sw.alt ? '(返し)' : ''} ${sw.u.toFixed(2)}` : ''}${gun.reloading ? ' リロード中' : ''}${clip.clip ? ` 銃 ${clip.clip}` : ''} ため ${pose.charge.toFixed(2)} ガード ${pose.guard.toFixed(2)}`,
   };
 }

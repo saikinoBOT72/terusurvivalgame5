@@ -14,6 +14,7 @@ export const ACTIONS = [
   { id: 'inventory', name: '持ち物', def: 'Tab', scene: 'always' },
   { id: 'throw', name: '投げる', def: 'KeyQ', scene: 'always' },
   { id: 'reload', name: '込め直し', def: 'KeyR', scene: 'always' },
+  { id: 'inspect', name: '銃を眺める', def: 'KeyT', scene: 'always' },
   { id: 'dodge', name: 'ステップ', def: 'KeyX', scene: 'always' },
   { id: 'keys', name: '操作一覧', def: 'F1', scene: 'always' },
   { id: 'fullscreen', name: '全画面', def: 'KeyO', scene: 'always' },

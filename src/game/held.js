@@ -1,9 +1,10 @@
-// 手に持つ物の見た目（道具は柄を握る。素材は手のひらにのせる）と、持っている間だけ光る物（松明・光るキノコ）
+// 手に持つ物の見た目（道具は柄を握る。素材は手のひらにのせる。クリップで動く銃は clipGuns.js の形）と、持っている間だけ光る物（松明・光るキノコ）
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
 import { glowShroomGill, GLOW_MAT } from '../world/spotNature.js';
 import { PISTOL_HOLD, gunRig } from '../survival/gunShapes.js';
 import { slingRig } from '../avatar/fpSling.js';
+import { CLIP_GUNS } from '../survival/clipGuns.js';
 import { weaponMotion } from '../avatar/fpMotion.js';
 import { ITEMS } from '../survival/items.js';
 import { itemMesh, gripOf } from '../survival/itemShapes.js';
@@ -21,6 +22,7 @@ export function createHeld({ inventory, player, build, onMessage }) {
     player.arms.setWeapon(weaponMotion(id)); // 振り方と重さ（avatar/fpMotion.js）
     if (!id) return player.arms.hold(null);
     const tool = !!ITEMS[id].tool;
+    if (ITEMS[id].clip) return player.arms.hold(CLIP_GUNS[id].rig(), 0, 1, false, true, false, { clip: CLIP_GUNS[id] }); // クリップで動く銃（avatar/gunAnim.js）
     const mesh = ITEMS[id].tool === 'gun' ? gunRig(id) : ITEMS[id].tool === 'sling' ? slingRig(id) : itemMesh(id); // 銃は撃鉄・弾倉、スリングは袋とひもが動く形
     player.arms.hold(mesh, tool ? gripOf(id) : -0.1, ITEMS[id].hold ?? (tool ? 0.7 : 0.55), ITEMS[id].tool === 'spear', tool, !!ITEMS[id].top, ITEMS[id].tool === 'gun' ? PISTOL_HOLD : null);
     if (id === 'torch') { // 持っている間だけ明るい。炎は光の影響を受けない材質で、まわりを照らす

@@ -1,5 +1,6 @@
 // 遠距離武器（docs/rules/weapons.md「遠距離武器」）: スリングも銃も同じ仕組み。違いは items.js の ranged の値だけ
 // 弾は物として飛び、重力で落ちる。スリングの石は目に見え、銃の弾は見せずに軌道の線を引く（tracerFx.js）。遠いほどばらつきで当たりにくく、距離で弱くなる（falloff）
+// 銃の撃ち方（押している間・n 発ずつ・1 発ずつ）、弾切れのカチッ、薬きょう・煙・音は weapons.md「銃の仕組み」
 // 当たる物: 敵（combat.rayMob）、スリングの的（巣の卵・ヤシの実）、地形・水、木・岩・建築パーツ（blockers）
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
@@ -8,6 +9,9 @@ import { ITEMS } from '../survival/items.js';
 import { itemGeometry } from '../survival/itemShapes.js';
 import { hitCylinder } from '../world/resources.js';
 import { createTracerFx } from './tracerFx.js';
+import { createShellFx, createSmokeFx } from './shellFx.js';
+import { gunSounds } from '../audio/gunSounds.js';
+import { sound } from '../audio/sound.js';
 
 const G = 9.8, LIFE = 3, STEP = 0.25; // 重力、弾が消えるまでの秒、地形・木を調べる間かく（m）
 const AIM_ZOOM = 1 / 0.75; // 覗き込むと視野が 0.75 倍
@@ -34,6 +38,13 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
   muzzle.visible = false;
   scene.add(muzzle);
   let muzzleT = 0;
+  let trigger = null, runT = 0, lastShot = -9, now = 0; // trigger: 押している間・n 発ずつの残り { id, left }。runT: 続けて撃っている秒（煙）
+  const stat = { shots: 0, gaps: [] }; // 開発用: 撃った数と間隔
+  const shells = createShellFx(scene, (p) => gunSounds.shell(p)), smoke = createSmokeFx(scene);
+  player.arms.onGunEvent = (ev) => {
+    if (ev === 'eject') { if (player.arms.ejectWorld(mz)) shells.spawn(mz, camera); }
+    else gunSounds.event(ev);
+  };
 
   // ばらつき: 照準から deg 度の円の中のどこか
   function spreadDir(dir, deg) {
@@ -57,6 +68,7 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
     shots.push({ id, R, power, p: start, from: start.clone(), v, t: 0, mesh, travel: 0 });
     if (R.mag) combat.noise(); // 銃声: まわり 15m の生き物が気づいて逃げる（creatures.md）
     if (R.recoil) player.kick(THREE.MathUtils.degToRad(R.recoil));
+    if (R.mag) gunSounds.shot(R.snd);
     if (R.mag) { // 銃口の火と、銃口から先に当たる所までの軌道の線
       if (!player.arms.muzzleWorld(mz)) {
         right.crossVectors(d, up.set(0, 1, 0)).normalize();
@@ -64,10 +76,16 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
       }
       muzzle.position.copy(mz).addScaledVector(d, 0.03);
       muzzle.visible = true; muzzleT = 0.05;
+      muzzle.scale.setScalar((R.flash ?? 1) * (0.8 + Math.random() * 0.4));
+      runT = now - lastShot < R.rate * 1.6 ? runT + (now - lastShot) : 0; // 続けて撃っている秒
+      if (runT >= 1) smoke.puff(mz);
+      if (lastShot > 0 && now - lastShot < 1) stat.gaps.push(now - lastShot);
+      if (stat.gaps.length > 30) stat.gaps.shift();
+      lastShot = now; stat.shots++;
       tracer.fire(mz, traceEnd(start, v, R));
       player.arms.gunFire(!held()?.mag);
     }
-    cool = R.rate;
+    cool = R.rate + Math.max(-0.05, Math.min(0, cool)); // 押している間の連射は、余った分を次へ持ち越す（間隔がフレームでずれない）
     const broke = inventory.wear();
     if (broke) onMessage(`${broke}が壊れた`);
   }
@@ -119,20 +137,31 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
   }
 
   const held = () => inventory.held();
+  // 銃を 1 発: 弾倉が空なら、クリップで動く銃はカチッだけ、ガラクタ拳銃は込め直しを始める。撃てたら true
+  function gunShot(id, self) {
+    const R = rangedOf(id), slot = held();
+    if (!slot.mag) {
+      if (ITEMS[id].clip) { gunSounds.dry(); cool = 0.25; }
+      else if (!self.reload(id)) onMessage(`${ITEMS[R.ammo].name}が必要`);
+      return false;
+    }
+    slot.mag--;
+    inventory.changed();
+    fire(id, 1);
+    return true;
+  }
   const ammoCount = (R) => inventory.count?.(R.ammo) ?? inventory.slots.reduce((n, x) => n + (x?.id === R.ammo ? x.n : 0), 0);
 
   return {
-    setWorld(w) { world = w; for (const s of shots) s.mesh?.removeFromParent(); shots.length = 0; tracer.clear(); },
+    setWorld(w) { world = w; for (const s of shots) s.mesh?.removeFromParent(); shots.length = 0; tracer.clear(); shells.clear(); },
     // 左を押した: スリングは引き始める、銃は撃つ
     press(id) {
       const R = rangedOf(id);
       if (!R || !world || cool > 0 || reload) return;
       if (R.mag) {
-        const slot = held();
-        if (!slot.mag) { if (!this.reload(id)) onMessage(`${ITEMS[R.ammo].name}が必要`); return; }
-        slot.mag--;
-        inventory.changed();
-        fire(id, 1);
+        if (!gunShot(id, this)) return;
+        if (R.auto || R.burst > 1) trigger = { id, left: R.burst > 1 ? R.burst - 1 : Infinity }; // 押している間・残りの n 発
+        if (R.burst > 1) cool = R.burstGap;
         return;
       }
       if (!ammoCount(R)) { onMessage(`${ITEMS[R.ammo].name}が必要`); return; }
@@ -140,6 +169,7 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
     },
     // 左を離した: 引いた分の強さで撃つ
     release(id) {
+      if (trigger?.left === Infinity) trigger = null; // 押している間の連射をやめる（n 発ずつは最後まで撃つ）
       const R = rangedOf(id);
       if (!R || draw < 0) return;
       const k = R.draw ? Math.min(1, draw / R.draw) : 1;
@@ -155,9 +185,12 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
       const R = rangedOf(id), slot = held();
       if (!R?.mag || reload || (slot.mag ?? 0) >= R.mag || !ammoCount(R)) return false;
       reload = { t: 0, slot, R };
+      trigger = null;
       player.arms.gunReload(R.reload); // リロードの動き（avatar/fpGun.js）
       return true;
     },
+    // T: 銃を眺める（込め直し中は受け付けない。weapons.md「銃の仕組み」）
+    inspect(id) { if (rangedOf(id)?.mag && !reload) player.arms.gunInspect(); },
     // 右を押している間、覗き込む（aim のある武器）
     aim(id, on) {
       on = on && !!rangedOf(id)?.aim;
@@ -175,10 +208,31 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
       return cool > 0 ? 1 - cool / R.rate : null;
     },
     get tracers() { return tracer.count; },
+    // 開発用（__game.debug）: 撃った数・連射の間隔の平均・弾倉・込め直しの秒・薬きょうの数
+    debug(id) {
+      const R = rangedOf(id);
+      if (!R?.mag) return null;
+      const g = stat.gaps, avg = g.length ? g.reduce((a, b) => a + b, 0) / g.length : 0;
+      return `銃 撃った ${stat.shots} 間隔 ${avg.toFixed(3)}s 弾 ${held()?.mag ?? 0}/${R.mag}${reload ? ` 込め直し ${reload.t.toFixed(2)}/${R.reload}s` : ''}${trigger ? ' 連射中' : ''} 薬きょう ${shells.count}`;
+    },
     get drawing() { return draw >= 0; },
     update(dt, id) {
       const R = rangedOf(id);
-      cool = Math.max(0, cool - dt);
+      now += dt;
+      cool -= dt;
+      if (trigger) { // 押している間・n 発ずつ
+        if (trigger.id !== id || reload) trigger = null;
+        else if (cool <= 0) {
+          if (!gunShot(id, this)) trigger = null;
+          else if (--trigger.left <= 0) trigger = null;
+          if (R.burst > 1) cool = trigger ? R.burstGap : R.rate;
+        }
+      }
+      if (!trigger) cool = Math.max(0, cool);
+      player.holdRecoil(!!trigger); // 押している間は画面のはねが戻らずに積み上がる
+      sound.setListener(camera);
+      shells.update(dt, world?.terrain);
+      smoke.update(dt);
       if (!R) { draw = -1; if (aiming) this.aim(id, false); }
       const k = Math.max(0, Math.min(1, aimK + (aiming ? dt : -dt) / AIM_TIME)); // 視野の拡大は毎フレーム近づける
       if (k !== aimK) {

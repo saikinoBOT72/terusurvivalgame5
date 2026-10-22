@@ -155,6 +155,22 @@ export function createTerrain({
     return g < 0.04 ? P.grass[1] : g < 0.95 ? P.grass[2] : P.grass[3];
   }
 
+  // 角の高さの関数を差し替えて、地形をその場で作り直す（マップ作りの広さ変更だけが使う。高さは作ったときの最大を超えない）
+  function reshape(newCorner) {
+    for (let tz = 0; tz < d; tz++) for (let tx = 0; tx < w; tx++) {
+      const x = x0 + tx, z = z0 + tz;
+      let h = [newCorner(x, z), newCorner(x + 1, z), newCorner(x + 1, z + 1), newCorner(x, z + 1)].map((v) => Math.max(base + VH, Math.round(v / VH) * VH));
+      let lo = Math.min(...h);
+      if (Math.max(...h) - lo > VH) { lo = Math.floor(((h[0] + h[1] + h[2] + h[3]) / 4 - VH / 2) / VH) * VH; h = h.map((v) => Math.min(lo + VH, Math.max(lo, v))); }
+      const col = tz * w + tx, m = Math.min(...h), lm = layer(m);
+      cells.fill(0, col * L, col * L + L);
+      cells.fill(FULL, col * L, col * L + lm);
+      const mask = (h[0] > m) | ((h[1] > m) << 1) | ((h[2] > m) << 2) | ((h[3] > m) << 3);
+      if (mask && lm < L) cells[col * L + lm] = mask;
+      colMin[col] = lm; colTop[col] = mask ? lm : lm - 1;
+    }
+  }
+
   const T = { w, d, L, x0, z0, base, cells, colMin, colTop };
   // 区画の三角形（見た目と物理で共通）。pos: 面、steep: 登れない面、lines: 格子の線
   const triangles = (tx0, tz0, tw, td) => meshTriangles(T, tx0, tz0, tw, td);
@@ -181,7 +197,7 @@ export function createTerrain({
 
   return {
     heightAt, floorAt, ceilingAt, underRock, solidAt, groundNear, ref, tileAt, triangles, buildChunk, waterLevel, base,
-    getCell, setCell, setColumn, layer, L, bounds: { x0, z0, w, d },
+    getCell, setCell, setColumn, reshape, layer, L, bounds: { x0, z0, w, d },
   };
 }
 

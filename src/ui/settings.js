@@ -1,6 +1,6 @@
 // 設定（docs/rules/ui.md「設定と舵の表示」「設定の窓」）: 値と保存だけ。窓は settingsWin.js
 // マウスの感度（Valorant の数値）、視野の広さ（Valorant の横の視野角）、UI の大きさ、画質と個別の設定、フレームレート表示。ブラウザに保存する（セーブとは別）
-// tab: 設定の窓のどのタブか（km キーマウ / touch タッチ / screen 画面）。num: 数字を直接入力する欄にする。toggle: 切り替え。choice: [[値, 名前]] から 1 つ選ぶ
+// tab: 設定の窓のどのタブか（km キーマウ / touch タッチ / screen 画面 / sound 音）。num: 数字を直接入力する欄にする。toggle: 切り替え。choice: [[値, 名前]] から 1 つ選ぶ
 import { toggleHtml, toggleGet, toggleSet } from './uiKit.js';
 
 const KEY = 'oasobi5.settings';
@@ -17,6 +17,7 @@ export const SETTINGS = [
   { key: 'autoRes', tab: 'screen', name: '重いとき自動で細かさを下げる', toggle: true, def: true },
   { key: 'bloom', tab: 'screen', name: 'ブルーム', toggle: true, def: true },
   { key: 'fogq', tab: 'screen', name: '霧の計算', choice: [['high', '細かい'], ['mid', 'ふつう'], ['low', '軽い']], def: 'mid' },
+  { key: 'volume', tab: 'sound', name: '音量', min: 0, max: 1, step: 0.05, def: 0.7, fmt: (v) => `${Math.round(v * 100)}%` }, // 全体（sound.md）
   { key: 'fps', tab: 'screen', name: 'フレームレート表示', toggle: true, def: false },
   ...(import.meta.env.DEV ? [{ key: 'creative', tab: 'screen', name: 'クリエイティブインベントリ（開発用）', toggle: true, def: true }] : []),
 ];

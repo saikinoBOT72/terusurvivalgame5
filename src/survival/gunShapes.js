@@ -95,4 +95,16 @@ export function junkAmmo(r) {
   return merge(parts);
 }
 
-export const GUN_SHAPES = { junkPistol, junkAmmo };
+// 小銃弾（AK47）: 銅の薬きょうに鉄の弾頭の弾 4 本を、薄い鉄の板（クリップ）に並べた形（weapons.md「小銃弾」）
+export function rifleAmmo(r) {
+  const parts = [];
+  for (let i = 0; i < 4; i++) {
+    const x = (i - 1.5) * 0.0155, h = 0.05;
+    parts.push(R.tube(r, 0.0062, h, P.copperMetal, { at: [x, h / 2 + 0.003, 0], seg: 5 }, 0.0072)); // 薬きょう（首が少し細い）
+    parts.push(R.tube(r, 0, 0.026, P.ironMetal, { at: [x, h + 0.016, 0], seg: 5 }, 0.0052)); // 弾頭
+  }
+  parts.push(R.block(r, [0.066, 0.006, 0.012], P.robotFrame, { at: [0, 0.003, 0] })); // 並べる板
+  return merge(parts);
+}
+
+export const GUN_SHAPES = { junkPistol, junkAmmo, rifleAmmo };

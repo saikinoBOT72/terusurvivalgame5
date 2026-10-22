@@ -72,5 +72,10 @@ export function createStaticSync(R, pw, world, structures) {
     return removed;
   }
 
-  return { sync, get count() { return live.size; } };
+  // 地形の形が変わったとき（マップ作りの広さ）: 古い地形の当たりを消す。次の sync で作り直す
+  function resetTerrain() {
+    for (const [k, e] of live) if (typeof k === 'string' && k[0] === 't') { pw.removeCollider(e.collider, true); live.delete(k); }
+  }
+
+  return { sync, resetTerrain, get count() { return live.size; } };
 }

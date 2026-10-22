@@ -127,6 +127,17 @@ html, body { background: var(--ui-edge); }
 .build-menu .swatches { display: flex; gap: 4px; flex-wrap: wrap; margin-right: auto; }
 .build-menu .sw { width: 30px; height: 30px; padding: 0; border-radius: 6px; background: linear-gradient(135deg, var(--sw) 60%, var(--glow) 60%); }
 .build-menu .sw.on { outline: 3px solid var(--ui-light); outline-offset: 1px; }
+/* マップの設定の窓（ui.md「マップの設定の窓」） */
+.map-win { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box; zoom: var(--ui-zoom, 1); }
+.map-win .mapwin-body { display: flex; flex-direction: column; gap: 8px; }
+.map-win .mapwin-sec { margin-top: 6px; font-weight: 700; border-bottom: 2px solid var(--ui-edge); }
+.map-win .swatches { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.map-win .sw { width: 26px; height: 26px; padding: 0; border-radius: 6px; background: var(--sw); }
+.map-win .sw.on, .map-win .btn-s.on, .map-win .btn-l.on { outline: 3px solid var(--ui-light); outline-offset: 1px; }
+.map-win input[type=color] { width: 30px; height: 26px; padding: 0; border: 0; background: none; }
+.map-win .skychip { background: linear-gradient(180deg, var(--a), var(--b) 55%, var(--c)); color: var(--ui-text); text-shadow: 0 0 3px var(--ui-light), 0 0 3px var(--ui-light); }
+.map-win .field.off { opacity: .4; }
+.map-win .field.sws { grid-template-columns: 9em 1fr; }
 .build-hud .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
 
 /* ---- 手に持つ列 ---- */

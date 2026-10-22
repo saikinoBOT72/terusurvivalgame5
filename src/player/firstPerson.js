@@ -27,7 +27,7 @@ export function createFirstPerson({ camera, dom, eyeHeight = 1.1 * BODY, onLand 
   // eyeH・headH: 今の目・頭の高さ（しゃがむと低い。敵が見る的になる）。canRun・canFloat: 走れる・浮ける（スタミナ。combat/playerCombat.js が決める）
   const state = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, vy: 0, onGround: true, moving: false, wish: { x: 0, z: 0 }, ride: null, swimming: false, underwater: false, slow: 1, gait: 'walk', sneak: false, crouching: false, eyeH: eyeHeight, headH: HEAD, canRun: true, canFloat: true };
   let crouchK = 0, standUp = false; // しゃがみの深さ 0〜1、Space で立った（C を離すまで立ったまま）
-  const view = { shake: 0, secs: 0.25, amp: 0, kick: 0, freq: 22, roll: 0, t: 0 }; // 画面の揺れ（受けたとき。速さ freq・横の傾き roll）と反動（銃）。weapons.md
+  const view = { shake: 0, secs: 0.25, amp: 0, kick: 0, freq: 22, roll: 0, t: 0, climb: 0, climbYaw: 0, hold: false }; // 画面の揺れ（受けたとき。速さ freq・横の傾き roll）と反動（銃）。weapons.md
   let bodies = () => []; // 敵の体（combat.js の bodies。setBodies でつなぐ）
   let shove = null; // ステップ・押し戻し: { x, z, v 速さ, t 残りの秒 }
   let top = null;
@@ -122,7 +122,7 @@ export function createFirstPerson({ camera, dom, eyeHeight = 1.1 * BODY, onLand 
   function place() {
     const e = view.shake > 0 ? view.shake / view.secs : 0, k = view.amp * e * 0.5, a = view.t * view.freq * Math.PI * 2;
     camera.position.set(state.x + Math.sin(a) * k, state.y + state.eyeH + Math.sin(a * 1.31 + 2) * k, state.z + Math.sin(a * 0.77 + 4) * k);
-    camera.rotation.set(state.pitch + view.kick, state.yaw, view.roll * Math.sin(Math.PI / 2 * Math.min(1, (1 - e) * 4 + 0.1)) * e ** 0.7); // 横の傾き: すぐ傾いてゆっくり戻る
+    camera.rotation.set(state.pitch + view.kick + view.climb, state.yaw + view.climbYaw, view.roll * Math.sin(Math.PI / 2 * Math.min(1, (1 - e) * 4 + 0.1)) * e ** 0.7); // 横の傾き: すぐ傾いてゆっくり戻る
   }
 
   // しゃがみ（player.md）: C を押している間。頭の上が狭ければ、離しても立たない。目と頭の高さは 0.15 秒でなめらかに変える
@@ -140,7 +140,8 @@ export function createFirstPerson({ camera, dom, eyeHeight = 1.1 * BODY, onLand 
   function update(dt) {
     view.shake = Math.max(0, view.shake - dt);
     view.t += dt;
-    view.kick *= Math.exp(-dt * 12); // 反動は 0.2 秒ほどで戻る
+    view.kick *= Math.exp(-dt * 12); // 受けたときのはねは 0.2 秒ほどで戻る
+    if (!view.hold) { const k = Math.exp(-dt * 10); view.climb *= k; view.climbYaw *= k; } // 銃の画面のはね: 離すと 0.3 秒で戻る
     if (!active || !terrain) { arms.update(dt, false); return; }
     const [lx, ly] = takeLook(); // タッチでなぞった視点（input/touch.js）
     state.yaw -= lx;
@@ -247,7 +248,9 @@ export function createFirstPerson({ camera, dom, eyeHeight = 1.1 * BODY, onLand 
     shove(x, z, dist, secs) { const l = Math.hypot(x, z) || 1; shove = { x: x / l, z: z / l, v: dist / secs, t: secs }; },
     setBodies(fn) { bodies = fn; },
     shake(amp, secs = 0.25, kick = 0, { freq = 22, roll = 0 } = {}) { view.amp = view.shake > 0 ? Math.max(view.amp, amp) : amp; view.shake = view.secs = secs; view.kick += kick; view.freq = freq; view.roll = roll; },
-    kick(rad) { view.kick += rad; }, // 反動で視点が上へはねる
+    // 銃の画面のはね（weapons.md「画面のはね」）: 上へ rad、左右へ ±30%。押している間（holdRecoil）は積み上がる（最大 10 倍）
+    kick(rad) { view.climb = Math.min(view.climb + rad, rad * 10); view.climbYaw += rad * (Math.random() < 0.5 ? -0.3 : 0.3); },
+    holdRecoil(on) { view.hold = on; },
     get shoving() { return !!shove; },
     lift(v) { if (state.ride || state.swimming) return; state.vy = Math.max(state.vy, v); state.onGround = false; }, // 上へ浮かせる（吹き飛ばし）
     update,

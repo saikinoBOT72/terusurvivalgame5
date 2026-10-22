@@ -49,8 +49,8 @@ export const canPay = (type, inventory) => Object.entries(COSTS[type]).every(([i
 // onPick(PART_LIST の番号): パーツを選んだ。onPick(-1): 撤去を選んだ。onPick(PAINT): 塗るを選んだ
 // known(bp): その設計図を持っているか（持っていないパーツは出さない）
 // mapMode(): マップ作りの世界か（マップ用のタブ・色見本・書き出し・読み込みを出す。ui.md「マップ作りの建築メニュー」）
-// color(): 今の色、onColor(c): 色見本を押した、onExport() / onImport(file): 書き出す・読み込む
-export function createBuildMenu({ inventory, onPick, known = () => true, mapMode = () => false, color = () => 0, onColor = () => {}, onExport = () => {}, onImport = () => {} }) {
+// color(): 今の色、onColor(c): 色見本を押した、onExport() / onImport(file): 書き出す・読み込む、onSettings(): マップの設定の窓を開く
+export function createBuildMenu({ inventory, onPick, known = () => true, mapMode = () => false, color = () => 0, onColor = () => {}, onExport = () => {}, onImport = () => {}, onSettings = () => {} }) {
   const box = el(`
     <div class="panel win build-menu" hidden>
       ${winHead('建築')}
@@ -64,7 +64,7 @@ export function createBuildMenu({ inventory, onPick, known = () => true, mapMode
         </button>`).join('')}</div>
       <div class="map-row" data-map>
         <div class="swatches">${P.concrete.map((c, i) => `<button type="button" class="sw" data-c="${i}" style="--sw: ${c}; --glow: ${P.glow[i]}"></button>`).join('')}</div>
-        <button type="button" class="btn-s" data-io="export">書き出す</button><button type="button" class="btn-s" data-io="import">読み込む</button>
+        <button type="button" class="btn-s" data-io="settings">マップの設定</button><button type="button" class="btn-s" data-io="export">書き出す</button><button type="button" class="btn-s" data-io="import">読み込む</button>
         <input type="file" accept=".json,application/json" hidden>
       </div>
     </div>`);
@@ -89,7 +89,7 @@ export function createBuildMenu({ inventory, onPick, known = () => true, mapMode
     const sw = e.target.closest('.sw');
     if (sw) { onColor(Number(sw.dataset.c)); render(); return; }
     const io = e.target.closest('[data-io]');
-    if (io) { if (io.dataset.io === 'export') onExport(); else file.click(); return; }
+    if (io) { if (io.dataset.io === 'export') onExport(); else if (io.dataset.io === 'settings') onSettings(); else file.click(); return; }
     const c = e.target.closest('.card');
     if (c) onPick(Number(c.dataset.i));
   });

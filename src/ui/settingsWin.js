@@ -1,10 +1,10 @@
-// 設定の窓（docs/rules/ui.md「設定の窓」）: メニューの板の中に開く。タブ「キーマウ」「タッチ」「画面」、はじめの値に戻す、× か Esc でメニューに戻る
+// 設定の窓（docs/rules/ui.md「設定の窓」）: メニューの板の中に開く。タブ「キーマウ」「タッチ」「画面」「音」、はじめの値に戻す、× か Esc でメニューに戻る
 // キーマウ = マウスの感度＋キーとマウスボタンの割り当て。タッチ = タッチ操作の設定＋ボタンの配置を変える（混ぜない）
 import { winHead, tabsHtml, markTab } from './uiKit.js';
 import { settingsRows, bindSettings, resetTab } from './settings.js';
 import { createKeyBinds } from './keyBinds.js';
 
-const TABS = [['km', 'キーマウ'], ['touch', 'タッチ'], ['screen', '画面']];
+const TABS = [['km', 'キーマウ'], ['touch', 'タッチ'], ['screen', '画面'], ['sound', '音']];
 
 // settings: 設定の値、onChange(値): 変えたとき、onClose(): × を押したとき、onTouchEdit(): 配置を変える
 export function createSettingsWin({ settings, onChange, onClose, onTouchEdit }) {

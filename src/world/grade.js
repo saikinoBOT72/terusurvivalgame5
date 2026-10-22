@@ -29,9 +29,10 @@ export function createGrade(post) {
     lift += (b.lift - lift) * w;
   }
   return {
-    // 爆発・大きな被弾（world.pvp のときだけ呼ぶ）。k: 0〜1 の強さ
+    // 爆発・大きな被弾（PvP のモードのときだけ呼ぶ。modes/）。k: 0〜1 の強さ
     kick(k = 1) { ca = Math.max(ca, Math.min(1, k)); },
-    // hour: 時刻、swamp: 沼の霧の濃さ 0〜1、cave: 洞窟の暗さ 0〜1、ads: のぞき込み 0〜1、look: 世界ごとの上書き（world.grade）
+    // hour: 時刻、swamp: 沼の霧の濃さ 0〜1、cave: 洞窟の暗さ 0〜1、ads: のぞき込み 0〜1
+    // look: 世界ごとの上書き（world.grade。いまはマップ作りだけ）{ tint, sat, con, lift: 色の調整（なければ時刻まかせ）、vig: 周辺減光に足す、exposure、bloom }
     update(dt, { hour = 12, swamp = 0, cave = 0, ads = 0, look = null } = {}) {
       const day = smooth(5, 7, hour) * (1 - smooth(19, 21, hour)); // sky.js と同じ重み
       const dusk = Math.max(0, 1 - Math.min(Math.abs(hour - 6), Math.abs(hour - 20)) / 1.2);
@@ -39,9 +40,10 @@ export function createGrade(post) {
       mixLook(LOOK.day, day);
       mixLook(hour < 12 ? LOOK.morning : LOOK.dusk, dusk * 0.8);
       mixLook(LOOK.swamp, swamp);
-      if (look) mixLook({ tint: srgb(look.tint ?? G.day), sat: look.sat ?? 1, con: look.con ?? 1, lift: look.lift ?? 0 }, 1);
+      if (look && (look.tint || look.sat !== 1 || look.con !== 1 || look.lift)) mixLook({ tint: look.tint ? srgb(look.tint) : tint.clone(), sat: look.sat ?? 1, con: look.con ?? 1, lift: look.lift ?? 0 }, 1);
       U.uTint.value.copy(tint); U.uLift.value.copy(LIFT).multiplyScalar(lift); U.uSat.value = sat; U.uContrast.value = con;
-      U.uVig.value = VIG.base + VIG.ads * ads + VIG.cave * cave;
+      U.uVig.value = VIG.base + VIG.ads * ads + VIG.cave * cave + (look?.vig ?? 0);
+      U.uExposure.value = look?.exposure ?? 1; U.uBloom.value = look?.bloom ?? 0.5; // 初めの値（postfx.js）に戻る
       ca = Math.max(0, ca - dt / CA_SEC);
       U.uCA.value = ca * ca * CA_MAX;
     },

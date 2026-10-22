@@ -3,13 +3,13 @@ import { createStats } from '../survival/stats.js';
 import { createDeathScreen } from '../ui/statusHud.js';
 import { dropBag } from '../survival/death.js';
 
-// world(): 今の世界。setMode・lockPointer は main.js の画面の切り替え
+// world(): 今の世界。pvp(): PvP のモードか（modes/）。setMode・lockPointer は main.js の画面の切り替え
 // gear(): 装備の効き目の合計（equip.stats()）
-export function createLife({ player, inventory, invHud, statusHud, sky, time, structuresOf, world, setMode, lockPointer, gear, grade }) {
+export function createLife({ player, inventory, invHud, statusHud, sky, time, structuresOf, world, pvp, setMode, lockPointer, gear, grade }) {
   let sleeping = false; // 眠って暗転している間は、時間も空腹も止める
   const stats = createStats({
     gear,
-    onDamage: (n) => { statusHud.hurt(); if (world()?.pvp) grade.kick(n / 25); }, // PvP では大きな被弾で色ずれ（style.md「画面の効果」）
+    onDamage: (n) => { statusHud.hurt(); if (pvp()) grade.kick(n / 25); }, // PvP では大きな被弾で色ずれ（style.md「画面の効果」）
     onDeath: () => (world()?.range ? (stats.reset(), invHud.message('HP を戻した（訓練島）')) : fallDown()), // 訓練島では倒れない
   });
   // 倒れる: 手に持つ列のほかを袋で落とし、倒れた画面へ。起きる: 島の最初の場所で（寝床ができたら寝床で）

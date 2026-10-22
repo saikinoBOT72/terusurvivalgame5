@@ -7,6 +7,7 @@ import { stick, pebble } from '../world/pickups.js';
 import { MATERIAL_SHAPES, berry, fish as fishShape } from './materialShapes.js';
 import { METAL_SHAPES } from './metalShapes.js';
 import { GUN_SHAPES } from './gunShapes.js';
+import { CLIP_GUN_SHAPES } from './clipGuns.js';
 import { BAG_SHAPES } from './bagShapes.js';
 import { WEAR_SHAPES } from './wearShapes.js';
 import { CROP_ITEM_SHAPES } from '../world/crops.js';
@@ -86,6 +87,7 @@ const SHAPES = {
   ...MATERIAL_SHAPES,
   ...METAL_SHAPES,
   ...GUN_SHAPES,
+  ...CLIP_GUN_SHAPES,
   ...BAG_SHAPES,
   ...WEAR_SHAPES,
   ...CROP_ITEM_SHAPES,
