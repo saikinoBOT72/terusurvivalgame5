@@ -11,21 +11,36 @@ export const SETTINGS = [
   { key: 'hfov', tab: 'screen', name: '視野角（横）', min: 60, max: 140, step: 1, def: 103, num: true, fmt: () => '度' },
   { key: 'ui', tab: 'screen', name: 'UI の大きさ', min: 0.8, max: 1.5, step: 0.05, def: 1, fmt: (v) => `${v.toFixed(2)} 倍` },
   // 画質（ui.md「画質」）: 選ぶと下の個別の設定がまとめて変わる。個別を変えるとカスタム
-  { key: 'fxq', tab: 'screen', name: '画質', choice: [['low', '低'], ['mid', '中'], ['high', '高'], ['custom', 'カスタム']], def: 'mid' },
-  { key: 'aa', tab: 'screen', name: 'ふちのギザギザ消し', choice: [['none', 'なし'], ['smaa', 'SMAA'], ['msaa2', 'MSAA 2'], ['msaa4', 'MSAA 4']], def: 'smaa' },
-  { key: 'rscale', tab: 'screen', name: '描く細かさの上限', choice: [['1', '1 倍'], ['1.5', '1.5 倍'], ['2', '2 倍']], def: '1.5' },
-  { key: 'autoRes', tab: 'screen', name: '重いとき自動で細かさを下げる', toggle: true, def: true },
-  { key: 'bloom', tab: 'screen', name: 'ブルーム', toggle: true, def: true },
-  { key: 'fogq', tab: 'screen', name: '霧の計算', choice: [['high', '細かい'], ['mid', 'ふつう'], ['low', '軽い']], def: 'mid' },
+  // info: 名前の横の ⓘ を押すと出る説明
+  { key: 'fxq', tab: 'screen', name: 'グラフィック品質', choice: [['low', '低'], ['mid', '中'], ['high', '高'], ['custom', 'カスタム']], def: 'mid',
+    info: '下の項目をまとめて切り替える。1 つでも個別に変えると「カスタム」になる。重いと感じたら「低」から試す。' },
+  { key: 'aa', tab: 'screen', name: 'アンチエイリアス', choice: [['none', 'オフ'], ['smaa', 'SMAA'], ['msaa2', 'MSAA 2x'], ['msaa4', 'MSAA 4x']], def: 'smaa',
+    info: '物のふちのギザギザをなめらかにする。SMAA は描いたあとに輪郭をぼかす方式で軽い（少しぼやける）。MSAA は描く段階で滑らかにする方式でくっきりするが、数字が大きいほど重い。' },
+  { key: 'rscale', tab: 'screen', name: '解像度スケール', min: 0.25, max: 4, step: 0.05, def: 1.5, fmt: (v) => `${v.toFixed(2)} 倍`,
+    info: '画面の画素数の何倍まで細かく描くか（上限）。下げると軽くなるが、絵がぼやける。端末の画素の倍率（高精細ディスプレイなら 2 など）より大きくしても効かない。' },
+  { key: 'autoRes', tab: 'screen', name: '動的解像度', toggle: true, def: true,
+    info: 'オンだと、60fps に間に合わないときだけ、自動で解像度を下げる（上限の 0.6 倍まで）。余裕ができれば戻る。オフなら、いつも上の解像度スケールで描く。' },
+  { key: 'hdr', tab: 'screen', name: 'HDR 描画', toggle: true, def: true,
+    info: '描く途中の画面を、明るさ 1 を超えられる 16bit にする。オフにすると 8bit で描いて、メモリと処理が軽くなる（目安: 1 フレームの 1 割ほど）。オフのとき、ブルームは働かず、光る物の色は少し白っぽくなる。' },
+  { key: 'bloom', tab: 'screen', name: 'ブルーム', toggle: true, def: true,
+    info: '火・ネオン・光る目など、光る物のまわりを光でにじませる。光る物が映っていないときは自動で休む。HDR 描画がオフのときは働かない。' },
+  { key: 'bloomq', tab: 'screen', name: 'ブルームの品質', choice: [['low', '低'], ['high', '高']], def: 'high',
+    info: 'にじみを作るときの縮小・拡大の段数（低 = 3 段、高 = 5 段）。低いと軽いが、にじみが小さく、ふちが少し粗くなる。' },
+  { key: 'grade', tab: 'screen', name: 'カラーグレーディング', toggle: true, def: true,
+    info: '時間帯・場所に合わせた画面の色合いと、周辺減光（四すみを暗く）、ディザ（色の縞を消す）。オフにすると、色が単調になり夜や洞窟の雰囲気が薄れるが、少し軽くなる。' },
+  { key: 'sharpen', tab: 'screen', name: 'シャープネス', toggle: true, def: true,
+    info: '解像度スケールを画面より小さくして描いたとき、拡大でぼやけた輪郭をはっきりさせる。画面と同じ細かさで描いているときは何もしない。' },
+  { key: 'fogq', tab: 'screen', name: '霧の品質', choice: [['high', '高'], ['mid', '中'], ['low', '低']], def: 'mid',
+    info: '霧の計算の細かさ。高 = 画素ごとに計算（低い所の霧・太陽の方向の色・ゆらぎ）、中 = ゆらぎを簡単にした計算、低 = 頂点ごとの計算（大きな面で濃さの境目が少し見えることがある）。霧の濃さはどれも同じ。' },
   { key: 'volume', tab: 'sound', name: '音量', min: 0, max: 1, step: 0.05, def: 0.7, fmt: (v) => `${Math.round(v * 100)}%` }, // 全体（sound.md）
   { key: 'fps', tab: 'screen', name: 'フレームレート表示', toggle: true, def: false },
   ...(import.meta.env.DEV ? [{ key: 'creative', tab: 'screen', name: 'クリエイティブインベントリ（開発用）', toggle: true, def: true }] : []),
 ];
 // 画質ごとの個別の設定（ui.md「画質」の表）
 export const PRESETS = {
-  low: { aa: 'none', rscale: '1', autoRes: true, bloom: false, fogq: 'low' },
-  mid: { aa: 'smaa', rscale: '1.5', autoRes: true, bloom: true, fogq: 'mid' },
-  high: { aa: 'msaa4', rscale: '2', autoRes: false, bloom: true, fogq: 'high' },
+  low: { aa: 'none', rscale: 1, autoRes: true, hdr: false, bloom: false, bloomq: 'low', grade: true, sharpen: true, fogq: 'low' },
+  mid: { aa: 'smaa', rscale: 1.5, autoRes: true, hdr: true, bloom: true, bloomq: 'high', grade: true, sharpen: true, fogq: 'mid' },
+  high: { aa: 'msaa4', rscale: 2, autoRes: false, hdr: true, bloom: true, bloomq: 'high', grade: true, sharpen: true, fogq: 'high' },
 };
 // 画質を選んだら個別の値を入れる。個別を変えたら、合う画質（なければカスタム）にする。ほかの欄が変わったら true
 function syncPreset(v, key) {
@@ -42,6 +57,7 @@ export const vfovOf = (hfov) => 2 * Math.atan(Math.tan(hfov * Math.PI / 360) * 9
 export function loadSettings() {
   const v = Object.fromEntries(SETTINGS.map((s) => [s.key, s.def]));
   try { Object.assign(v, JSON.parse(localStorage.getItem(KEY)) ?? {}); } catch { /* 使えなければはじめの値 */ }
+  v.rscale = Number(v.rscale) || 1.5; // 前の版では文字で保存していた
   if (PRESETS[v.fxq]) Object.assign(v, PRESETS[v.fxq]); // 画質と個別の値をそろえる
   return v;
 }
@@ -55,11 +71,15 @@ export function resetTab(v, tab) {
 }
 // タブの中身
 export function settingsRows(v, tab) {
-  return SETTINGS.filter((s) => s.tab === tab).map((s) => s.choice
-    ? `<div class="field row2"><span>${s.name}</span><div class="tabs choice">${s.choice.map(([c, n]) => `<button type="button" class="tab${v[s.key] === c ? ' on' : ''}" data-key="${s.key}" data-val="${c}">${n}</button>`).join('')}</div></div>`
-    : s.toggle
-    ? `<div class="field row2"><span>${s.name}</span>${toggleHtml(s.key, v[s.key])}</div>`
-    : `<label class="field"><span>${s.name}</span><input type="${s.num ? 'number' : 'range'}" data-key="${s.key}" min="${s.min}" max="${s.max}" step="${s.step}" value="${v[s.key]}"><b>${s.fmt(v[s.key])}</b></label>`).join('');
+  return SETTINGS.filter((s) => s.tab === tab).map((s) => {
+    const name = `<span>${s.name}${s.info ? `<button type="button" class="info" data-info="${s.key}" aria-label="${s.name}の説明">ⓘ</button>` : ''}</span>`;
+    const row = s.choice
+      ? `<div class="field row2">${name}<div class="tabs choice">${s.choice.map(([c, n]) => `<button type="button" class="tab${v[s.key] === c ? ' on' : ''}" data-key="${s.key}" data-val="${c}">${n}</button>`).join('')}</div></div>`
+      : s.toggle
+      ? `<div class="field row2">${name}${toggleHtml(s.key, v[s.key])}</div>`
+      : `<label class="field">${name}<input type="${s.num ? 'number' : 'range'}" data-key="${s.key}" min="${s.min}" max="${s.max}" step="${s.step}" value="${v[s.key]}"><b>${s.fmt(v[s.key])}</b></label>`;
+    return s.info ? `${row}<div class="infoText" data-for="${s.key}" hidden>${s.info}</div>` : row;
+  }).join('');
 }
 // onChange(値): 変えるたびに呼ぶ。refresh(): 画質でほかの欄が変わったとき、窓を描き直す
 export function bindSettings(box, v, onChange, refresh) {
@@ -70,10 +90,17 @@ export function bindSettings(box, v, onChange, refresh) {
     if (e.target.value === '' || !(n >= s.min && n <= s.max)) return; // 入力の途中・範囲の外は、そのままにして反映しない
     v[k] = n;
     e.target.nextElementSibling.textContent = s.fmt(v[k]);
+    const fxq = v.fxq;
+    syncPreset(v, k);
     saveSettings(v);
     onChange(v);
+    if (v.fxq !== fxq) { // 画質の表示だけ直す（入力中の欄は描き直さない）
+      box.querySelectorAll('button[data-key="fxq"]').forEach((x) => x.classList.toggle('on', x.dataset.val === v.fxq));
+    }
   });
   box.addEventListener('click', (e) => {
+    const i = e.target.closest('button.info');
+    if (i) { e.preventDefault(); const t = box.querySelector(`.infoText[data-for="${i.dataset.info}"]`); if (t) t.hidden = !t.hidden; return; } // ⓘ: 説明を開け閉めする
     const c = e.target.closest('button[data-val]');
     if (c) {
       v[c.dataset.key] = c.dataset.val;

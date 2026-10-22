@@ -220,6 +220,10 @@
 | `docs/ideas.md` | 追加する物の候補（決定前の置き場） |
 | `.claude/skills/island-map/` | 島の図のウィジェット（`/island-map`）: 島からデータを取り出す extract.js、ウィジェットの型 widget.html（固定湧きの敵・自然湧きの範囲）、手順 SKILL.md |
 | `scripts/gunClips.mjs` | gun-export の glb の動きを JS のデータに変換（向きを変える・間引く） |
+| `scripts/genArena.mjs` | PvP マップ「アリーナ」を作る（`node scripts/genArena.mjs` → `maps/arena-01.json`）。1/4 を書いて 90 度ずつ回す |
+| `maps/arena-01.json` | PvP マップ 1 つ目（広さ 60・373 パーツ）。マップ作りの「読み込む」で開く。手で直さずスクリプトを直す |
+| `scripts/genArena2.mjs` | PvP マップ「アリーナ 2」（夜の立体駐車場）を作る（→ `maps/arena-02.json`）。3 層・吹き抜け・白い蛍光灯 |
+| `maps/arena-02.json` | PvP マップ 2 つ目（広さ 60・1186 パーツ・夜）。読み込みは arena-01 と同じ |
 | `PLAN.md` | 計画と今後の予定（短く保つ） |
 | `docs/progress.md` | 完了した作業の記録（進捗の表） |
 | `docs/plan-archive.md` | 完了した計画の細かいステップ |

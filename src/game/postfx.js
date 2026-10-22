@@ -3,8 +3,7 @@
 // → まとめのシェーダー（丸め、グレーディング、周辺減光、色ずれ、ディザ）→ SMAA → 拡大とシャープ処理で画面に出す。使わない段は飛ばす
 import * as THREE from 'three';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
-import { glowSeen } from '../style/lowpoly.js';
-import { VERT, DOWN, PRE, UP, FINAL, UPSCALE } from './postfxShaders.js';
+import { glowSeen } from '../style/lowpoly.js';import { VERT, DOWN, PRE, UP, FINAL, UPSCALE } from './postfxShaders.js';
 
 const MIPS = 5; // ブルームの段数（1 段ごとに半分の大きさ）
 const MSAA = { none: 0, smaa: 0, msaa2: 2, msaa4: 4 };
@@ -14,15 +13,15 @@ const AUTO = { slow: 1 / 60 * 1.08, fast: 1 / 60 * 1.03, step: 0.05, min: 0.6, h
 
 export function createPostFx(renderer) {
   const canHdr = renderer.capabilities.isWebGL2 && !!(renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'));
-  const type = canHdr ? THREE.HalfFloatType : THREE.UnsignedByteType;
+  let type = canHdr ? THREE.HalfFloatType : THREE.UnsignedByteType; // hdr を切ると 8bit（明るさ 1 を超えられない。しきい値のブルームは使えないので切る）
   const target = (w, h, opt = {}) => new THREE.WebGLRenderTarget(w, h, { type, depthBuffer: false, ...opt });
   // 設定（main.js が settings から入れる）。rscale: 画面の画素の何倍まで描くか
-  const opt = { aa: 'smaa', rscale: 1.5, autoRes: true, bloom: true };
+  const opt = { aa: 'smaa', rscale: 1.5, autoRes: true, bloom: true, bloomq: 'high', grade: true, sharpen: true, hdr: true };
   let w = 1, h = 1, cw = 1, ch = 1, auto = 1; // w, h: 描く大きさ、cw, ch: 画面（canvas）の大きさ、auto: 自動で下げた割合
   // 世界を描く画面。奥行きは後で使わないので、MSAA を戻すときに奥行きは写さない（軽くする）
   const sceneTarget = () => { const t = target(w, h, { depthBuffer: true, samples: MSAA[opt.aa] }); t.resolveDepthBuffer = false; return t; };
   let hdr = sceneTarget();
-  const mips = Array.from({ length: MIPS }, () => target(1, 1));
+  let mips = Array.from({ length: MIPS }, () => target(1, 1));
   const ldr = [0, 1].map(() => new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false })); // まとめ・SMAA の出口（sRGB の値のまま 8bit）
   const smaa = new SMAAPass(1, 1);
   smaa.clear = true; // 輪郭の画面を毎回消す（renderer.autoClear は切ってある）
@@ -43,7 +42,7 @@ export function createPostFx(renderer) {
   const U = {
     tScene: { value: null }, tBloom: { value: black }, uBloom: { value: 0.5 }, uTime: { value: 0 }, uAspect: { value: 1 },
     uExposure: { value: 1 }, uContrast: { value: 1 }, uSat: { value: 1 }, uTint: { value: new THREE.Color(1, 1, 1) }, uLift: { value: new THREE.Color(0, 0, 0) },
-    uVig: { value: 0.15 }, uCA: { value: 0 },
+    uVig: { value: 0.15 }, uCA: { value: 0 }, uGrade: { value: 1 },
   };
   const final = mat(FINAL, U);
 
@@ -66,7 +65,8 @@ export function createPostFx(renderer) {
     ldr.forEach((t) => t.setSize(w, h));
     smaa.setSize(w, h);
     U.uAspect.value = w / h;
-    upscale.uniforms.uSharp.value = Math.min(1, (1 - w / cw) * 2.5); // 粗いほど強く
+    upscale.uniforms.uSharp.value = opt.sharpen ? Math.min(1, (1 - w / cw) * 2.5) : -1; // 粗いほど強く。-1 = かけない
+    U.uGrade.value = opt.grade ? 1 : 0;
   }
   // 自動で細かさを下げる（end で毎フレーム）
   let lastT = 0, avg = 1 / 60, holdT = 0, goodT = 0, hold = AUTO.hold, sinceUp = 99;
@@ -93,10 +93,11 @@ export function createPostFx(renderer) {
     get scale() { return +(w / cw).toFixed(2); }, // 今の描く細かさ（画面の画素の何倍か）
     // 設定を入れる: { aa, rscale, autoRes, bloom }
     setOptions(o) {
-      const aa = opt.aa;
-      Object.assign(opt, o, { rscale: Number(o.rscale ?? opt.rscale) });
-      if (!opt.autoRes) auto = 1;
-      if (MSAA[aa] !== MSAA[opt.aa]) { hdr.dispose(); hdr = sceneTarget(); }
+      const aa = opt.aa, wasHdr = opt.hdr;
+      Object.assign(opt, o, { rscale: Number(o.rscale ?? opt.rscale) });      if (!opt.autoRes) auto = 1;
+      const hdrChanged = wasHdr !== opt.hdr && canHdr;
+      if (hdrChanged) { type = opt.hdr ? THREE.HalfFloatType : THREE.UnsignedByteType; mips.forEach((t) => t.dispose()); mips = Array.from({ length: MIPS }, () => target(1, 1)); }
+      if (hdrChanged || MSAA[aa] !== MSAA[opt.aa]) { hdr.dispose(); hdr = sceneTarget(); }
       w = 0; // 次の resize で作り直す
     },
     get options() { return { ...opt, auto }; },
@@ -109,11 +110,12 @@ export function createPostFx(renderer) {
     },
     // 世界を描き終えたら呼ぶ: ブルーム → まとめ → SMAA → 拡大で画面に出す
     end(t) {
-      const bloomOn = opt.bloom && canHdr && glowSeen.v && U.uBloom.value > 0; // 光る物が映っていないフレームは飛ばす
+      const bloomOn = opt.bloom && canHdr && opt.hdr && glowSeen.v && U.uBloom.value > 0; // 光る物が映っていないフレームは飛ばす
       if (bloomOn) {
+        const steps = opt.bloomq === 'low' ? 3 : MIPS; // 段数
         pass(pre, hdr, mips[0]);
-        for (let i = 1; i < MIPS; i++) pass(down, mips[i - 1], mips[i]);
-        for (let i = MIPS - 1; i > 0; i--) pass(up, mips[i], mips[i - 1]);
+        for (let i = 1; i < steps; i++) pass(down, mips[i - 1], mips[i]);
+        for (let i = steps - 1; i > 0; i--) pass(up, mips[i], mips[i - 1]);
       }
       U.tScene.value = hdr.texture;
       U.tBloom.value = bloomOn ? mips[0].texture : black;

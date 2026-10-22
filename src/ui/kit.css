@@ -64,3 +64,5 @@ button.keycap.wait { background: var(--ui-hunger); }
 .field b { text-align: right; font-size: var(--fs-sub); }
 .field input[type=number] { width: 100%; box-sizing: border-box; font: inherit; }
 .field.row2 { grid-template-columns: 1fr auto; }
+.field .info { margin-left: 4px; padding: 0 3px; border: 0; background: none; color: var(--ui-textSub); font: inherit; cursor: pointer; }
+.infoText { font-size: var(--fs-sub); color: var(--ui-textSub); line-height: 1.5; margin: -2px 0 2px; }

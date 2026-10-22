@@ -139,7 +139,7 @@ function applySettings(v) {
   document.documentElement.style.setProperty('--ui-zoom', v.ui);
   fpsMeter.setOn(v.fps);
   sound.setVolume(v.volume); // 音量（audio/sound.js）
-  view.fx.setOptions({ aa: v.aa, rscale: v.rscale, autoRes: v.autoRes, bloom: v.bloom }); // 画質の個別の設定（game/postfx.js。ui.md「画質」）
+  view.fx.setOptions({ aa: v.aa, rscale: v.rscale, autoRes: v.autoRes, hdr: v.hdr, bloom: v.bloom, bloomq: v.bloomq, grade: v.grade, sharpen: v.sharpen }); // 画質の個別の設定（game/postfx.js。ui.md「画質」）
   setFogQuality(v.fogq, [scene]); // 霧の計算の細かさ（world/fog.js）
   creativeInv?.setOn(v.creative);
   setTouchMode(v.touch, v.tsens);

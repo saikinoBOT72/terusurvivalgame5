@@ -20,7 +20,7 @@ export const UP = `uniform sampler2D tSrc; uniform vec2 uTexel; varying vec2 vUv
     + (tap(vec2(-1.0, -1.0)) + tap(vec2(1.0, -1.0)) + tap(vec2(-1.0, 1.0)) + tap(vec2(1.0, 1.0))) * 2.0;
     gl_FragColor = vec4(c / 12.0, 1.0); }`;
 // まとめ
-export const FINAL = `uniform sampler2D tScene, tBloom; uniform float uBloom, uExposure, uContrast, uSat, uVig, uCA, uAspect, uTime;
+export const FINAL = `uniform sampler2D tScene, tBloom; uniform float uBloom, uExposure, uContrast, uSat, uVig, uCA, uAspect, uTime, uGrade;
   uniform vec3 uTint, uLift; varying vec2 vUv;
   // 1 より下はそのまま。日なたの砂など少し超えた所は今までどおり色ごとに切る（昼の見た目を変えない）。
   // 光る物（1.3 より明るい）は一番強い色で全体を縮めるので、ネオンの色合いが白に飛ばない
@@ -32,6 +32,7 @@ export const FINAL = `uniform sampler2D tScene, tBloom; uniform float uBloom, uE
     if (uCA > 0.0) { vec2 o = d * uCA; c.r = texture2D(tScene, vUv + o).r; c.b = texture2D(tScene, vUv - o).b; } // 色ずれ（端ほど大きい）
     c += texture2D(tBloom, vUv).rgb * uBloom;
     c = toSRGB(shoulder(c * uExposure));
+    if (uGrade < 0.5) { gl_FragColor = vec4(c, 1.0); return; } // カラーグレーディング オフ: 丸めだけ
     float l = dot(c, vec3(0.299, 0.587, 0.114));
     c = mix(vec3(l), c, uSat);
     c = (c - 0.5) * uContrast + 0.5;
@@ -47,6 +48,7 @@ export const FINAL = `uniform sampler2D tScene, tBloom; uniform float uBloom, uE
 export const UPSCALE = `uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uSharp; varying vec2 vUv;
   vec3 tap(vec2 o) { return texture2D(tSrc, vUv + o * uTexel).rgb; }
   void main() {
+    if (uSharp < 0.0) { gl_FragColor = vec4(tap(vec2(0.0)), 1.0); return; } // シャープネス オフ
     vec3 c = tap(vec2(0.0)), n = tap(vec2(0.0, 1.0)), s = tap(vec2(0.0, -1.0)), e = tap(vec2(1.0, 0.0)), w = tap(vec2(-1.0, 0.0));
     vec3 mn = min(c, min(min(n, s), min(e, w))), mx = max(c, max(max(n, s), max(e, w)));
     vec3 amp = sqrt(clamp(min(mn, 2.0 - mx) / max(mx, 1e-4), 0.0, 1.0));
