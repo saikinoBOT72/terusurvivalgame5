@@ -3,7 +3,7 @@
 // 当たる物: 敵（combat.rayMob）、スリングの的（巣の卵・ヤシの実）、地形・水、木・岩・建築パーツ（blockers）
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
-import { makeMesh } from '../style/lowpoly.js';
+import { makeMesh, glowMat } from '../style/lowpoly.js';
 import { ITEMS } from '../survival/items.js';
 import { itemGeometry } from '../survival/itemShapes.js';
 import { hitCylinder } from '../world/resources.js';
@@ -30,7 +30,7 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
   const o = new THREE.Vector3(), d = new THREE.Vector3(), up = new THREE.Vector3(), right = new THREE.Vector3(), q = new THREE.Vector3();
   const tracer = createTracerFx(scene);
   const mz = new THREE.Vector3();
-  const muzzle = new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), new THREE.MeshBasicMaterial({ color: P.fx.muzzle[1] }));
+  const muzzle = new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), glowMat({ color: P.fx.muzzle[1] }));
   muzzle.visible = false;
   scene.add(muzzle);
   let muzzleT = 0;
@@ -166,6 +166,7 @@ export function createRanged({ scene, camera, inventory, combat, player, hud, bl
       player.arms.setPose('aim', on ? 1 : 0);
     },
     get aiming() { return aiming; },
+    get aimK() { return aimK; }, // のぞき込みの進み 0〜1（周辺減光。world/grade.js）
     // 照準の下の線（攻撃間隔）: 込め直しの進み、なければ連射の間の満ち具合。満ちていれば null
     cdFrac(id) {
       const R = rangedOf(id);

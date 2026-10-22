@@ -4,6 +4,7 @@ import { PARTS, localShapes, WALL_H } from './parts.js';
 import { G, SQRT2, snap, angleOf, rotOfDir, edgesOf, makeShape } from './grid.js';
 import { keyName } from '../input/keymap.js';
 import { machineTarget } from '../automation/place.js';
+import { faceTarget } from './faceSnap.js';
 
 // 1m 四方の足元の地面の、一番高い所
 export function groundMax(world, x, z) {
@@ -43,8 +44,26 @@ function floorTarget(type, h, { world, st, rot, level }) {
   return { type, pos, rot: r, ok: above && st.canPlace(type, pos, r), why: above ? null : `地面に埋まる（${keyName('buildUp')} で高く）` };
 }
 
-function wallTarget(type, h, { st, rot }) {
+// マップ作りの平らな地面は土台と同じ: 照準のマスに見えない土台があるとする（壁・柱が辺や角に吸い付く）
+function groundFloor(world, p) {
+  if (!world.mapMaker) return null;
+  const x = snap(p.x), z = snap(p.z), y = world.terrain.heightAt(x, z);
+  const flat = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]].every(([a, b]) => Math.abs(world.terrain.heightAt(x + a * 0.98, z + b * 0.98) - y) < 0.001);
+  if (!flat || Math.abs(p.y - y) > 0.05) return null;
+  const pos = { x, y, z };
+  return { type: 'foundation', pos, rot: 0, shapes: [makeShape(localShapes(PARTS.foundation)[0], pos, 0)] };
+}
+
+function wallTarget(type, h, { world, st, rot }) {
   if (type === 'wall' && rot % 2) type = 'diagWall'; // 壁を R で 45 度回すと斜めの壁
+  const pd = h.part && PARTS[h.part.type];
+  if (pd?.edge) { // 壁の上に壁: 同じ向きで上端に積む（辺の長さが同じ物だけ）
+    if (type === 'wall' || type === 'diagWall') type = pd.edge === SQRT2 ? 'diagWall' : 'wall';
+    if (PARTS[type].edge !== pd.edge) return null;
+    const pos = { ...h.part.pos, y: Math.max(...h.part.shapes.map((S) => S.y1)) };
+    return { type, pos, rot: h.part.rot, ok: st.canPlace(type, pos, h.part.rot) };
+  }
+  if (!h.part) h = { ...h, part: groundFloor(world, h.point) };
   const def = PARTS[type];
   if (!h.part || !PARTS[h.part.type].floor) return null;
   const e = nearestEdge(h.part, h.point, isLen(def.edge === SQRT2 ? SQRT2 : 1));
@@ -58,7 +77,8 @@ function wallTarget(type, h, { st, rot }) {
   return { type, pos, rot: r, ok: st.canPlace(type, pos, r) };
 }
 
-function cornerTarget(type, h, { st }) {
+function cornerTarget(type, h, { world, st }) {
+  if (!h.part) h = { ...h, part: groundFloor(world, h.point) };
   if (!h.part || !PARTS[h.part.type].floor) return null;
   let best = null, bd = Infinity;
   for (const [x, z] of h.part.shapes[0].pts) {
@@ -110,7 +130,7 @@ function roofTarget(type, h, { st, rot, eye }) {
     c = [p.pos.x + n[0] * side * 0.5, p.pos.z + n[1] * side * 0.5];
     y = p.pos.y + WALL_H;
     r = (rotOfAsc(n[0] * side, n[1] * side) + even(rot)) % 8;
-  } else if (p.type === 'pillar') { // 柱の上: 角をはさむ4マスのうち自分のいる側
+  } else if (pd.corner) { // 柱の上: 角をはさむ4マスのうち自分のいる側
     const sx = Math.sign(eye.x - p.pos.x) || 1, sz = Math.sign(eye.z - p.pos.z) || 1;
     c = [p.pos.x + sx * 0.5, p.pos.z + sz * 0.5];
     y = p.pos.y + WALL_H;
@@ -138,7 +158,7 @@ function upperTarget(type, h, { st, eye }) {
     const a = angleOf(p.rot), n = [Math.sin(a), Math.cos(a)], side = (eye.x - p.pos.x) * n[0] + (eye.z - p.pos.z) * n[1] > 0 ? 1 : -1;
     c = [p.pos.x + n[0] * side * 0.5, p.pos.z + n[1] * side * 0.5];
     y += WALL_H;
-  } else if (p.type === 'pillar') {
+  } else if (pd.corner) {
     c = [p.pos.x + (Math.sign(eye.x - p.pos.x) || 1) * 0.5, p.pos.z + (Math.sign(eye.z - p.pos.z) || 1) * 0.5];
     y += WALL_H;
   } else if (pd.floor) {
@@ -176,6 +196,7 @@ export function findTarget(type, h, ctx) {
   const def = PARTS[type], T = ctx.world.terrain;
   // 洞窟の中（頭の上に地形がある所）には建てられない（terrain.md「洞窟」）
   if (ctx.world.inCave?.(h.point.x, h.point.z) && T.underRock(h.point.x, h.point.y + 0.2, h.point.z)) return { type, pos: { ...h.point }, rot: ctx.rot, ok: false, why: '洞窟の中には建てられない' };
+  if (def.face) return faceTarget(type, h, ctx); // マップ作りのブロック・光る物（faceSnap.js）
   if (def.machine) return machineTarget(type, h, ctx); // 機械・ベルト（automation/place.js）
   if (def.furniture) { const t = furnitureTarget(type, h, ctx); if (t) return t; }
   if (def.upper) return upperTarget(type, h, ctx) ?? { type, pos: { ...h.point }, rot: ctx.rot, ok: false, why: '壁・柱の上か床の辺に置く' };

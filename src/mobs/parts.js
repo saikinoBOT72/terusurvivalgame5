@@ -3,7 +3,10 @@
 // 見た目は docs/refs/enemies/ の参考画像をできるだけ真似る。
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
-import { shape, merge, makeMesh } from '../style/lowpoly.js';
+import { shape, merge, makeMesh, GLOW, markGlow } from '../style/lowpoly.js';
+
+// 光る部品の材質に印をつける: ブルームのしきい値に届くくらい光っている間だけ数える（lowpoly.js glowSeen）
+const markEmissive = (mat) => markGlow(mat, () => mat.emissiveIntensity * Math.max(mat.emissive.r, mat.emissive.g, mat.emissive.b) > 1.2);
 
 // 面の向きで色を変える: 上向きは明るく、横は中、下は暗い
 const byFace = (pal) => (f) => (f.ny > 0.6 ? pal[2] : f.ny < -0.6 ? pal[0] : pal[1]);
@@ -102,7 +105,8 @@ export const robot = {
 // 敵の共通の目（enemies.md）: 怒った角度の棒 ×2（＼ ／）。dead 1 で × になる。blink 1 で速く点滅（ため）
 // at: 両目の真ん中、gap: 目と目の間、len: 棒の長さ。前は +z
 export function angryEyes(rand, { at = [0, 0, 0], gap = 0.1, len = 0.07 } = {}) {
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: new THREE.Color(P.robotEye[1]), emissiveIntensity: 0 });
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: new THREE.Color(P.robotEye[1]).multiplyScalar(GLOW), emissiveIntensity: 0 });
+  markEmissive(mat);
   const group = new THREE.Group();
   group.position.set(...at);
   const ANGRY = 0.4, X = Math.PI / 4;
@@ -160,7 +164,8 @@ export function eyeHalo({ at = [0, 0, 0], size = 0.35 } = {}) {
 
 // 光る部品（冷却口など）: 自分の材質を持つ。mat.emissiveIntensity で明るさを変える
 export function glowing(geos, pal) {
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: new THREE.Color(pal[1]), emissiveIntensity: 0.5 });
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: new THREE.Color(pal[1]).multiplyScalar(GLOW), emissiveIntensity: 0.5 });
+  markEmissive(mat);
   const g = merge(geos);
   g.computeVertexNormals();
   return { mesh: new THREE.Mesh(g, mat), mat };

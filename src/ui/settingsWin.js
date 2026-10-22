@@ -23,7 +23,7 @@ export function createSettingsWin({ settings, onChange, onClose, onTouchEdit }) 
     if (tab === 'km') { body.appendChild(keyBinds.el); keyBinds.refresh(); }
     if (tab === 'touch') body.insertAdjacentHTML('beforeend', '<button type="button" class="btn-s touchEdit">ボタンの配置を変える</button><span class="sub">配置・大きさ・不透明度は、配置の画面の「はじめに戻す」で戻す</span>');
   }
-  bindSettings(body, settings, onChange);
+  bindSettings(body, settings, onChange, () => render());
   box.addEventListener('click', (e) => {
     const t = e.target.closest('.tab[data-tab]');
     if (t) { tab = t.dataset.tab; render(); return; }

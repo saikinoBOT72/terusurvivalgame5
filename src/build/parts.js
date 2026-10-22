@@ -11,6 +11,8 @@ import { brickFloorGeo, brickWallGeo } from './brickParts.js';
 import { raftFloorGeo, raftCoreGeo, sailGeo, sailFrameGeo, sailClothGeo, SAIL_TOP, helmGeo } from './raftParts.js';
 import { boat as boatGeo } from '../world/props.js';
 import { automationParts, AUTO_COSTS } from '../automation/partDefs.js';
+import { concreteParts } from './concreteParts.js';
+import { blockParts } from './blockParts.js';
 
 const box = (w, h, d, x, y, z) => {
   const g = new THREE.BoxGeometry(w, h, d);
@@ -32,9 +34,10 @@ const TRI = [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5]]; // 直角は (-0.5, -0.5)�
 const FLOOR_Y = [-0.25, 0];
 const WALL_T = 0.075; // 壁の厚さの半分
 export const WALL_H = 2; // 壁・柱・ドア・窓の高さ。急な階段 2 つ（ゆるい階段 4 つ）でちょうど上の階（2026-10-15）
-const FLOORS = ['foundation', 'triangle', 'stoneFoundation', 'brickFoundation', 'raft', 'raftCore', 'upperFloor'];
+const FLOORS = ['foundation', 'triangle', 'stoneFoundation', 'brickFoundation', 'raft', 'raftCore', 'upperFloor', 'cFoundation', 'cFloor'];
 const RAFT_FLOORS = ['raft', 'raftCore'];
-const WALLS = ['wall', 'diagWall', 'halfWall', 'stoneWall', 'brickWall'];
+const WALLS = ['wall', 'diagWall', 'halfWall', 'stoneWall', 'brickWall', 'cWall', 'cLowWall', 'cRailing'];
+const WALL_ON = [...FLOORS, ...WALLS, 'door', 'window']; // 壁は土台の仲間か、下の壁の上に立つ（積んだ壁）
 
 // 床: 下に暗い台、上に幅 0.25m の板（間をわずかにあける）。strip(x0, x1) は板1枚の形
 function floorGeo(r, base, strip) {
@@ -101,22 +104,22 @@ export const PARTS = {
     build: (r) => floorGeo(r, TRI, (x0, x1) => [[x0, -0.5], [x1, -0.5], [x1, -x1], [x0, -x0]]),
   },
   upperFloor: {
-    name: '床', rotStep: 2, floor: true, upper: true, touch: true, restsOn: [...WALLS, 'pillar', 'door', 'window', ...FLOORS], ignores: ['pillar'],
+    name: '床', rotStep: 2, floor: true, upper: true, touch: true, restsOn: [...WALLS, 'pillar', 'cPillar', 'door', 'window', ...FLOORS], ignores: ['pillar', 'cPillar'],
     shape: { poly: SQ, y: FLOOR_Y },
     build: (r) => floorGeo(r, SQ, (x0, x1) => rect(x0, x1, -0.5, 0.5)),
   },
   wall: {
-    name: '壁', rotStep: 1, edge: 1, restsOn: FLOORS,
+    name: '壁', rotStep: 1, edge: 1, restsOn: WALL_ON,
     shape: { poly: rect(-0.5, 0.5, -WALL_T, WALL_T), y: [0, WALL_H] },
     build: (r) => wallGeo(r, -0.5, 0.5),
   },
   diagWall: {
-    name: '斜めの壁', hidden: true, rotStep: 1, edge: SQRT2, restsOn: ['triangle'], // 選ばない。壁を 45 度回すとこれになる
+    name: '斜めの壁', hidden: true, rotStep: 1, edge: SQRT2, restsOn: ['triangle', 'diagWall'], // 選ばない。壁を 45 度回すとこれになる
     shape: { poly: rect(-SQRT2 / 2, SQRT2 / 2, -WALL_T, WALL_T), y: [0, WALL_H] },
     build: (r) => wallGeo(r, -SQRT2 / 2, SQRT2 / 2),
   },
   halfWall: {
-    name: '半分の壁', rotStep: 1, edge: 'half', restsOn: FLOORS,
+    name: '半分の壁', rotStep: 1, edge: 'half', restsOn: WALL_ON,
     shape: { poly: rect(0, 0.5, -WALL_T, WALL_T), y: [0, WALL_H] },
     build: (r) => wallGeo(r, 0, 0.5),
   },
@@ -162,7 +165,7 @@ function windowGeo(r) {
 }
 const wallBand = (x0, x1, y0, y1, extra = {}) => ({ poly: rect(x0, x1, -WALL_T, WALL_T), y: [y0, y1], ...extra });
 
-const ROOF_ON = ['wall', 'stoneWall', 'brickWall', 'door', 'window', 'pillar', 'roof', 'steepRoof'];
+const ROOF_ON = ['wall', 'stoneWall', 'brickWall', 'door', 'window', 'pillar', 'roof', 'steepRoof', 'cWall', 'cPillar'];
 Object.assign(PARTS, {
   stairs: {
     name: 'ゆるい階段', rotStep: 2, grounded: true, stairs: true, rise: 0.5, foot: SQ,
@@ -183,14 +186,14 @@ Object.assign(PARTS, {
 });
 Object.assign(PARTS, {
   door: {
-    name: 'ドア', rotStep: 1, edge: 1, restsOn: FLOORS,
+    name: 'ドア', rotStep: 1, edge: 1, restsOn: WALL_ON,
     // 最後の形が扉（開いているときは当たり判定なし）
     shapes: [wallBand(-0.5, -0.4, 0, WALL_H), wallBand(0.4, 0.5, 0, WALL_H), wallBand(-0.4, 0.4, DOOR_H, WALL_H), wallBand(-0.4, 0.4, 0, DOOR_H, { panel: true })],
     build: (r) => merge([doorFrameGeo(r), (() => { const g = doorPanelGeo(r); g.translate(-0.4, 0, 0); return g; })()]),
     frame: doorFrameGeo, panel: doorPanelGeo, hinge: -0.4,
   },
   window: {
-    name: '窓', rotStep: 1, edge: 1, restsOn: FLOORS,
+    name: '窓', rotStep: 1, edge: 1, restsOn: WALL_ON,
     shapes: [wallBand(-0.5, 0.5, 0, WIN[0]), wallBand(-0.5, 0.5, WIN[1], WALL_H), wallBand(-0.5, -0.3, ...WIN), wallBand(0.3, 0.5, ...WIN)],
     build: windowGeo,
   },
@@ -198,9 +201,9 @@ Object.assign(PARTS, {
 // 石のパーツと家具（ステップ6）
 Object.assign(PARTS, {
   stoneFoundation: { name: '石の土台', rotStep: 2, floor: true, grounded: true, shape: { poly: SQ, y: FLOOR_Y }, build: stoneFloorGeo },
-  stoneWall: { name: '石の壁', rotStep: 1, edge: 1, restsOn: FLOORS, shape: { poly: rect(-0.5, 0.5, -WALL_T, WALL_T), y: [0, WALL_H] }, build: stoneWallGeo },
+  stoneWall: { name: '石の壁', rotStep: 1, edge: 1, restsOn: WALL_ON, shape: { poly: rect(-0.5, 0.5, -WALL_T, WALL_T), y: [0, WALL_H] }, build: stoneWallGeo },
   brickFoundation: { name: 'レンガの土台', rotStep: 2, floor: true, grounded: true, shape: { poly: SQ, y: FLOOR_Y }, build: brickFloorGeo },
-  brickWall: { name: 'レンガの壁', rotStep: 1, edge: 1, restsOn: FLOORS, shape: { poly: rect(-0.5, 0.5, -WALL_T, WALL_T), y: [0, WALL_H] }, build: brickWallGeo },
+  brickWall: { name: 'レンガの壁', rotStep: 1, edge: 1, restsOn: WALL_ON, shape: { poly: rect(-0.5, 0.5, -WALL_T, WALL_T), y: [0, WALL_H] }, build: brickWallGeo },
   raftCore: {
     name: 'いかだのコア', rotStep: 2, floor: true, raft: true, core: true,
     shape: { poly: SQ, y: FLOOR_Y }, build: raftCoreGeo,
@@ -219,6 +222,9 @@ Object.assign(PARTS, {
   boat: { name: '小舟', boat: true, rotStep: 2, shape: { poly: [[-1.75, -0.7], [0.9, -0.7], [1.75, 0], [0.9, 0.7], [-1.75, 0.7]], y: [0, 2] }, build: boatGeo },
 });
 
+// マップ作りのコンクリート・ブロック・光る物（concreteParts.js・blockParts.js）
+Object.assign(PARTS, concreteParts(PARTS, wallBand), blockParts());
+
 export const PART_LIST = Object.keys(PARTS).filter((t) => !PARTS[t].hidden); // 選べるパーツ
 
 // 置くのに必要な素材（docs/rules/building.md）。撤去すると半分（切り捨て）戻る
@@ -231,6 +237,7 @@ export const COSTS = {
   sail: { wood: 4, fiber: 8, rope: 2 }, helm: { wood: 5, rope: 2 }, boat: { wood: 10, rope: 3 },
   workbench: { wood: 10, stone: 6 }, campfire: { stick: 6, stone: 6, flint: 1 }, chest: { wood: 8, rope: 2 }, purifier: { bamboo: 4, clay: 5, stone: 6 }, furnace: { stone: 16, brick: 8 }, planter: { wood: 4, soil: 4 }, bed: { wood: 4, fiber: 6, palmLeaf: 3 }, ...AUTO_COSTS,
 };
+for (const t in PARTS) if (PARTS[t].map) COSTS[t] = {}; // マップ作りの物は素材なし
 export const localShapes = (def) => def.shapes || [def.shape];
 
 // 形は種類ごとに1回だけ作って使い回す

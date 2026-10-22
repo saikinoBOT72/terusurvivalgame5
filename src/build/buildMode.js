@@ -4,21 +4,23 @@
 // どこに吸い付くかは snap.js が決める。置けないときは理由（why）を出す
 import * as THREE from 'three';
 import { PARTS, PART_LIST, COSTS, partGeometry, PREVIEW_MAT } from './parts.js';
-import { toI, angleOf, snap } from './grid.js';
+import { toI, angleOf, snap, Q } from './grid.js';
+import { DEFAULT_COLOR } from './concreteParts.js';
 import { findTarget } from './snap.js';
 import { createArrow, arrowYaw, createRemoveMarks, createPortArrows } from './buildMarks.js';
 import { pressed } from '../input/keymap.js';
 import { playing } from '../input/touch.js';
 
-const REACH = 6;      // 届く距離（m）
+const REACH = 6;      // 届く距離（m）。マップ作りは world.reach
 const MAX_LEVEL = 4;  // 土台の高さの段階（0〜4 段 = 0〜2m）
 export const REMOVE = -1; // メニューの「撤去」
+export const PAINT = -2;  // メニューの「塗る」（マップ作り）
 const DECK = [[0, 0], [-0.45, -0.45], [0.45, -0.45], [0.45, 0.45], [-0.45, 0.45]]; // いかだの上の土台・階段の足元（甲板の上か調べる点）
 
 // canPay(type): 素材が足りるか。onPlaced(type) / onRemoved([part…]): 素材を減らす・戻す。onBreak(乗り物): いかだのコアを撤去した（バラバラになる）
 // onSwing(撤去か): 置く・撤去するときの腕の動き。swinging(): 腕を振っている最中か（撤去は振り終わるまで次ができない）
 export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = () => {}, onRemoved = () => {}, onBreak = () => {}, onWire = () => {}, onSwing = () => {}, swinging = () => false }) {
-  let enabled = false, hammer = false, sel = 0, rot = 0, level = 1, world = null, st = null, target = null, removing = null;
+  let enabled = false, hammer = false, sel = 0, rot = 0, level = 1, world = null, st = null, target = null, removing = null, color = DEFAULT_COLOR;
   const ray = new THREE.Raycaster();
   ray.far = REACH;
   const preview = new THREE.Mesh(partGeometry(PART_LIST[0]), PREVIEW_MAT.ok);
@@ -30,12 +32,13 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
   preview.add(portArrows.group);
   const marks = createRemoveMarks();
   const type = () => PART_LIST[sel];
-  const active = () => enabled && hammer;
+  const active = () => enabled && (hammer || !!world?.mapMaker); // マップ作りはハンマーなしで建築できる（ui.md）
+  const reach = () => world?.reach ?? REACH;
 
   // 地面との交点（照準の線を少しずつ進めて調べる）
   function terrainHit(o, d) {
     const T = world.terrain, p = (t) => [o.x + d.x * t, o.y + d.y * t, o.z + d.z * t], solid = (q) => (T.solidAt ? T.solidAt(...q) : q[1] <= T.heightAt(q[0], q[2]));
-    for (let t = 0.1; t <= REACH; t += 0.05) {
+    for (let t = 0.1; t <= reach(); t += 0.05) {
       if (!solid(p(t))) continue;
       let lo = t - 0.05, hi = t;
       for (let k = 0; k < 6; k++) { const m = (lo + hi) / 2; if (solid(p(m))) hi = m; else lo = m; }
@@ -49,6 +52,7 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
   function aim(water = false) {
     camera.updateMatrixWorld();
     ray.setFromCamera({ x: 0, y: 0 }, camera);
+    ray.far = reach();
     const vs = world.vehicles?.list ?? [];
     const groups = [st.group, ...vs.map((v) => v.st.group)].flatMap((g) => g.children);
     const ph = ray.intersectObjects(groups, true).find((x) => x.object.userData.part || (active() && sel === REMOVE && x.object.userData.wire)); // 電線は撤去の状態のときだけ狙える（機械の上の碍子で、機械の右クリックを邪魔しない）
@@ -56,10 +60,11 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
     if (ph && (!th || ph.distance <= th.distance + 0.3)) {
       const part = ph.object.userData.part;
       if (!part) return { wire: ph.object.userData.wire, point: ph.point }; // 電線（automation/wires.js）
-      return { part, point: ph.point, v: world.vehicles?.owner(part) ?? null };
+      const normal = ph.face ? ph.face.normal.clone().transformDirection(ph.object.matrixWorld) : null; // 見ている面の向き（faceSnap.js）
+      return { part, point: ph.point, normal, v: world.vehicles?.owner(part) ?? null };
     }
     const tw = water && d.y < 0 ? (world.terrain.waterLevel - o.y) / d.y : Infinity; // 水面までの距離
-    if (tw >= 0 && tw <= REACH && (!th || tw < th.distance)) return { point: o.clone().addScaledVector(d, tw), water: true };
+    if (tw >= 0 && tw <= reach() && (!th || tw < th.distance)) return { point: o.clone().addScaledVector(d, tw), water: true };
     return th ? { point: th.point } : null;
   }
   const ownerSt = (h) => (h.v ? h.v.st : st);
@@ -96,6 +101,7 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
     if (!tg) return tg;
     if (!tg.ok && !tg.why) tg.why = !(tg.v ? tg.v.st : st).canPlace(tg.type, tg.pos, tg.rot) ? 'ほかと重なる' : '置けない場所';
     if (tg.ok && !canPay(tg.type)) tg.why = '素材が足りない';
+    if (tg.ok && !!PARTS[tg.type].map !== !!world.mapMaker) Object.assign(tg, { ok: false, why: world.mapMaker ? 'マップ作りの物だけ置ける' : 'マップ作りの物は置けない' });
     return tg;
   }
 
@@ -105,7 +111,11 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
     if (target.newVehicle) { // 新しい乗り物: 置いた所が乗り物の中の原点
       const kind = PARTS[target.type].boat ? 'boat' : 'raft';
       world.vehicles.create(pos.x, pos.z, angleOf(target.rot), kind).st.add(target.type, { x: 0, y: 0, z: 0 }, 0);
-    } else (target.v ? target.v.st : st).add(target.type, { x: toI(pos.x), y: toI(pos.y), z: toI(pos.z) }, target.rot, target.exactY ? { y: pos.y } : {});
+    } else {
+      // exact: 面に貼る物は 0.25m より細かい位置もそのまま記録する（building.md「コンクリートとマップ作り」）
+      const i = target.exact ? { x: pos.x / Q, y: pos.y / Q, z: pos.z / Q } : { x: toI(pos.x), y: toI(pos.y), z: toI(pos.z) };
+      (target.v ? target.v.st : st).add(target.type, i, target.rot, { ...(target.exactY ? { y: pos.y } : {}), c: color });
+    }
     onPlaced(target.type);
   }
   // 撤去。いかだのコアならバラバラに。いかだの床なら、コアから切れた床もいっしょに（physics.md「いかだ」）
@@ -127,19 +137,25 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
     return { parts, breaks: !!(h.v && PARTS[h.part.type].core) };
   }
 
-  const turn = (dir) => { if (sel !== REMOVE) rot = (rot + dir * PARTS[type()].rotStep + 8) % 8; };
+  // 塗る: 見ているパーツを今の色に（塗れるパーツだけ）
+  function paintAimed() {
+    const h = aim();
+    return !!(h?.part && !h.v && st.setColor(h.part, color));
+  }
+
+  const turn = (dir) => { if (sel >= 0) rot = (rot + dir * PARTS[type()].rotStep + 8) % 8; };
   addEventListener('keydown', (e) => {
     if (!active() || e.repeat) return;
     if (pressed(e, 'buildTurn')) turn(1);
     const up = pressed(e, 'buildUp');
-    if ((up || pressed(e, 'buildDown')) && sel !== REMOVE) level = Math.max(0, Math.min(MAX_LEVEL, level + (up ? 1 : -1)));
+    if ((up || pressed(e, 'buildDown')) && sel >= 0) level = Math.max(0, Math.min(MAX_LEVEL, level + (up ? 1 : -1)));
   });
   addEventListener('wheel', (e) => { if (active() && document.pointerLockElement === dom) turn(e.deltaY > 0 ? 1 : -1); });
   dom.addEventListener('mousedown', (e) => {
     // 左クリック: 置く・撤去（ほかのクリックの処理には渡さない）。右クリックは controls.js が建築メニューを開く
     if (!active() || e.button !== 0 || !playing(dom)) return;
     e.stopImmediatePropagation();
-    if (sel === REMOVE) { if (swinging()) return; onSwing(true); removeAimed(); } else { onSwing(false); place(); }
+    if (sel === PAINT) { onSwing(false); paintAimed(); } else if (sel === REMOVE) { if (swinging()) return; onSwing(true); removeAimed(); } else { onSwing(false); place(); }
   });
   dom.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -148,22 +164,29 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
     get active() { return active(); }, // ハンマーを持っている（置く・撤去の状態）
     get hammer() { return active(); },
     get target() { return target; }, // 確認用: 今のプレビューの置き場所
-    get placing() { return active() && sel !== REMOVE; }, // パーツを選んで置く状態（ホイールは向き）。撤去の間のホイールは持ち替え
+    get placing() { return active() && sel >= 0; }, // パーツを選んで置く状態（ホイールは向き）。撤去の間のホイールは持ち替え
     setHammer(v) { if (v && !hammer) sel = REMOVE; hammer = v; }, // 持った直後は撤去
-    start(i) { sel = i; }, // メニューで選んだパーツ（REMOVE なら撤去）
-    setWorld(w, s) { world = w; st = s; },
+    start(i) { sel = i; }, // メニューで選んだパーツ（REMOVE なら撤去、PAINT なら塗る）
+    get color() { return color; },
+    setColor(c) { color = c; }, // これから置く物・塗る色（見本の番号）
+    setWorld(w, s) { // 世界に合わない選択（島でマップ作りの物、マップ作りで島の物）は撤去に戻す
+      world = w; st = s;
+      const map = !!w.mapMaker;
+      if (sel === PAINT ? !map : sel >= 0 && !!PARTS[PART_LIST[sel]].map !== map) sel = REMOVE;
+    },
     setEnabled(v) { enabled = v; },
     // 右下の表示（ui.md）: 選んでいる物、置けない理由、土台の高さ、撤去で消える物
     status() {
       if (!active()) return null;
       if (sel === REMOVE) return { remove: true, parts: removing?.parts ?? [], breaks: removing?.breaks };
+      if (sel === PAINT) return { paint: true, color };
       const t = type();
-      return { type: t, why: target ? target.why : null, level: PARTS[t].floor && PARTS[t].grounded ? level : null };
+      return { type: t, why: target ? target.why : null, level: PARTS[t].floor && PARTS[t].grounded ? level : null, color: PARTS[t].paint ? color : null };
     },
     update() {
       target = null; removing = null;
       if (active() && world && sel === REMOVE) removing = removalPreview();
-      else if (active() && world) {
+      else if (active() && world && sel >= 0) {
         const t = type(), water = !!(PARTS[t].raft || PARTS[t].boat), h = aim(water);
         if (h) target = explain(h.v ? vehicleTarget(t, h) : water ? newVehicleTarget(t, h) : findTarget(t, h, { world, st, rot, level, eye: ray.ray.origin }));
       }
@@ -186,7 +209,7 @@ export function createBuildMode({ camera, dom, canPay = () => true, onPlaced = (
       }
     },
     // 確認用: 照準の先に置く／撤去する（クリックと同じ動き）
-    place, removeAimed,
+    place, removeAimed, paintAimed,
     toggleAimed() { const h = aim(); return !!(h && h.part && ownerSt(h).toggle(h.part)); },
     aimPoint() { if (!st) return null; const h = aim(); return h ? h.point : null; }, // 照準の先（電線ののびる先）
     aimedPart() { if (!st) return null; const h = aim(); return h && h.part; },

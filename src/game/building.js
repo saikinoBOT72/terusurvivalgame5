@@ -10,18 +10,21 @@ import { placeDrop } from '../survival/death.js';
 
 // world(): 今の世界。closeMenu(): 建築メニューを閉じる（操作は controls.js が持つ）
 export function createBuilding({ scene, camera, dom, player, inventory, invHud, keyItems, world, closeMenu }) {
-  const hud = createBuildHud({ partName: (t) => PARTS[t].name, costHtml: (t) => costHtml(t, inventory), refundHtml: (parts) => itemsHtml(build.refund(parts)) });
+  const free = () => !!world()?.mapMaker; // マップ作り: 素材なしで置き、撤去しても何も戻らない（building.md「コンクリートとマップ作り」）
+  const hud = createBuildHud({ partName: (t) => PARTS[t].name, costHtml: (t) => (free() ? '' : costHtml(t, inventory)), refundHtml: (parts) => itemsHtml(build.refund(parts)) });
   const build = createBuildMode({
     camera, dom,
     onSwing: (removing) => player.arms.swing('chop', removing ? ITEMS.stoneHammer.swing : 0.4), // 撤去はゆっくり、置くのはこれまでどおり
     swinging: () => player.arms.swinging,
-    canPay: (t) => canPay(t, inventory),
+    canPay: (t) => free() || canPay(t, inventory),
     onPlaced: (t) => {
+      if (free()) return;
       for (const [id, n] of Object.entries(COSTS[t])) inventory.remove(id, n);
       const broke = inventory.wear(); // ハンマーの耐久
       if (broke) invHud.message(`${broke}が壊れた`);
     },
     onRemoved: (parts) => {
+      if (free()) return;
       const back = {};
       const left = []; // 設備の中身（チェストも）は持ち物へ。入りきらない分は、その場に袋で落とす
       for (const p of parts) if (p.wireRefund) invHud.gained('copperWire', inventory.add('copperWire', p.wireRefund)); // 機械の線
@@ -45,6 +48,10 @@ export function createBuilding({ scene, camera, dom, player, inventory, invHud, 
   });
   scene.add(build.preview);
   scene.add(build.marks); // 撤去で消えるパーツの赤い重ね
-  const menu = createBuildMenu({ inventory, onPick: (i) => { closeMenu(); build.start(i); }, known: (bp) => keyItems.hasBp(bp) });
+  const menu = createBuildMenu({
+    inventory, onPick: (i) => { closeMenu(); build.start(i); }, known: (bp) => free() || keyItems.hasBp(bp),
+    mapMode: free, color: () => build.color, onColor: (c) => build.setColor(c),
+    onExport: () => world().io.exportFile(), onImport: (file) => world().io.importFile(file).then(() => closeMenu()), // game/mapMaker.js
+  });
   return { build, hud, menu };
 }

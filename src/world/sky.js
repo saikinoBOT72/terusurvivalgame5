@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
 import { rng, shape, merge } from '../style/lowpoly.js';
+import { FOG } from './fog.js';
 
 const C = (v) => new THREE.Color(v);
 // 空の色（上・中・地平線）
@@ -81,7 +82,9 @@ export function createSky(scene, { fogNear = 45, fogFar = 280 } = {}) {
   // 時刻（0〜24 時）で空・光・かすみ・雲の色と、太陽（月）の向きを変える
   const sky = [new THREE.Color(), new THREE.Color(), new THREE.Color()], c = new THREE.Color(), tmp = new THREE.Color();
   const W = new THREE.Color(1, 1, 1); // 雲の色をそのまま出す（掛け算の 1）
+  let hour = 12;
   function setHour(h) {
+    hour = h;
     const day = smooth(5, 7, h) * (1 - smooth(19, 21, h)); // 1 = 昼、0 = 夜
     const dusk = Math.max(0, 1 - Math.min(Math.abs(h - 6), Math.abs(h - 20)) / 1.2); // 朝方・夕方に 1
     for (let k = 0; k < 3; k++) sky[k].lerpColors(NIGHT[k], DAY[k], day).lerp(DUSK[k], dusk * (k ? 0.75 : 0.45));
@@ -108,20 +111,39 @@ export function createSky(scene, { fogNear = 45, fogFar = 280 } = {}) {
     sun.intensity = (isDay ? 2.3 : 0.45) * smooth(0, 0.3, up);
     sun.color.set(isDay ? P.sunLight : P.star);
     if (isDay) sun.color.lerp(tmp.set(P.dusk[3]), dusk);
+    // 霧（fog.js）: 太陽（月）の方が明るい色。朝もやと夜は低い所の霧が濃い
+    FOG.fogSunDir.value.set(Math.cos(a) * 20, up * 24, 9).normalize();
+    FOG.fogSunColor.value.set(isDay ? P.grade.sunFog : P.star);
+    if (isDay) FOG.fogSunColor.value.lerp(tmp.set(P.dusk[2]), dusk);
+    sunFog = (isDay ? 0.5 + 0.3 * dusk : 0.12) * smooth(0, 0.3, up);
+    mist = 1 + 2 * smooth(4, 5.5, h) * (1 - smooth(8, 10, h)) + 0.5 * (1 - day);
+    applyFog();
     baseHemi = hemi.intensity; baseSun = sun.intensity;
     applyDim();
   }
   // 洞窟の奥（terrain.md「洞窟」）: 空の光と日の光を弱める。dim 0〜1
   let dim = 0, baseHemi = 1, baseSun = 1;
+  // 低い所の霧（fog.js）: hf は世界ごとの値（world.heightFog）、mist は時刻の倍率、swamp は沼で足す濃さ
+  let hf = null, mist = 1, swamp = 0, sunFog = 0;
+  function applyFog() {
+    const v = FOG.fogHeight.value;
+    v.x = hf ? hf.density * mist + swamp * 0.05 : swamp * 0.05;
+    v.y = hf?.base ?? 0; v.z = hf?.fall ?? 4;
+    FOG.fogSun.value = sunFog * (1 - dim);
+  }
   function applyDim() { hemi.intensity = baseHemi * (1 - dim * 0.8); sun.intensity = baseSun * (1 - dim * 0.9); }
   setHour(12);
 
   return {
     sun, hemi,
     setHour,
+    get hour() { return hour; }, // 今の時刻（world/grade.js）
     setFog(near, far) { scene.fog.density = density(far); },
-    setDim(k) { if (Math.abs(k - dim) > 0.005) { dim = k; applyDim(); } },
+    setHeightFog(cfg) { hf = cfg ?? null; applyFog(); }, // 世界が替わったとき（world.heightFog。なければ低い所の霧なし）
+    setSwamp(k) { if (Math.abs(k - swamp) > 0.005) { swamp = k; applyFog(); } },
+    setDim(k) { if (Math.abs(k - dim) > 0.005) { dim = k; applyDim(); applyFog(); } },
     update(dt, camPos) {
+      FOG.fogHeight.value.w += dt; // 霧の揺れ
       dome.position.copy(camPos);
       stars.position.copy(camPos);
       sun.target.position.set(Math.round(camPos.x), 0, Math.round(camPos.z));

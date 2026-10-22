@@ -1,16 +1,19 @@
 // 機械の動き（automation.md「電気」「機械の動き」）: 毎フレーム、先に網ごとの出す量・使う量を決めてから、機械を動かす
 // 使う量に入るのは、いま仕事がある機械だけ。足りなければ網の機械が全部止まる（進み具合は残る）
+import * as THREE from 'three';
 import { pivot } from './pivot.js';
 import { PARTS } from '../build/parts.js';
 import { STATIONS, laneReady, tickStation, stationChanged, benchNeed } from '../survival/stations.js';
 import { ITEMS, RECIPES } from '../survival/items.js';
-import { makeMesh } from '../style/lowpoly.js';
+import { makeMesh, glowMat } from '../style/lowpoly.js';
 import { solveNets } from './power.js';
 import { machineGeos } from './partDefs.js';
 import { bedsOf, bedUnder } from './place.js';
 import { makeShape } from '../build/grid.js';
 import { createBelts } from './belts.js';
 import { beltLegs } from './beltLegs.js';
+
+const GLOW_MAT = glowMat({ vertexColors: true }); // 動いている間の火の色（光る）
 
 export const DRILL_SECS = 40;
 const COAL_SECS = 120, HIGH = 20;
@@ -70,7 +73,8 @@ export function createAutomation(wires, list) {
     const g = machineGeos[part.type]?.();
     part.anim = {};
     if (g) {
-      for (const k of ['bit', 'glow']) if (g[k]) { part.anim[k] = makeMesh(g[k], { shadow: k !== 'glow' }); part.mesh.add(part.anim[k]); }
+      if (g.bit) { part.anim.bit = makeMesh(g.bit); part.mesh.add(part.anim.bit); }
+      if (g.glow) { part.anim.glow = new THREE.Mesh(g.glow, GLOW_MAT); part.mesh.add(part.anim.glow); }
       for (const [k, at] of [['rotor', g.rotorAt], ['arm', g.armAt]]) if (g[k]) {
         const piv = pivot(makeMesh(g[k]), at);
         part.anim[k] = piv; part.mesh.add(piv);

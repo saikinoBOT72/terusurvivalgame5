@@ -10,6 +10,10 @@ import { createWires } from '../automation/wires.js';
 import { createAutomation } from '../automation/machines.js';
 import { isBedCollider } from '../automation/place.js';
 import { fromI, toI, angleOf, makeShape, shapesOverlap, circleHitsShape } from './grid.js';
+import { paintMat, concreteLegGeo, DEFAULT_COLOR } from './concreteParts.js';
+
+// 色を塗れるパーツの材質（building.md「コンクリートとマップ作り」）。ジャンプ台の台はふつうの材質で、光る輪だけ塗る
+const matOf = (def, c) => (def.paint === 'concrete' || def.paint === 'glow' ? paintMat(def.paint, c) : MAT.solid);
 
 const LEG = 0.15;      // 足の太さ
 const LEG_SINK = 0.15; // 足を地面に埋める深さ
@@ -72,6 +76,9 @@ export function createStructures(world) {
     leg.top = Math.max(...[...leg.users].map((u) => u.foot.y0));
     leg.bottom = world.terrain.heightAt(leg.x, leg.z) - LEG_SINK;
     leg.mesh.visible = leg.top - leg.bottom > LEG_SINK + 0.05;
+    const conc = [...leg.users].every((u) => PARTS[u.type].map); // マップ作りの物（コンクリートの土台・スロープ）だけなら、コンクリートの足
+    leg.mesh.geometry = conc ? concreteLegGeo() : legGeometry();
+    leg.mesh.material = conc ? paintMat('concrete', 2) : MAT.solid;
     leg.mesh.position.set(leg.x, leg.bottom, leg.z);
     leg.mesh.scale.y = Math.max(0.01, leg.top - leg.bottom);
   }
@@ -90,11 +97,11 @@ export function createStructures(world) {
     }
   }
 
-  // y: 格子にそろわない高さ（地面に置く家具）
-  function add(type, i, rot, { y } = {}) {
+  // y: 格子にそろわない高さ（地面に置く家具）。c: 色の見本の番号（塗れるパーツだけ）
+  function add(type, i, rot, { y, c = DEFAULT_COLOR } = {}) {
     const pos = { x: fromI(i.x), y: y ?? fromI(i.y), z: fromI(i.z) };
     const def = PARTS[type];
-    const mesh = new THREE.Mesh(partGeometry(type, def.frame ? 'frame' : 'build'), MAT.solid);
+    const mesh = new THREE.Mesh(partGeometry(type, def.frame ? 'frame' : 'build'), matOf(def, c));
     mesh.position.set(pos.x, pos.y, pos.z);
     mesh.rotation.y = angleOf(rot);
     mesh.castShadow = mesh.receiveShadow = true;
@@ -115,6 +122,12 @@ export function createStructures(world) {
       if (def.sail) part.panel.scale.y = FURLED; // 帆はたたんで置く
     }
     if (y !== undefined) part.y = y; // 記録用
+    if (def.paint) part.c = c;
+    if (def.glow) { // 光る輪（ジャンプ台）
+      part.glow = new THREE.Mesh(partGeometry(type, 'glow'), paintMat('glow', c));
+      part.glow.userData.part = part;
+      mesh.add(part.glow);
+    }
     if (def.fire) { part.fire = campfire(rng(list.length + 3), { base: false }); mesh.add(part.fire.root); }
     if (def.store) part.store = Array(def.store).fill(null); // チェストの中身
     if (def.planter) initPlanter(part); // 畑（farm.js）
@@ -181,6 +194,17 @@ export function createStructures(world) {
     return out;
   }
 
+  // 色を塗る（塗れるパーツだけ）
+  function setColor(part, c) {
+    const def = PARTS[part.type];
+    if (!def.paint || part.c === c) return false;
+    part.c = c;
+    part.mesh.material = matOf(def, c);
+    if (part.glow) part.glow.material = paintMat('glow', c);
+    world.changed?.();
+    return true;
+  }
+
   // ドアの開け閉め
   function toggle(part) {
     if (!part.panel) return false;
@@ -207,5 +231,5 @@ export function createStructures(world) {
     }
   }
 
-  return { group, list, wires, auto, canPlace, spanAt, add, remove, chainOf, query, solids, toggle, update };
+  return { group, list, wires, auto, canPlace, spanAt, add, remove, chainOf, query, solids, toggle, setColor, update };
 }

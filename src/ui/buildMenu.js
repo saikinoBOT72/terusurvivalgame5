@@ -6,6 +6,8 @@ import { ITEMS } from '../survival/items.js';
 import { MAT } from '../style/lowpoly.js';
 import { iconUrl } from './icons.js';
 import { el, winHead } from './uiKit.js';
+import { P } from '../style/palette.js';
+import { PAINT } from '../build/buildMode.js';
 
 // パーツのアイコン（ドアは枠と扉を合わせて描く）
 export function partIcon(type) {
@@ -36,41 +38,62 @@ const CATS = [
   ['furniture', '家具', []],
   ['machine', '機械', ['generator', 'windmill', 'pole', 'drill', 'autoFurnace', 'autoBench', 'belt']],
   ['water', '水', ['raftCore', 'raft', 'sail', 'helm', 'boat']],
+  // マップ作りだけのタブ（building.md「コンクリートとマップ作り」）
+  ['concrete', 'コンクリート', ['cFoundation', 'cFloor', 'cWall', 'cLowWall', 'cPillar', 'cRamp', 'cSteepRamp', 'cRailing'], true],
+  ['block', 'ブロック', ['block1', 'block2', 'block4', 'slab2', 'slab4', 'column4', 'tower8', 'panel4', 'ramp2', 'ramp4'], true],
+  ['glow', '光・仕掛け', ['glowLine1', 'glowLine2', 'glowPanel', 'jumpPad', 'launchPad'], true],
 ];
 const catOf = (t) => (CATS.find(([, , list]) => list.includes(t)) ?? CATS[3])[0];
 export const canPay = (type, inventory) => Object.entries(COSTS[type]).every(([id, n]) => inventory.count(id) >= n);
 
-// onPick(PART_LIST の番号): パーツを選んだ。onPick(-1): 撤去を選んだ
+// onPick(PART_LIST の番号): パーツを選んだ。onPick(-1): 撤去を選んだ。onPick(PAINT): 塗るを選んだ
 // known(bp): その設計図を持っているか（持っていないパーツは出さない）
-export function createBuildMenu({ inventory, onPick, known = () => true }) {
+// mapMode(): マップ作りの世界か（マップ用のタブ・色見本・書き出し・読み込みを出す。ui.md「マップ作りの建築メニュー」）
+// color(): 今の色、onColor(c): 色見本を押した、onExport() / onImport(file): 書き出す・読み込む
+export function createBuildMenu({ inventory, onPick, known = () => true, mapMode = () => false, color = () => 0, onColor = () => {}, onExport = () => {}, onImport = () => {} }) {
   const box = el(`
     <div class="panel win build-menu" hidden>
       ${winHead('建築')}
-      <div class="tabs">${CATS.map(([k, name]) => `<button type="button" class="tab" data-cat="${k}">${name}</button>`).join('')}
-        <button type="button" class="tab remove danger">撤去</button></div>
+      <div class="tabs">${CATS.map(([k, name, , map]) => `<button type="button" class="tab" data-cat="${k}"${map ? ' data-map' : ''}>${name}</button>`).join('')}
+        <span class="ends"><button type="button" class="tab paint" data-map>塗る</button><button type="button" class="tab remove danger">撤去</button></span></div>
       <div class="cards">${PART_LIST.map((t, i) => `
         <button type="button" class="card" data-i="${i}" data-cat="${catOf(t)}">
           <img src="${partIcon(t)}" alt="">
           <div class="name">${PARTS[t].name}</div>
           <div class="need"></div>
         </button>`).join('')}</div>
+      <div class="map-row" data-map>
+        <div class="swatches">${P.concrete.map((c, i) => `<button type="button" class="sw" data-c="${i}" style="--sw: ${c}; --glow: ${P.glow[i]}"></button>`).join('')}</div>
+        <button type="button" class="btn-s" data-io="export">書き出す</button><button type="button" class="btn-s" data-io="import">読み込む</button>
+        <input type="file" accept=".json,application/json" hidden>
+      </div>
     </div>`);
   let cat = 'floor';
+  const file = box.querySelector('input[type=file]');
   function render() {
-    box.querySelectorAll('.tab[data-cat]').forEach((b) => b.classList.toggle('on', b.dataset.cat === cat));
+    const map = mapMode();
+    if (!!CATS.find(([k]) => k === cat)[3] !== map) cat = map ? 'concrete' : 'floor'; // 世界に合わないタブなら最初のタブへ
+    box.querySelectorAll('[data-map]').forEach((b) => { b.hidden = !map; });
+    box.querySelectorAll('.tab[data-cat]').forEach((b) => { b.classList.toggle('on', b.dataset.cat === cat); b.hidden = 'map' in b.dataset !== map; });
+    box.querySelectorAll('.sw').forEach((b) => b.classList.toggle('on', Number(b.dataset.c) === color()));
     box.querySelectorAll('.card').forEach((c) => {
       const t = PART_LIST[Number(c.dataset.i)];
       c.hidden = c.dataset.cat !== cat || !known(PARTS[t].bp);
-      c.querySelector('.need').innerHTML = costHtml(t, inventory);
+      c.querySelector('.need').innerHTML = map ? '' : costHtml(t, inventory);
       c.classList.toggle('short', !canPay(t, inventory)); // 素材が足りない物は暗く
     });
   }
   box.addEventListener('click', (e) => {
     const tb = e.target.closest('.tab');
-    if (tb) { if (tb.classList.contains('remove')) onPick(-1); else { cat = tb.dataset.cat; render(); } return; }
+    if (tb) { if (tb.classList.contains('remove')) onPick(-1); else if (tb.classList.contains('paint')) onPick(PAINT); else { cat = tb.dataset.cat; render(); } return; }
+    const sw = e.target.closest('.sw');
+    if (sw) { onColor(Number(sw.dataset.c)); render(); return; }
+    const io = e.target.closest('[data-io]');
+    if (io) { if (io.dataset.io === 'export') onExport(); else file.click(); return; }
     const c = e.target.closest('.card');
     if (c) onPick(Number(c.dataset.i));
   });
+  file.addEventListener('change', () => { if (file.files[0]) onImport(file.files[0]); file.value = ''; });
   inventory.onChange(() => { if (!box.hidden) render(); });
   return {
     box,

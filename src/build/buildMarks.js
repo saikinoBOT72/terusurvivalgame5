@@ -36,7 +36,7 @@ export function createPortArrows() {
 export function arrowYaw(type) {
   const d = PARTS[type];
   if (d.boat) return -Math.PI / 2; // 小舟の前は +x
-  if (d.stairs || d.roof || d.sail || d.helm) return 0; // 上る向き・帆が押す向き・舵の前（-z）
+  if (d.stairs || d.roof || d.sail || d.helm || d.arrow) return 0; // 上る向き・帆が押す向き・舵の前（-z）
   return null;
 }
 

@@ -3,6 +3,7 @@
 // 数字と照準の × は画面表示（ui/combatHud.js）へ渡す
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
+import { glowMat } from '../style/lowpoly.js';
 import { bodyBox } from './combat.js';
 import { createBarrierFx } from './barrierFx.js';
 
@@ -38,10 +39,10 @@ export function createHitFx({ scene, hud = null }) {
   const bits = [], puffs = [], smokers = [];
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 
-  const FLASH = new THREE.MeshBasicMaterial({ color: P.fx.flash });
+  const FLASH = glowMat({ color: P.fx.flash });
 
   // 赤く光る小さな破片: 光る色から暗い色へ冷める
-  const emberMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial(), MAX_EMBER);
+  const emberMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), glowMat(), MAX_EMBER);
   emberMesh.count = 0; emberMesh.frustumCulled = false;
   scene.add(emberMesh);
   const embers = [], HOT = P.fx.ember.map((c) => new THREE.Color(c)), COLD = new THREE.Color(P.robotFrame[0]);

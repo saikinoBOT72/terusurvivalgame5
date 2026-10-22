@@ -2,10 +2,10 @@
 // docs/rules/objects.md「墜落島のスポットの物」。前は +z、地面は y = 0
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
-import { pick, shape, merge } from '../style/lowpoly.js';
+import { pick, shape, merge, glowMat } from '../style/lowpoly.js';
 
 // 光るキノコの光る面（光の影響を受けない。炎と同じ例外。objects.md「火と光る物」）
-export const GLOW_MAT = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+export const GLOW_MAT = glowMat({ vertexColors: true, side: THREE.DoubleSide });
 
 // 枝: base から向き dir へ長さ len の先細りの八角柱。broken: 先を折る（ギザギザ）
 function limb(r, base, dir, len, r0, r1, col, broken = true, segs = 3) {

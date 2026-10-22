@@ -1,10 +1,10 @@
 // 小物（docs/rules/objects.md）
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
-import { pick, shape, merge, makeMesh } from '../style/lowpoly.js';
+import { pick, shape, merge, makeMesh, glowMat } from '../style/lowpoly.js';
 
 // 炎は光の影響を受けない材質（暗い所でも炎の色のまま見える）
-const FIRE_MAT = new THREE.MeshBasicMaterial({ vertexColors: true });
+const FIRE_MAT = glowMat({ vertexColors: true });
 
 // たき火の石の輪と薪（建築の家具でも使う）
 export function campfireBase(rand) {

@@ -23,9 +23,9 @@ export function readSave() {
 }
 
 // 建てたパーツ（島と乗り物で共通）。open: 帆を張っている・ドアが開いている
-const partData = (p) => ({ type: p.type, i: p.i, rot: p.rot, y: p.y, store: p.store, ...stationData(p), ...planterData(p), open: p.open || undefined, item: p.item ? { id: p.item.id, t: +p.item.t.toFixed(2) } : undefined });
+const partData = (p) => ({ type: p.type, i: p.i, rot: p.rot, y: p.y, c: p.c, store: p.store, ...stationData(p), ...planterData(p), open: p.open || undefined, item: p.item ? { id: p.item.id, t: +p.item.t.toFixed(2) } : undefined });
 function addPart(st, x, keys) {
-  const p = st.add(x.type, x.i, x.rot, x.y === undefined ? {} : { y: x.y });
+  const p = st.add(x.type, x.i, x.rot, { y: x.y, c: x.c });
   if (x.store) x.store.forEach((s, i) => { p.store[i] = s; }); // 中身の配列は設備のスロットと同じ物なので、入れかえずに写す
   if (p.store) takeKeys(p.store, keys, true); // 前のセーブの箱にあった設計図は大事な物へ
   loadStation(p, x);

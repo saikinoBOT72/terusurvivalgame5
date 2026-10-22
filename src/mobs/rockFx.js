@@ -4,6 +4,7 @@
 // 破片は低分割の球、火の粉は光る球、柱は四角すい、ひびは地面に沿った細い板（中が赤く光る）。色は palette.js の fx.rock・fx.crack・fx.heat・fx.dust
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
+import { glowMat } from '../style/lowpoly.js';
 import { createShockFx } from './shockFx.js';
 
 const MAX = 320, EMBERS = 120, SPIKES = 70, CRACKS = 160;
@@ -17,10 +18,10 @@ export function createRockFx({ scene, fx = null, player = null }) {
   const inst = (geo, mat, n) => { const m = new THREE.InstancedMesh(geo, mat, n); m.count = 0; m.frustumCulled = false; scene.add(m); return m; };
   const ball = new THREE.IcosahedronGeometry(1, 0);
   const bitMesh = inst(ball, new THREE.MeshLambertMaterial({ flatShading: true }), MAX);
-  const emberMesh = inst(ball, new THREE.MeshBasicMaterial(), EMBERS);
+  const emberMesh = inst(ball, glowMat(), EMBERS);
   const spikeMesh = inst(new THREE.ConeGeometry(1, 1, 4).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ flatShading: true }), SPIKES);
   const crackMesh = inst(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: P.fx.crack }), CRACKS);
-  const glowMesh = inst(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: P.fx.heat[1] }), CRACKS);
+  const glowMesh = inst(new THREE.BoxGeometry(1, 1, 1), glowMat({ color: P.fx.heat[1] }), CRACKS);
   const bits = [], embers = [], spikes = [], cracks = [];
   const rockC = P.fx.rock.map((c) => new THREE.Color(c)), dirt = P.fx.dust.map((c) => new THREE.Color(c)), heat = P.fx.heat.map((c) => new THREE.Color(c));
   const pick = (cols) => cols[Math.floor(Math.random() * cols.length)];

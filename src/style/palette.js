@@ -39,6 +39,8 @@ export const P = {
   dusk: ['#9A6A8A', '#D98A6A', '#E8B48A', '#F2D2A8'],
   night: ['#141B2B', '#1E2A40', '#2E3E5A'],
   star: '#E8E4D0',
+  // 画面の色味（style.md「画面の効果」。world/grade.js）: 画面全体にかける色（白 = そのまま）と、夜の暗い所に足す色。fog: 太陽の方の霧の色（world/fog.js）
+  grade: { day: '#FFFFFF', morning: '#FFF4EA', dusk: '#FFEBDC', night: '#E2E8FA', nightLift: '#040818', swamp: '#E9F0DC', sunFog: '#FFE2B0' },
   sunLight: '#FFF2DC',
   skyLight: '#CFE3EC',
   groundLight: '#7A8A5A',
@@ -104,6 +106,22 @@ export const P = {
   robotMetal: ['#7E848E', '#9EA4AD', '#BFC4CB'], // むき出しの金属（ファンの羽）
   robotVent: ['#C77A1E', '#F0A530', '#FFD27A'], // 冷却口の光（弱点。だいだい）
   robotLamp: ['#E8C24A', '#FFE07A', '#FFF4C0'], // 採掘ロボのヘッドライト（黄）
+
+  // マップ作りのコンクリート（docs/rules/building.md「コンクリートとマップ作り」）。見本の番号 c（0〜11）で選び、材質の色にする
+  // 白・明るい灰・灰・暗い灰・炭・砂・赤茶・オレンジ・黄・青緑・青・紫
+  concrete: ['#E6E3DD', '#BDBAB4', '#8E8C88', '#605F5D', '#36363A', '#C9B48E', '#9A4E3C', '#D9793A', '#D9B53E', '#3E8A86', '#3E5F9A', '#6E4E8A'],
+  concreteBase: '#FFFFFF', // 形の頂点色（材質の色をそのまま出す）。面の明暗は flatShading で出る
+  // 光る物（照明を受けない）。concrete と同じ番号で、原色寄りのネオン（パレットの決まりの外。style.md「のっぺりの例外」）
+  glow: ['#FFFFFF', '#D2F2FF', '#8CB0D8', '#46608A', '#1C2036', '#FFC23A', '#FF1E2D', '#FF7400', '#FFEE00', '#00FFDC', '#1E66FF', '#B020FF'],
+  concreteLeg: '#77756F', // ジャンプ台・飛ばし台の台（灰）
+
+  // 4-4c サイバーガンシリーズ（docs/rules/weapons.md「サイバーガンシリーズ」）。世界の色と合わせない例外（ユーザー 2026-10-22）
+  cyber: {
+    black: ['#121116', '#18171D', '#1F1E25'], // 本体の黒い箱（下・横・上）
+    gray: ['#24232A', '#2C2B33', '#36353E'], // 灰色の箱（銃床・ハンドガード・細い部品）
+    edge: ['#4A4954', '#5E5D69'], // 面取りの細い面（絵の縁取りの代わり）
+    neon: { ice: '#8FD8F7', volt: '#F5E04A', ember: '#FF7A3D', violet: '#A57BFF', mint: '#5FE3A1', crimson: '#FF4D5E', rose: '#FF6FB0', solar: '#FFC53D' }, // 銃ごとのネオン
+  },
 
   // 4-5 画面表示
   // 石の板（docs/rules/ui.md「石の板の見た目」）

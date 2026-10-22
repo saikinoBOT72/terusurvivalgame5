@@ -31,6 +31,7 @@ export function createFirstPerson({ camera, dom, eyeHeight = 1.1 * BODY, onLand 
   let bodies = () => []; // 敵の体（combat.js の bodies。setBodies でつなぐ）
   let shove = null; // ステップ・押し戻し: { x, z, v 速さ, t 残りの秒 }
   let top = null;
+  let canFly = false; // マップ作りの世界では開発中でなくても飛べる（ui.md「マップ作りの建築メニュー」）
   let active = false, terrain = null, colliders = () => [], sens = 0.0022; // sens: マウス 1 ピクセルで回る角度（ラジアン。設定の感度から。settings.js の sensRad）
 
   camera.rotation.order = 'YXZ';
@@ -45,7 +46,7 @@ export function createFirstPerson({ camera, dom, eyeHeight = 1.1 * BODY, onLand 
 
   addEventListener('keydown', (e) => {
     if (!active || e.repeat) return;
-    if (import.meta.env.DEV && e.code === 'KeyF') state.fly = !state.fly; // 開発用: F で飛行（ジャンプ上・しゃがむ下・3 倍速）
+    if ((import.meta.env.DEV || canFly) && e.code === 'KeyF') state.fly = !state.fly; // 開発用・マップ作り: F で飛行（ジャンプ上・しゃがむ下・3 倍速）
     if (pressed(e, 'sneak') && !state.ride) state.sneak = !state.sneak; // 忍び足は押すたびに切り替え（押している間にすると Ctrl+W でタブが閉じる。player.md）
   });
   // マウスの固定直後や、ブラウザの不具合で極端に大きい移動量が来ることがあるので捨てる
@@ -258,6 +259,8 @@ export function createFirstPerson({ camera, dom, eyeHeight = 1.1 * BODY, onLand 
     // 歩く世界を切り替えて、スタート地点に立つ。structures: その世界の建築パーツ
     setWorld(world, structures) {
       terrain = world.terrain;
+      canFly = !!world.mapMaker;
+      if (!canFly && !import.meta.env.DEV) state.fly = false;
       colliders = (x, z, r) => world.colliders(x, z, r).concat(structures.query(x, z, r), world.vehicles?.query(x, z, r) ?? [], bodies(x, z, r)); // いかだの形も。敵の体も（player.md）
       const { x, z, yaw = 0 } = world.spawn;
       Object.assign(state, { x, z, y: terrain.heightAt(x, z), yaw, pitch: 0, vy: 0, onGround: true, ride: null, gait: 'walk', sneak: false, crouching: false, headH: HEAD, eyeH: eyeHeight, canRun: true, canFloat: true });

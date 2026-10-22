@@ -2,6 +2,7 @@
 // 軌跡: 刃先とその少し手前の 2 点を毎回足して帯にする。古い所ほど薄く細い。ため攻撃は太く長く残る
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
+import { glowMat } from '../style/lowpoly.js';
 
 const MAX = 40, LIFE = 0.15, LIFE_HEAVY = 0.22;
 const col = (hex) => new THREE.Color(hex);
@@ -31,7 +32,7 @@ export function createSwingFx(root) {
   root.add(star);
   const sparkGeo = new THREE.BoxGeometry(0.004, 0.004, 0.05).translate(0, 0, 0.025);
   const sparks = Array.from({ length: 8 }, (_, i) => {
-    const m = new THREE.Mesh(sparkGeo, new THREE.MeshBasicMaterial({ color: P.fx.spark[i % 3], transparent: true, depthWrite: false }));
+    const m = new THREE.Mesh(sparkGeo, glowMat({ color: P.fx.spark[i % 3], transparent: true, depthWrite: false }));
     m.visible = false;
     root.add(m);
     return { m, v: new THREE.Vector3(), t: 0 };

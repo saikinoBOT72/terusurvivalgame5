@@ -4,7 +4,7 @@ import { buildIsland } from './world/island.js';
 
 import { ISLANDS } from './world/islandMap.js';
 import { createLoading } from './ui/loading.js';
-import { loadSettings, sensRad, vfovOf } from './ui/settings.js';
+import { loadSettings, sensRad, vfovOf, PRESETS } from './ui/settings.js';
 import { createSimple } from './avatar/simple.js'; // 仮のキャラ。猫に戻すときは cat.js（git の最初のコミット）の createCat
 import { createFirstPerson } from './player/firstPerson.js';
 import { createInventory } from './survival/inventory.js';
@@ -31,6 +31,8 @@ import './ui/kit.css';
 import './ui/ui.css';
 import { perf } from './perf.js';
 import { createRenderer } from './game/renderer.js';
+import { createGrade } from './world/grade.js';
+import { setFogQuality } from './world/fog.js';
 import { createHeld } from './game/held.js';
 import { createBuilding } from './game/building.js';
 import { createLife } from './game/life.js';
@@ -58,6 +60,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.05, 1200);
 scene.add(camera);
 const view = createRenderer(camera), { renderer, dom } = view, lockPointer = view.lockPointer; // game/renderer.js
+const grade = createGrade(view.fx); // 画面の色（world/grade.js）
 const sky = createSky(scene);
 // サバイバル（HP・空腹・時刻）は島を 1人称で遊んでいる間だけ進む。眠って暗転している間は止める
 let saveT = 0;
@@ -74,7 +77,7 @@ const statusHud = createStatusHud();
 const keysPanel = createKeysPanel();
 const aimMark = createAimHighlight(scene);
 const time = createDayNight();
-const life = createLife({ player, inventory, invHud, statusHud, sky, time, structuresOf, world: () => world, setMode: (m) => setMode(m), lockPointer, gear: () => equip.stats() }); // game/life.js
+const life = createLife({ player, inventory, invHud, statusHud, sky, time, structuresOf, world: () => world, setMode: (m) => setMode(m), lockPointer, gear: () => equip.stats(), grade }); // game/life.js
 const { stats, deathScreen } = life;
 const { build, hud: buildHud, menu: buildMenu } = createBuilding({ scene, camera, dom, player, inventory, invHud, keyItems, world: () => world, closeMenu: () => input.setBuildMenuOpen(false) }); // 建築（game/building.js）
 const farm = createFarm({ inventory, onGain: (id, n) => invHud.gained(id, n), onMessage: (t) => invHud.message(t) });
@@ -100,15 +103,17 @@ const held = createHeld({ inventory, player, build, onMessage: (t) => invHud.mes
 let stationT = 0;
 
 // ---- 世界: 島は起動したときに作り、タイトルの後ろに映す（fresh: まだ遊んでいない島。「はじめから」でそのまま使う） ----
-let island = null, islandFresh = false, showcase = null, range = null, islandId = 'crash', world = null, gridOn = false, debugOn = false;
+let island = null, islandFresh = false, showcase = null, range = null, mapMaker = null, islandId = 'crash', world = null, gridOn = false, debugOn = false;
 
 function useWorld(w) {
   world = w;
   if (island) island.group.visible = w === island;
   if (showcase) showcase.group.visible = w === showcase;
   if (range) range.group.visible = w === range;
-  sky.setFog(...w.fog);
-  if (w !== island) sky.setHour(12); // 島以外は昼で止める
+  if (mapMaker) mapMaker.world.group.visible = w === mapMaker.world;
+  sky.setFog(w.fog[0], w.pvp ? Math.max(40, w.fog[1]) : w.fog[1]); // PvP の世界は 40m より先まで見える（style.md「画面の効果」）
+  sky.setHeightFog(w.heightFog); // 低い所の霧（world/fog.js）
+  if (w !== island) sky.setHour(w.hour ?? 12); // 島以外は止める（ふつうは昼。射撃訓練島は昼夜切り替えの台で変わる）
   attachWorld(w, { structuresOf, player, build, systems: [gather, combat, spawner, hitFx, ranged, tools], onMessage: (m) => invHud.message(m), gridOn, debugOn }); // game/worlds.js
 }
 async function makeIsland(id, onProgress) {
@@ -167,6 +172,8 @@ function applySettings(v) {
   camera.updateProjectionMatrix();
   document.documentElement.style.setProperty('--ui-zoom', v.ui);
   fpsMeter.setOn(v.fps);
+  view.fx.setOptions({ aa: v.aa, rscale: v.rscale, autoRes: v.autoRes, bloom: v.bloom }); // 画質の個別の設定（game/postfx.js。ui.md「画質」）
+  setFogQuality(v.fogq, [scene]); // 霧の計算の細かさ（world/fog.js）
   creativeInv?.setOn(v.creative);
   setTouchMode(v.touch, v.tsens);
 }
@@ -186,9 +193,15 @@ const menu = createMenu({
     }) : null,
     // 射撃訓練島（islands.md）: 開発中だけ。最初に選ばれたときに作る
     onRange: import.meta.env.DEV ? () => import('./world/range.js').then(({ buildRange }) => {
-      if (!range) { range = buildRange({ summon: (k, x, z) => { const m = combat.spawn(k, x, z), s = player.state; m.yaw = Math.atan2(s.x - x, s.z - z); }, clear: () => [...combat.list].forEach((m) => m.fixed || combat.remove(m)) }); scene.add(range.group); }
+      if (!range) { range = buildRange({ summon: (k, x, z) => { const m = combat.spawn(k, x, z), s = player.state; m.yaw = Math.atan2(s.x - x, s.z - z); }, clear: () => [...combat.list].forEach((m) => m.fixed || combat.remove(m)), setHour: (h) => sky.setHour(h) }); scene.add(range.group); }
       play(range);
     }) : null,
+    // マップ作り（building.md「コンクリートとマップ作り」。game/mapMaker.js）: 最初に選ばれたときに作る
+    onMap: () => import('./game/mapMaker.js').then(({ createMapMaker }) => {
+      if (!mapMaker) { mapMaker = createMapMaker({ structuresOf, player, playing: () => mode === 'fps', onMessage: (m) => invHud.message(m) }); scene.add(mapMaker.world.group); }
+      play(mapMaker.world);
+      mapMaker.entered();
+    }),
   },
 });
 // ---- セーブ（save/save.js）: 一時停止したとき・60 秒ごと・ページを閉じるときに自動で保存。「つづきから」で戻す ----
@@ -262,12 +275,13 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   cat.root.rotation.y = Math.atan2(-Math.sin(angle), Math.cos(angle));
   cat.update(dt, { moving: true, speed: 1 });
   world.update(t, camera.position);
-  if (world.fogAt) { // 場所ごとの霧（立ち枯れの沼。spots.js）: ふだんのかすみと、濃い霧（25m で見えない）を混ぜる
-    const k = world.fogAt(camera.position.x, camera.position.z);
-    sky.setFog(world.fog[0], world.fog[1] + (25 - world.fog[1]) * k);
-  }
+  const swamp = world.fogAt ? world.fogAt(camera.position.x, camera.position.z) : 0; // 場所ごとの霧（立ち枯れの沼。spots.js）: ふだんのかすみと、濃い霧（25m で見えない）を混ぜる
+  if (world.fogAt) sky.setFog(world.fog[0], world.fog[1] + (25 - world.fog[1]) * swamp);
+  sky.setSwamp(swamp); // 沼の外・島の外では 0 に戻す
   if (world.terrain?.ref) world.terrain.ref.y = player.state.y + 2; // 演出の地面の高さのめやす（洞窟の中では洞窟の床。terrain.js groundNear）
-  sky.setDim(world.caveDim ? world.caveDim(camera.position) : 0); // 洞窟の奥は暗い（caveCarve.js）
+  const cave = world.caveDim ? world.caveDim(camera.position) : 0;
+  sky.setDim(cave); // 洞窟の奥は暗い（caveCarve.js）
+  grade.update(dt, { hour: sky.hour, swamp, cave, ads: ranged.aimK, look: world.grade }); // 画面の色（world/grade.js）
   perf.lap('世界');
   if (mode === 'fps' || mode === 'dead') world.physics?.update(dt, player.state); // いかだが動いてから、乗っているプレイヤーを動かす
   perf.lap('物理');
@@ -318,7 +332,7 @@ renderer.setAnimationLoop(() => frame());
 // 確認用（開発中だけ）: ブラウザのコンソールから状態を見たり動かしたりする
 if (import.meta.env.DEV) {
   // run(ms): 画面が隠れていても ms だけ進める（確認用）
-  window.__game = { renderer, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, keyItems, equip, invHud, sleep: life.sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, camera, cat, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; } };
+  window.__game = { renderer, post: view.fx, grade, sky, quality: (q) => { Object.assign(settings, PRESETS[q] ?? {}, { fxq: q }); applySettings(settings); return view.fx.options; }, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, keyItems, equip, invHud, sleep: life.sleep, saveNow, loadGame, vitals: stats, time, gather, tools, build, camera, cat, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; }, get map() { return mapMaker; } };
   import('./dev/creativeInv.js').then(({ createCreativeInv }) => { creativeInv = createCreativeInv({ inventory, equip, invHud }); creativeInv.setOn(settings.creative); }).catch(console.error); // 開発用クリエイティブ（消すときは src/dev/ とこの行）
   import('./debug.js').then(({ createDebug, modelStats, createPhysicsTest }) => { window.__game.debug = createDebug(window.__game); window.__game.stats = modelStats; window.__game.physics = createPhysicsTest(window.__game); });
 }

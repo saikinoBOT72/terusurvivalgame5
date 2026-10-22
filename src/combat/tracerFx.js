@@ -2,13 +2,14 @@
 // あとに薄い煙の筋が 0.5 秒残り、少し広がって上へ流れる
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
+import { glowMat } from '../style/lowpoly.js';
 
 const LINE = 0.1, SMOKE = 0.5;
 const box = new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5); // 長さ 1（z）。始めの点から終わりの点へ向けて伸ばす
 
 export function createTracerFx(scene) {
   const list = [];
-  const mat = (color, opacity) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+  const mat = (color, opacity) => glowMat({ color, transparent: true, opacity, depthWrite: false });
   function beam(color, opacity, from, to) {
     const m = new THREE.Mesh(box, mat(color, opacity));
     m.position.copy(from);

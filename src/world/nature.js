@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
 import { pick, shape, merge, makeMesh, MAT } from '../style/lowpoly.js';
+import { addFog } from './fog.js';
 
 // 円すいのすそ（一番下の輪）を 1 つおきに下げて外へ出し、枝先のギザギザにする。radial は偶数
 function jagSkirt(g, radial, depth) {
@@ -120,6 +121,7 @@ export function water(x0, z0, w, d, level, res = 2) {
   // 波は描くときに動かす（毎フレーム頂点を書き換えて送り直すと重い）。頂点の位置は世界の位置と同じ
   const uTime = { value: 0 };
   mat.onBeforeCompile = (s) => {
+    addFog(s); // 霧の値（fog.js）
     s.uniforms.uTime = uTime;
     s.vertexShader = 'uniform float uTime;\n' + s.vertexShader.replace('#include <begin_vertex>',
       '#include <begin_vertex>\ntransformed.y += sin(transformed.x * 1.3 + uTime * 0.9) * 0.025 + cos(transformed.z * 1.7 + uTime * 0.7) * 0.025;');

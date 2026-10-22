@@ -28,7 +28,7 @@ export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settin
           <button class="btn-l btnSettings" type="button">設定</button>
           <details><summary>開発用</summary>
             <div class="row"><button id="btnIsland" type="button">墜落島（素材つき）</button></div>
-            <div class="row"><button id="btnShowcase" type="button" hidden>モデル確認島</button><button id="btnRange" type="button" hidden>射撃訓練島</button></div>
+            <div class="row"><button id="btnShowcase" type="button" hidden>モデル確認島</button><button id="btnRange" type="button" hidden>射撃訓練島</button><button id="btnMap" type="button">マップ作り</button></div>
           </details>
         </div>
         <div class="pauseBtns main">
@@ -76,6 +76,7 @@ export function createMenu({ onStart, onContinue, onResume, onTitle, dev, settin
 
   if (dev.onShowcase) { $('#btnShowcase').hidden = false; on('#btnShowcase', dev.onShowcase); }
   if (dev.onRange) { $('#btnRange').hidden = false; on('#btnRange', dev.onRange); }
+  on('#btnMap', dev.onMap);
   return {
     el: box,
     set hidden(v) { box.hidden = v; if (!v) checkUpdate(); },
@@ -117,6 +118,7 @@ export function bindFullscreenKey() {
 
 // ハンマーを持っている間の表示（右下。ui.md「建築の操作」）: 選んでいる物と素材（持っている数）、土台の高さ、置けない理由
 // 撤去を選んでいるときは、いっしょに消える数と戻る素材。s: buildMode の status()
+const swatch = (c) => `<span class="swatch" style="background: ${P.concrete[c]}"></span>`;
 export function createBuildHud({ partName, costHtml, refundHtml }) {
   const box = el('<div class="panel build-hud" hidden></div>');
   corner().appendChild(box);
@@ -128,8 +130,10 @@ export function createBuildHud({ partName, costHtml, refundHtml }) {
         html = '<div class="title">撤去</div>' + (!s.parts.length ? '<div class="sub">ホイール 持ち替え</div>'
           : s.breaks ? '<div class="why">いかだがバラバラになる</div>'
             : `<div class="sub">消える ${s.parts.length} 個</div><div class="cost">戻る ${refundHtml(s.parts)}</div>`);
+      } else if (s?.paint) { // マップ作りの塗る（ui.md「マップ作りの建築メニュー」）
+        html = `<div class="title">${swatch(s.color)}塗る</div>`;
       } else if (s) {
-        html = `<div class="title">${partName(s.type)}</div><div class="cost">${costHtml(s.type)}</div>`
+        html = `<div class="title">${s.color !== null ? swatch(s.color) : ''}${partName(s.type)}</div><div class="cost">${costHtml(s.type)}</div>`
           + (s.level !== null ? `<div class="sub">高さ ${s.level} 段</div>` : '') + (s.why ? `<div class="why">${s.why}</div>` : '');
       }
       if (html === last) return;

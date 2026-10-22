@@ -1,0 +1,1827 @@
+{
+ "glock": {
+  "file": "glock17.glb",
+  "name": "Glock 17",
+  "real": "全長 202mm・高さ 139mm・銃身 114mm",
+  "pieces": [
+   "歩（P）"
+  ],
+  "game": {
+   "reload": 1.5,
+   "rate": 0.21,
+   "auto": false,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 17,
+   "recoil": 0.016,
+   "kind": "gun"
+  },
+  "colors": {
+   "slide": "#322c28",
+   "slideDark": "#201c19",
+   "bore": "#1a1512",
+   "detail": "#4d4641",
+   "mag": "#4d4641",
+   "hand": "#bb864b",
+   "barrel": "#322c28",
+   "frame": "#322c28",
+   "grip": "#1a1512"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.07,
+    "hold": false,
+    "events": [
+     [
+      0.015,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "slide",
+     "trigger"
+    ]
+   },
+   "fireLast": {
+    "dur": 0.06,
+    "hold": true,
+    "events": [
+     [
+      0.015,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "slide",
+     "trigger"
+    ]
+   },
+   "release": {
+    "dur": 0.12,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "slide",
+     "glock17"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.14,
+      "magOut"
+     ],
+     [
+      0.56,
+      "magIn"
+     ],
+     [
+      0.72,
+      "release"
+     ]
+    ],
+    "parts": [
+     "glock17",
+     "mag",
+     "lhand"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "glock17"
+    ]
+   },
+   "equip": {
+    "dur": 0.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "slide",
+     "glock17",
+     "lhand"
+    ]
+   },
+   "reloadEmpty": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.14,
+      "magOut"
+     ],
+     [
+      0.56,
+      "magIn"
+     ],
+     [
+      0.72,
+      "release"
+     ]
+    ],
+    "parts": [
+     "slide",
+     "trigger",
+     "glock17",
+     "mag",
+     "lhand"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.029,
+   -0.148
+  ],
+  "eject": [
+   0.01475,
+   0.034,
+   -0.07
+  ],
+  "scope": null,
+  "vm": {
+   "size": 0.62,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     -0.322746,
+     -0.206161,
+     0
+    ],
+    "scale": 0.76235,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.070795,
+     -0.2
+    ],
+    "adsRot": [
+     0.322746,
+     0.206161
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 163524
+ },
+ "pistol": {
+  "file": "deagle.glb",
+  "name": "デザートイーグル",
+  "real": "全長 269mm・高さ 149mm",
+  "pieces": [
+   "と（P+）"
+  ],
+  "game": {
+   "reload": 1.5,
+   "rate": 0.5,
+   "auto": false,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 7,
+   "recoil": 0.034,
+   "kind": "gun"
+  },
+  "colors": {
+   "slide": "#322c28",
+   "slideDark": "#201c19",
+   "bore": "#1a1512",
+   "detail": "#4d4641",
+   "hand": "#bb864b",
+   "mag": "#4d4641",
+   "frame": "#322c28",
+   "grip": "#1a1512",
+   "barrel": "#322c28"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.16,
+    "hold": false,
+    "events": [
+     [
+      0.02,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "slide",
+     "hammer",
+     "trigger"
+    ]
+   },
+   "fireLast": {
+    "dur": 0.1,
+    "hold": true,
+    "events": [
+     [
+      0.02,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "slide",
+     "hammer",
+     "trigger"
+    ]
+   },
+   "release": {
+    "dur": 0.14,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "slide",
+     "deagle"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.14,
+      "magOut"
+     ],
+     [
+      0.58,
+      "magIn"
+     ],
+     [
+      0.72,
+      "release"
+     ]
+    ],
+    "parts": [
+     "deagle",
+     "mag",
+     "lhand"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "deagle"
+    ]
+   },
+   "equip": {
+    "dur": 0.62,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "slide",
+     "deagle"
+    ]
+   },
+   "reloadEmpty": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.14,
+      "magOut"
+     ],
+     [
+      0.58,
+      "magIn"
+     ],
+     [
+      0.72,
+      "release"
+     ]
+    ],
+    "parts": [
+     "slide",
+     "hammer",
+     "trigger",
+     "deagle",
+     "mag",
+     "lhand"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.023,
+   -0.191
+  ],
+  "eject": [
+   0.0165,
+   0.022,
+   -0.015
+  ],
+  "scope": null,
+  "vm": {
+   "size": 0.72,
+   "fit16x9": {
+    "rotYXZ": [
+     -0.240443,
+     -0.196321,
+     0
+    ],
+    "scale": 0.736864,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.071679,
+     -0.2
+    ],
+    "adsRot": [
+     0.240443,
+     0.196321
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 222512
+ },
+ "burst": {
+  "file": "b93r.glb",
+  "name": "ベレッタ 93R",
+  "real": "全長 240mm・銃身 156mm（3点バースト）",
+  "pieces": [
+   "銀（S）"
+  ],
+  "game": {
+   "reload": 1.6,
+   "rate": 0.48,
+   "auto": false,
+   "burst": 3,
+   "burstGap": 0.07,
+   "mag": 15,
+   "recoil": 0.034,
+   "kind": "gun"
+  },
+  "colors": {
+   "slide": "#322c28",
+   "slideDark": "#201c19",
+   "detail": "#4d4641",
+   "mag": "#4d4641",
+   "frame": "#322c28",
+   "hand": "#bb864b",
+   "barrel": "#322c28",
+   "bore": "#1a1512",
+   "grip": "#1a1512"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.07,
+    "hold": false,
+    "events": [
+     [
+      0.015,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "slide",
+     "hammer",
+     "trigger"
+    ]
+   },
+   "fireLast": {
+    "dur": 0.06,
+    "hold": true,
+    "events": [
+     [
+      0.015,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "slide",
+     "hammer",
+     "trigger"
+    ]
+   },
+   "release": {
+    "dur": 0.12,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "slide",
+     "b93r"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.14,
+      "magOut"
+     ],
+     [
+      0.58,
+      "magIn"
+     ],
+     [
+      0.72,
+      "release"
+     ]
+    ],
+    "parts": [
+     "b93r",
+     "mag",
+     "lhand"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "b93r"
+    ]
+   },
+   "equip": {
+    "dur": 0.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "slide",
+     "b93r"
+    ]
+   },
+   "reloadEmpty": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.14,
+      "magOut"
+     ],
+     [
+      0.58,
+      "magIn"
+     ],
+     [
+      0.72,
+      "release"
+     ]
+    ],
+    "parts": [
+     "slide",
+     "hammer",
+     "trigger",
+     "b93r",
+     "mag",
+     "lhand"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.022,
+   -0.204
+  ],
+  "eject": [
+   0.01,
+   0.032,
+   -0.08
+  ],
+  "scope": null,
+  "vm": {
+   "size": 0.75,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     -0.236679,
+     -0.206161,
+     0
+    ],
+    "scale": 0.677838,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.07159,
+     -0.2
+    ],
+    "adsRot": [
+     0.236679,
+     0.206161
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 176640
+ },
+ "mp5": {
+  "file": "mp5k.glb",
+  "name": "MP5K",
+  "real": "全長 325mm・銃身 115mm",
+  "pieces": [
+   "飛（R）"
+  ],
+  "game": {
+   "reload": 1.7,
+   "rate": 0.075,
+   "auto": true,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 30,
+   "recoil": 0.008,
+   "kind": "gun"
+  },
+  "colors": {
+   "detail": "#4d4641",
+   "mag": "#4d4641",
+   "hand": "#bb864b",
+   "frame": "#322c28",
+   "bore": "#1a1512",
+   "barrel": "#322c28",
+   "grip": "#1a1512",
+   "slideDark": "#201c19"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.07,
+    "hold": false,
+    "events": [
+     [
+      0.01,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "trigger"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.4,
+      "magOut"
+     ],
+     [
+      0.58,
+      "magIn"
+     ],
+     [
+      0.76,
+      "slap"
+     ]
+    ],
+    "parts": [
+     "mp5k",
+     "handle",
+     "mag",
+     "lhand"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "mp5k"
+    ]
+   },
+   "equip": {
+    "dur": 0.8,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "mp5k",
+     "handle",
+     "lhand"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.038,
+   -0.287
+  ],
+  "eject": [
+   0.015,
+   0.038,
+   -0.15
+  ],
+  "scope": null,
+  "vm": {
+   "size": 1,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     -0.253615,
+     -0.197882,
+     0
+    ],
+    "scale": 0.673823,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.073437,
+     -0.2
+    ],
+    "adsRot": [
+     0.253615,
+     0.197882
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 152268
+ },
+ "m870": {
+  "file": "m870.glb",
+  "name": "M870",
+  "real": "全長 約970mm・銃身 470mm（ポンプ式）",
+  "pieces": [
+   "金（G）"
+  ],
+  "game": {
+   "reload": 2.2,
+   "rate": 0.7,
+   "auto": false,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 6,
+   "recoil": 0.06,
+   "kind": "gun"
+  },
+  "colors": {
+   "grip": "#bb864b",
+   "slideDark": "#201c19",
+   "barrel": "#322c28",
+   "detail": "#1a1512",
+   "hand": "#bb864b",
+   "shell": "#d06551",
+   "frame": "#322c28",
+   "bore": "#1a1512"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.8,
+    "hold": false,
+    "events": [
+     [
+      0.42,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "trigger",
+     "pump",
+     "lhand",
+     "m870"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.22,
+      "insert"
+     ],
+     [
+      0.34,
+      "insert"
+     ],
+     [
+      0.46,
+      "insert"
+     ],
+     [
+      0.58,
+      "insert"
+     ],
+     [
+      0.86,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "m870",
+     "lhand",
+     "shell",
+     "pump"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "m870"
+    ]
+   },
+   "equip": {
+    "dur": 0.75,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "m870",
+     "pump",
+     "lhand"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.036,
+   -0.673
+  ],
+  "eject": [
+   0.016,
+   0.032,
+   -0.14
+  ],
+  "scope": null,
+  "vm": {
+   "size": 1,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     0.026426,
+     0.027366,
+     0
+    ],
+    "scale": 0.670079,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.081898,
+     -0.2
+    ],
+    "adsRot": [
+     -0.026426,
+     -0.027366
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 157976
+ },
+ "m79": {
+  "file": "m79.glb",
+  "name": "M79",
+  "real": "全長 731mm・銃身 356mm（40mm・中折れ式）",
+  "pieces": [
+   "角（B）"
+  ],
+  "game": {
+   "reload": 2.6,
+   "rate": 0.9,
+   "auto": false,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 4,
+   "recoil": 0.05,
+   "kind": "grenade"
+  },
+  "colors": {
+   "barrel": "#322c28",
+   "bore": "#1a1512",
+   "grip": "#bb864b",
+   "frame": "#322c28",
+   "detail": "#1a1512",
+   "hand": "#bb864b",
+   "extra": "#b37f00"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.8,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "trigger",
+     "m79"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.25,
+      "eject"
+     ],
+     [
+      0.58,
+      "insert"
+     ]
+    ],
+    "parts": [
+     "m79",
+     "barrel",
+     "lhand",
+     "round"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "m79",
+     "barrel"
+    ]
+   },
+   "equip": {
+    "dur": 0.8,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "m79",
+     "barrel"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.03,
+   -0.433
+  ],
+  "eject": [
+   0,
+   0.034,
+   -0.085
+  ],
+  "scope": null,
+  "vm": {
+   "size": 1,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     -0.031786,
+     -0.020018,
+     0
+    ],
+    "scale": 0.912939,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.080072,
+     -0.2
+    ],
+    "adsRot": [
+     0.031786,
+     0.020018
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 155532
+ },
+ "mk2": {
+  "file": "mk2.glb",
+  "name": "マークスマン Mk2",
+  "real": "全長 約1030mm・銃身 580mm（レバーアクション）",
+  "pieces": [
+   "香（L）"
+  ],
+  "game": {
+   "reload": 2.4,
+   "rate": 1.3,
+   "auto": false,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 5,
+   "recoil": 0.07,
+   "kind": "gun"
+  },
+  "colors": {
+   "hand": "#bb864b",
+   "frame": "#322c28",
+   "detail": "#1a1512",
+   "round": "#b37f00",
+   "grip": "#bb864b",
+   "bore": "#1a1512",
+   "slideDark": "#201c19",
+   "barrel": "#322c28",
+   "slide": "#322c28"
+  },
+  "clips": {
+   "fire": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.45,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "hammer",
+     "trigger",
+     "lever",
+     "mk2"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.2,
+      "insert"
+     ],
+     [
+      0.35,
+      "insert"
+     ],
+     [
+      0.5,
+      "insert"
+     ],
+     [
+      0.65,
+      "insert"
+     ]
+    ],
+    "parts": [
+     "mk2",
+     "lhand",
+     "round"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "mk2",
+     "lever"
+    ]
+   },
+   "equip": {
+    "dur": 0.8,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "mk2",
+     "lever"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.03,
+   -0.771
+  ],
+  "eject": [
+   0.004,
+   0.044,
+   -0.138
+  ],
+  "scope": {
+   "eye": [
+    0,
+    0.072,
+    -0.0272
+   ],
+   "r": 0.016,
+   "rin": 0.0122,
+   "part": null
+  },
+  "vm": {
+   "size": 1.12,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     0.040976,
+     0.027366,
+     0
+    ],
+    "scale": 0.655536,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.015,
+     -0.078509,
+     -0.2
+    ],
+    "adsRot": [
+     -0.040976,
+     -0.027366
+    ],
+    "adsEye": [
+     0,
+     0.047199,
+     -0.017831
+    ],
+    "scopeR": 0.010489
+   }
+  },
+  "bytes": 202916
+ },
+ "ak": {
+  "file": "ak47.glb",
+  "name": "AK-47",
+  "real": "全長 880mm・銃身 415mm",
+  "pieces": [
+   "王（K）"
+  ],
+  "game": {
+   "reload": 2,
+   "rate": 0.1,
+   "auto": true,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 30,
+   "recoil": 0.012,
+   "kind": "gun"
+  },
+  "colors": {
+   "detail": "#1a1512",
+   "slideDark": "#201c19",
+   "mag": "#322c28",
+   "hand": "#bb864b",
+   "grip": "#bb864b",
+   "frame": "#322c28",
+   "slide": "#322c28",
+   "bore": "#1a1512",
+   "barrel": "#322c28"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.09,
+    "hold": false,
+    "events": [
+     [
+      0.02,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "carrier",
+     "trigger"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.3,
+      "magOut"
+     ],
+     [
+      0.58,
+      "magIn"
+     ],
+     [
+      0.8,
+      "rack"
+     ]
+    ],
+    "parts": [
+     "ak47",
+     "mag",
+     "carrier",
+     "lhand"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "ak47"
+    ]
+   },
+   "equip": {
+    "dur": 0.7,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "ak47",
+     "carrier",
+     "lhand"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.038,
+   -0.564
+  ],
+  "eject": [
+   0.015,
+   0.034,
+   -0.132
+  ],
+  "scope": null,
+  "vm": {
+   "size": 1,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     0.012592,
+     0.027366,
+     0
+    ],
+    "scale": 0.798912,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.081898,
+     -0.2
+    ],
+    "adsRot": [
+     -0.012592,
+     -0.027366
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 206048
+ },
+ "awm": {
+  "file": "awm.glb",
+  "name": "AWM",
+  "real": "全長 1230mm・銃身 686mm（ボルトアクション・5連）",
+  "pieces": [
+   "杏（L+）"
+  ],
+  "game": {
+   "reload": 2.8,
+   "rate": 1.8,
+   "auto": false,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 5,
+   "recoil": 0.09,
+   "kind": "gun"
+  },
+  "colors": {
+   "barrel": "#322c28",
+   "slide": "#322c28",
+   "detail": "#1a1512",
+   "mag": "#322c28",
+   "hand": "#bb864b",
+   "grip": "#66635d",
+   "slideDark": "#201c19",
+   "frame": "#322c28",
+   "bore": "#1a1512",
+   "scope": "#322c28"
+  },
+  "clips": {
+   "fire": {
+    "dur": 1.2,
+    "hold": false,
+    "events": [
+     [
+      0.62,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "trigger",
+     "awm",
+     "bolt"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.28,
+      "magOut"
+     ],
+     [
+      0.54,
+      "magIn"
+     ],
+     [
+      0.76,
+      "rack"
+     ]
+    ],
+    "parts": [
+     "awm",
+     "mag",
+     "bolt",
+     "lhand"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "awm"
+    ]
+   },
+   "equip": {
+    "dur": 0.9,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "awm",
+     "bolt"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.07,
+   -0.861
+  ],
+  "eject": [
+   0.022,
+   0.07,
+   -0.14
+  ],
+  "scope": {
+   "eye": [
+    0,
+    0.124,
+    0.0492
+   ],
+   "r": 0.019,
+   "rin": 0.015,
+   "part": null
+  },
+  "vm": {
+   "size": 0.85,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     -0.001256,
+     0.027366,
+     0
+    ],
+    "scale": 0.444372,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.015,
+     -0.067019,
+     -0.2
+    ],
+    "adsRot": [
+     0.001256,
+     -0.027366
+    ],
+    "adsEye": [
+     0,
+     0.055102,
+     0.021863
+    ],
+    "scopeR": 0.008443
+   }
+  },
+  "bytes": 325276
+ },
+ "famas": {
+  "file": "famas.glb",
+  "name": "FAMAS F1",
+  "real": "全長 757mm・銃身 488mm（ブルパップ）",
+  "pieces": [
+   "全（S+）"
+  ],
+  "game": {
+   "reload": 2.1,
+   "rate": 0.42,
+   "auto": false,
+   "burst": 3,
+   "burstGap": 0.065,
+   "mag": 24,
+   "recoil": 0.008,
+   "kind": "gun"
+  },
+  "colors": {
+   "detail": "#4d4641",
+   "mag": "#4d4641",
+   "hand": "#bb864b",
+   "frame": "#322c28",
+   "slideDark": "#201c19",
+   "slide": "#322c28",
+   "bore": "#1a1512",
+   "grip": "#1a1512"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.07,
+    "hold": false,
+    "events": [
+     [
+      0.012,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "trigger",
+     "famas"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.3,
+      "magOut"
+     ],
+     [
+      0.56,
+      "magIn"
+     ],
+     [
+      0.8,
+      "rack"
+     ]
+    ],
+    "parts": [
+     "famas",
+     "mag",
+     "chandle",
+     "lhand"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "famas"
+    ]
+   },
+   "equip": {
+    "dur": 0.7,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "famas",
+     "chandle",
+     "lhand"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.034,
+   -0.43
+  ],
+  "eject": [
+   0.024,
+   0.048,
+   0.07
+  ],
+  "scope": null,
+  "vm": {
+   "size": 0.72,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     -0.03243,
+     -0.009911,
+     0
+    ],
+    "scale": 0.680863,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.076689,
+     -0.2
+    ],
+    "adsRot": [
+     0.03243,
+     0.009911
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 197708
+ },
+ "mgl": {
+  "file": "mgl.glb",
+  "name": "MGL",
+  "real": "全長 778mm・銃身 300mm（40mm・6連のシリンダー）",
+  "pieces": [
+   "馬（B+）"
+  ],
+  "game": {
+   "reload": 3.2,
+   "rate": 0.75,
+   "auto": false,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 6,
+   "recoil": 0.045,
+   "kind": "grenade"
+  },
+  "colors": {
+   "mag": "#4d4641",
+   "slide": "#322c28",
+   "bore": "#1a1512",
+   "hand": "#bb864b",
+   "frame": "#322c28",
+   "grip": "#1a1512",
+   "slideDark": "#201c19",
+   "detail": "#4d4641"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.5,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "trigger",
+     "cylinder",
+     "mgl"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.28,
+      "eject"
+     ],
+     [
+      0.29,
+      "eject"
+     ],
+     [
+      0.3,
+      "eject"
+     ],
+     [
+      0.62,
+      "insert"
+     ],
+     [
+      0.84,
+      "close"
+     ]
+    ],
+    "parts": [
+     "mgl",
+     "crane",
+     "shells",
+     "lhand"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "mgl"
+    ]
+   },
+   "equip": {
+    "dur": 0.7,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "mgl",
+     "cylinder"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.059,
+   -0.572
+  ],
+  "eject": [
+   -0.04,
+   0.015,
+   -0.084
+  ],
+  "scope": null,
+  "vm": {
+   "size": 0.75,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     -0.053642,
+     -0.006943,
+     0
+    ],
+    "scale": 0.536485,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.077178,
+     -0.2
+    ],
+    "adsRot": [
+     0.053642,
+     0.006943
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 374744
+ },
+ "vector": {
+  "file": "vector.glb",
+  "name": "KRISS Vector",
+  "real": "全長 620mm・銃身 140mm（サプレッサー付きで約 880mm）",
+  "pieces": [
+   "龍（R+）"
+  ],
+  "game": {
+   "reload": 1.8,
+   "rate": 0.05,
+   "auto": true,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 30,
+   "recoil": 0.006,
+   "kind": "gun"
+  },
+  "colors": {
+   "detail": "#4d4641",
+   "mag": "#4d4641",
+   "hand": "#bb864b",
+   "slide": "#322c28",
+   "bore": "#1a1512",
+   "frame": "#322c28",
+   "slideDark": "#201c19",
+   "grip": "#1a1512",
+   "barrel": "#322c28"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.06,
+    "hold": false,
+    "events": [
+     [
+      0.01,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "trigger",
+     "vector"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.3,
+      "magOut"
+     ],
+     [
+      0.56,
+      "magIn"
+     ],
+     [
+      0.8,
+      "rack"
+     ]
+    ],
+    "parts": [
+     "vector",
+     "mag",
+     "handle",
+     "lhand"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "vector"
+    ]
+   },
+   "equip": {
+    "dur": 0.7,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "vector",
+     "handle",
+     "lhand"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.022,
+   -0.482
+  ],
+  "eject": [
+   0.024,
+   0.049,
+   -0.044
+  ],
+  "scope": null,
+  "vm": {
+   "size": 0.66,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     0.034255,
+     0.027366,
+     0
+    ],
+    "scale": 0.617741,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.076834,
+     -0.2
+    ],
+    "adsRot": [
+     -0.034255,
+     -0.027366
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 289944
+ },
+ "m4": {
+  "file": "m4a1.glb",
+  "name": "M4A1",
+  "real": "全長 840mm・銃身 368mm",
+  "pieces": [
+   "帝（K+）"
+  ],
+  "game": {
+   "reload": 2,
+   "rate": 0.09,
+   "auto": true,
+   "burst": 0,
+   "burstGap": 0,
+   "mag": 30,
+   "recoil": 0.008,
+   "kind": "gun"
+  },
+  "colors": {
+   "slideDark": "#201c19",
+   "detail": "#4d4641",
+   "mag": "#4d4641",
+   "hand": "#bb864b",
+   "frame": "#322c28",
+   "grip": "#1a1512",
+   "bore": "#1a1512",
+   "slide": "#322c28"
+  },
+  "clips": {
+   "fire": {
+    "dur": 0.08,
+    "hold": false,
+    "events": [
+     [
+      0.015,
+      "eject"
+     ]
+    ],
+    "parts": [
+     "carrier",
+     "trigger"
+    ]
+   },
+   "reload": {
+    "dur": 1,
+    "hold": false,
+    "events": [
+     [
+      0.3,
+      "magOut"
+     ],
+     [
+      0.56,
+      "magIn"
+     ],
+     [
+      0.8,
+      "rack"
+     ]
+    ],
+    "parts": [
+     "m4a1",
+     "mag",
+     "chandle",
+     "carrier",
+     "lhand"
+    ]
+   },
+   "inspect": {
+    "dur": 2.6,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "m4a1"
+    ]
+   },
+   "equip": {
+    "dur": 0.7,
+    "hold": false,
+    "events": [],
+    "parts": [
+     "m4a1",
+     "chandle",
+     "carrier",
+     "lhand"
+    ]
+   }
+  },
+  "muzzle": [
+   0,
+   0.046,
+   -0.602
+  ],
+  "eject": [
+   0.018,
+   0.048,
+   -0.082
+  ],
+  "scope": null,
+  "vm": {
+   "size": 0.85,
+   "adsDrop": 0,
+   "fit16x9": {
+    "rotYXZ": [
+     0.003603,
+     0.027366,
+     0
+    ],
+    "scale": 0.635799,
+    "hip": [
+     0.108398,
+     -0.086472,
+     -0.2
+    ],
+    "ads": [
+     0.075709,
+     -0.079664,
+     -0.2
+    ],
+    "adsRot": [
+     -0.003603,
+     -0.027366
+    ],
+    "adsEye": null,
+    "scopeR": null
+   }
+  },
+  "bytes": 306972
+ }
+}

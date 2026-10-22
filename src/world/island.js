@@ -270,6 +270,7 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
     cover: (boxes, d) => grass.cover(boxes, d),
     catCenter: new THREE.Vector3(spawn.x - 2.5, 0, spawn.z - 3),
     fog: [12, VIEW - 15], // かすみ: 12m から薄くかかり、115m で見えなくなる
+    heightFog: { density: 0.006, base: 1, fall: 3 }, // 低い所の霧（world/fog.js）: 高さ 1m より下で 1m あたり 0.006。3m 上がるごとに薄くなる
     setGrid(on) { gridOn = on; },
     setDebug(on) { debugOn = on; rings.visible = on; },
     update(t, cam) {

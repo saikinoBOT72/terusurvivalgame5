@@ -27,7 +27,9 @@ import { planeWreck, crate } from './wreck.js';
 import { planterGeo, crop } from './crops.js';
 import { ITEMS } from '../survival/items.js';
 import { PARTS, partGeometry } from '../build/parts.js';
-import { boothGeo, stakeGeo } from './range.js';
+import { boothGeo, stakeGeo, gunTableGeo } from './range.js';
+import { akRig } from '../survival/akShapes.js';
+import { cyberAkRig } from '../survival/cyberShapes.js';
 import { container, fishingBoat, junkPile, clayBank, shellGeo, steppingStone } from './spotBeach.js';
 import { tentRuin, deadFire, flagPole, notebook, waterWheel, millHut } from './spotCamp.js';
 import { deadTree, stoneWall, giantTree, mossBoulder, spring, glowShrooms, GLOW_MAT, poolMesh } from './spotNature.js';
@@ -46,11 +48,14 @@ export const BUDGET = [
 ];
 const CHARA = ['キャラ', 0, [1000, 2000], [1, 99]];
 const GUN = ['銃', 0, [300, 700], [10, 36]]; // 銃は細かく作る（style.md「銃（例外）」）
+const REALGUN = ['実銃', 0, [600, 2000], [15, 80]]; // 前の FPS の銃の作り直し（style.md「実銃（例外）」）
+const CYBERGUN = ['サイバーガン', 0, [600, 1500], [15, 60]]; // サイバーガンシリーズ（style.md「サイバーガン（例外）」）
 const AMMO = ['弾の束', 0, [80, 200], [1, 8]]; // 銃の弾の束（style.md「弾の束（例外）」）
 const BIGTREE = ['特大の木', 0, [250, 1000], [2, 12]]; // 一本木（style.md「特大の木（例外）」）
 const HEAP = ['ロボの山', 0, [600, 3000], [8, 160]]; // 壊れたロボの山: 敵 4 体分まで（objects.md）
 const BED = ['鉱床', 0, [300, 900], [10, 40]]; // 鉱床（style.md「鉱床（例外）」）
-const MACHINE = ['機械', 0, [400, 1200], [8, 80]]; // 自動化の機械（style.md「機械（例外）」）
+const MACHINE = ['機械', 0, [400, 1200], [8, 80]];
+const CONCRETE = ['コンクリート', 0, [8, 300], [1, 8]]; // マップ作りのコンクリートと光る物（style.md「のっぺりの例外」） // 自動化の機械（style.md「機械（例外）」）
 // 敵: 大きさでなく、見本の段階（mob）で決める（enemies.md。仮の数字）
 const MOBS = {
   小型: ['小型（敵）', 0, [150, 400], [8, 26]],
@@ -59,7 +64,7 @@ const MOBS = {
   生き物小型: ['小型（生き物）', 0, [300, 800], [6, 18]], // creatures.md「大きさの段階」
   生き物中型: ['中型（生き物）', 0, [600, 1200], [10, 24]],
 };
-const classOf = (m) => (m.mob ? MOBS[m.mob] : m.chara ? CHARA : m.gun ? GUN : m.ammo ? AMMO : m.bigTree ? BIGTREE : m.heap ? HEAP : m.bed ? BED : m.machine ? MACHINE : BUDGET.find((b) => m.size < b[1]));
+const classOf = (m) => (m.mob ? MOBS[m.mob] : m.chara ? CHARA : m.realGun ? REALGUN : m.cyberGun ? CYBERGUN : m.gun ? GUN : m.ammo ? AMMO : m.bigTree ? BIGTREE : m.heap ? HEAP : m.bed ? BED : m.machine ? MACHINE : m.concrete ? CONCRETE : BUDGET.find((b) => m.size < b[1]));
 const fits = (m) => { const [, , t, p] = classOf(m); return m.tris >= t[0] && m.tris <= t[1] && m.parts >= p[0] && m.parts <= p[1]; };
 
 // 1つの物の大きさ（一番長い辺 m）、三角形の数、部品の数（同じ位置の頂点でつながった面のかたまり）
@@ -102,7 +107,7 @@ function catalog() {
     ['石炭の岩', oreRock(r(), 'coal')], ['銅の岩', oreRock(r(), 'copper')], ['鉄の岩', oreRock(r(), 'iron')],
     ['石炭の岩（小）', oreRock(r(), 'coal', 0.45, true)], ['銅の岩（小）', oreRock(r(), 'copper', 0.45, true)], ['鉄の岩（小）', oreRock(r(), 'iron', 0.45, true)],
     ['飛行機の残骸', mesh(planeWreck(r()))], ['貨物の木箱', mesh(crate(r()))],
-    ['召喚の台', mesh(boothGeo(r(), P.robotShell[2]))], ['召喚の台（全部消す）', mesh(boothGeo(r(), P.robotEye[1], 'x'))], ['距離の杭', mesh(stakeGeo(r()))], // 射撃訓練島（開発用）
+    ['召喚の台', mesh(boothGeo(r(), P.robotShell[2]))], ['召喚の台（全部消す）', mesh(boothGeo(r(), P.robotEye[1], 'x'))], ['距離の杭', mesh(stakeGeo(r()))], ['銃の見比べ台', mesh(gunTableGeo(r()))], // 射撃訓練島（開発用）
     ...['potato', 'hemp'].flatMap((k) => [0, 1, 2].map((st) => [`プランター（${k === 'potato' ? 'イモ' : '麻'}・${['芽', '育ち中', '実り'][st]}）`, mesh(merge([planterGeo(r()), crop(r(), k, st)]))])),
     ['野生のイモ', mesh(crop(r(), 'potato', 2, 1))], ['野生の麻', mesh(crop(r(), 'hemp', 2, 1))],
     ['草', grassTuft(r())], ['山', mountain(r(), 14, 18)], ['枝', mesh(stick(r()))], ['石', mesh(pebble(r()))],
@@ -187,8 +192,10 @@ function catalog() {
   list.push({ name: '練習用の的', obj: dummy.root, update: dummy.update });
   const has = (n) => list.some((it) => it.name === n); // 落ちている枝・石と持ち物の枝・石は同じ形
   for (const id in ITEMS) if (!has(ITEMS[id].name)) list.push({ name: ITEMS[id].name, obj: itemMesh(id), gun: ITEMS[id].tool === 'gun', ammo: id === 'junkAmmo' });
+  list.push({ name: 'AK47（作り直し）', obj: akRig(), realGun: true });
+  list.push({ name: 'AK47（サイバー）', obj: cyberAkRig('rose'), cyberGun: true }); // サイバーガンシリーズ（weapons.md） // 前の FPS の銃の作り直し（射撃訓練島の見比べ台）
   for (const [id, name] of [['battery', 'バッテリー（削除済み）'], ['lantern', 'ランタン（削除済み）']]) list.push({ name, obj: itemMesh(id) }); // 形だけ残す
-  for (const t in PARTS) if (!has(PARTS[t].name)) list.push({ name: PARTS[t].name, obj: makeMesh(partGeometry(t)) });
+  for (const t in PARTS) if (!has(PARTS[t].name)) list.push({ name: PARTS[t].name, obj: makeMesh(partGeometry(t)), concrete: !!PARTS[t].map });
   return list;
 }
 
@@ -214,8 +221,8 @@ export function buildShowcase() {
   group.add(chunk.mesh, chunk.grid, chunk.steep);
 
   // 大きさの段階ごとに、小さい順に左から並べる。幅 50m で折り返す
-  const items = catalog().map((it, i) => ({ ...it, i, m: { ...measure(it.obj), chara: it.chara, mob: it.mob, gun: it.gun, ammo: it.ammo, bigTree: it.bigTree, heap: it.heap, bed: it.bed, machine: it.machine } }));
-  const order = (it) => (it.mob ? 3 + Object.keys(MOBS).indexOf(it.mob) : it.chara ? 2.5 : it.gun || it.ammo ? 1.5 : BUDGET.indexOf(classOf(it.m)));
+  const items = catalog().map((it, i) => ({ ...it, i, m: { ...measure(it.obj), chara: it.chara, mob: it.mob, gun: it.gun, realGun: it.realGun, cyberGun: it.cyberGun, ammo: it.ammo, bigTree: it.bigTree, heap: it.heap, bed: it.bed, machine: it.machine, concrete: it.concrete } }));
+  const order = (it) => (it.mob ? 3 + Object.keys(MOBS).indexOf(it.mob) : it.chara ? 2.5 : it.gun || it.realGun || it.cyberGun || it.ammo ? 1.5 : BUDGET.indexOf(classOf(it.m)));
   items.sort((a, b) => order(a) - order(b) || (a.mob ? a.i - b.i : a.m.size - b.m.size)); // 敵は一覧の順（同じ敵のポーズが並ぶ）
   const colliders = [], updates = [], out = [];
   let x = -25, z = 0, rowDepth = 0, cls = null;

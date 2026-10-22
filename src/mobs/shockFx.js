@@ -2,13 +2,14 @@
 // rockFx.js の中から使う。輪と斬撃は光る半透明の板（加算）、噴射は低分割の球。色は palette.js の fx.shock・fx.steam・fx.smoke
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
+import { glowMat } from '../style/lowpoly.js';
 
 const RINGS = 8, SLASHES = 4, PUFFS = 220;
 const rand = (a, b) => a + Math.random() * (b - a);
 
 export function createShockFx({ scene }) {
-  const glowMat = (color) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
-  const add = (geo, color) => { const m = new THREE.Mesh(geo, glowMat(color)); m.visible = false; m.frustumCulled = false; m.renderOrder = 3; scene.add(m); return m; };
+  const glowOf = (color) => glowMat({ color, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+  const add = (geo, color) => { const m = new THREE.Mesh(geo, glowOf(color)); m.visible = false; m.frustumCulled = false; m.renderOrder = 3; scene.add(m); return m; };
   // 輪: 地面に寝かせた細い輪（半径 1）を広げる。斬撃: 前の半円の帯（体の左から右へ）
   const ringGeo = new THREE.RingGeometry(0.82, 1, 40, 1).rotateX(-Math.PI / 2);
   const slashGeo = new THREE.RingGeometry(0.9, 2.6, 24, 1, Math.PI * 1.05, Math.PI * 0.9).rotateX(-Math.PI / 2);

@@ -120,6 +120,14 @@ html, body { background: var(--ui-edge); }
 .build-menu .card[hidden] { display: none; }
 .build-menu .need .lack { color: var(--ui-ng); }
 .build-menu .tab.remove { margin-left: auto; }
+.build-menu .tabs .ends { margin-left: auto; display: flex; gap: 6px; }
+.build-menu [data-map][hidden], .build-menu .tab[hidden] { display: none; }
+/* マップ作り: 色見本と書き出し・読み込み（ui.md「マップ作りの建築メニュー」） */
+.build-menu .map-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.build-menu .swatches { display: flex; gap: 4px; flex-wrap: wrap; margin-right: auto; }
+.build-menu .sw { width: 30px; height: 30px; padding: 0; border-radius: 6px; background: linear-gradient(135deg, var(--sw) 60%, var(--glow) 60%); }
+.build-menu .sw.on { outline: 3px solid var(--ui-light); outline-offset: 1px; }
+.build-hud .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
 
 /* ---- 手に持つ列 ---- */
 .hotbar { position: fixed; left: 50%; bottom: calc(16px + var(--safe-b)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
