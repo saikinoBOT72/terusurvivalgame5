@@ -3,6 +3,7 @@
 // どの攻撃かは a.style（pinch | double | rush）。敵の行の fx: 'sand' で tick が毎フレーム呼ばれる。色は palette.js の fx.sand・fx.splash
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
+import { particles, thin } from '../style/lowpoly.js';
 
 const MAX = 260;
 const G = 9.8;
@@ -20,7 +21,8 @@ export function createSandFx({ scene, fx = null }) {
 
   // 粒を 1 つ。p: 位置、v: 速さ、s: 大きさ、life: 秒、cols: 色（水は地面で弾けてすぐ消える）
   function bit(p, v, s, life, cols = sand) {
-    if (list.length >= MAX) list.shift();
+    if (thin()) return;
+    if (list.length >= MAX * particles.k) list.shift();
     list.push({ p: p.clone(), v, s, life, max: life, c: cols[Math.floor(Math.random() * cols.length)], r: rand(0, 6), rest: false, wet: cols === water });
   }
   const fwd = (m) => new THREE.Vector3(Math.sin(m.yaw), 0, Math.cos(m.yaw));

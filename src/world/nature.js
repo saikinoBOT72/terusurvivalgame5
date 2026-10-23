@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { P } from '../style/palette.js';
 import { pick, shape, merge, makeMesh, MAT } from '../style/lowpoly.js';
 import { addFog } from './fog.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // 円すいのすそ（一番下の輪）を 1 つおきに下げて外へ出し、枝先のギザギザにする。radial は偶数
 function jagSkirt(g, radial, depth) {
@@ -107,26 +108,43 @@ export function grassTuft(rand) {
   return makeMesh(geo, { double: true, shadow: false });
 }
 
-// 水面: 少し透ける平らな面が、ゆっくり小さく波打つ
-// res: 1m あたりの分割数（広い海は粗くする）
-export function water(x0, z0, w, d, level, res = 2) {
-  const g = new THREE.PlaneGeometry(w, d, Math.ceil(w * res), Math.ceil(d * res));
-  g.rotateX(-Math.PI / 2);
-  g.translate(x0 + w / 2, level, z0 + d / 2);
+// 海の水面: 少し透ける平らな面が、ゆっくり小さく波打つ。プレイヤーについて動く（PLAN.md「軽くする」）
+// 近く（NEAR の 2 倍四方）は細かい格子で波打つ。その外の輪（かすみで見えなくなる所まで）は粗い格子で波なし。波は近くの格子のふちで 0 に絞るので、継ぎ目に隙間は出ない
+// 格子は SNAP m ごとにずらすので、頂点はいつも世界の同じ位置にあり、波の模様は動かない（波は世界の位置で計算する）
+const SEA = { near: 40, far: 136, cell: 8 / 3, ring: 8, snap: 8 }; // 近くの半分の幅、輪の外の半分の幅、近く・輪の 1 マス、ずらす刻み
+function seaGeometry() {
+  const n = Math.round((SEA.near * 2) / SEA.cell), parts = [new THREE.PlaneGeometry(SEA.near * 2, SEA.near * 2, n, n)];
+  const k = (SEA.far * 2) / SEA.ring;
+  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) {
+    const x = -SEA.far + (i + 0.5) * SEA.ring, y = -SEA.far + (j + 0.5) * SEA.ring;
+    if (Math.abs(x) < SEA.near && Math.abs(y) < SEA.near) continue; // 近くの格子の所は穴
+    parts.push(new THREE.PlaneGeometry(SEA.ring, SEA.ring).translate(x, y, 0));
+  }
+  return mergeGeometries(parts).rotateX(-Math.PI / 2);
+}
+export function water(level) {
+  const g = seaGeometry().translate(0, level, 0);
   const mat = new THREE.MeshLambertMaterial({
     color: P.water[2], transparent: true, opacity: 0.78, flatShading: true,
   });
   const m = new THREE.Mesh(g, mat);
   m.receiveShadow = true;
-  // 波は描くときに動かす（毎フレーム頂点を書き換えて送り直すと重い）。頂点の位置は世界の位置と同じ
+  m.frustumCulled = false; // いつもまわりにある
+  // 波は描くときに動かす（毎フレーム頂点を書き換えて送り直すと重い）。波の模様は世界の位置、ふちで絞るのは格子の中の位置で決める
   const uTime = { value: 0 };
   mat.onBeforeCompile = (s) => {
     addFog(s); // 霧の値（fog.js）
     s.uniforms.uTime = uTime;
-    s.vertexShader = 'uniform float uTime;\n' + s.vertexShader.replace('#include <begin_vertex>',
-      '#include <begin_vertex>\ntransformed.y += sin(transformed.x * 1.3 + uTime * 0.9) * 0.025 + cos(transformed.z * 1.7 + uTime * 0.7) * 0.025;');
+    s.vertexShader = 'uniform float uTime;\n' + s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      vec2 wp = transformed.xz + modelMatrix[3].xz;
+      float edge = 1.0 - smoothstep(${(SEA.near - 8).toFixed(1)}, ${SEA.near.toFixed(1)}, max(abs(transformed.x), abs(transformed.z)));
+      transformed.y += (sin(wp.x * 1.3 + uTime * 0.9) * 0.025 + cos(wp.y * 1.7 + uTime * 0.7) * 0.025) * edge;`);
   };
-  m.userData.update = (t) => { uTime.value = t; };
+  // cam: 今の目の位置
+  m.userData.update = (t, cam) => {
+    uTime.value = t;
+    if (cam) m.position.set(Math.round(cam.x / SEA.snap) * SEA.snap, 0, Math.round(cam.z / SEA.snap) * SEA.snap);
+  };
   return m;
 }
 
@@ -179,7 +197,7 @@ class Chunked extends THREE.Group {
     }
     this.where = this.where.map(([list, i]) => [meshOf.get(list), i]);
   }
-  setMatrixAt(k, mat) { const [m, i] = this.where[k]; m.setMatrixAt(i, mat); m.instanceMatrix.needsUpdate = true; }
+  setMatrixAt(k, mat) { const [m, i] = this.where[k]; m.setMatrixAt(i, mat); m.instanceMatrix.needsUpdate = true; } // まとめたあとは batch.js がつなぎ替えた先へ
   getMatrixAt(k, mat) { const [m, i] = this.where[k]; m.getMatrixAt(i, mat); }
 }
 export function instanced(geo, items, { double = false, shadow = true } = {}) {

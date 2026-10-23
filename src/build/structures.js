@@ -1,7 +1,7 @@
 // 置いた建築パーツの管理: 記録、追加と撤去、支えと連鎖撤去、土台の足、草、当たり判定
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
-import { MAT, rng, pick, shape } from '../style/lowpoly.js';
+import { MAT, rng, pick, shape, shadowDirty } from '../style/lowpoly.js';
 import { campfire } from '../world/props.js';
 import { PARTS, partGeometry, localShapes } from './parts.js';
 import { initStation, tickStation } from '../survival/stations.js';
@@ -99,6 +99,7 @@ export function createStructures(world) {
 
   // y: 格子にそろわない高さ（地面に置く家具）。c: 色の見本の番号（塗れるパーツだけ）
   function add(type, i, rot, { y, c = DEFAULT_COLOR } = {}) {
+    shadowDirty.v = true;
     const pos = { x: fromI(i.x), y: y ?? fromI(i.y), z: fromI(i.z) };
     const def = PARTS[type];
     const mesh = new THREE.Mesh(partGeometry(type, def.frame ? 'frame' : 'build'), matOf(def, c));
@@ -145,6 +146,7 @@ export function createStructures(world) {
   function remove(part, out = []) {
     if (!list.includes(part)) return out;
     out.push(part);
+    shadowDirty.v = true;
     group.remove(part.mesh);
     list.splice(list.indexOf(part), 1);
     part.wireRefund = wires.removeFor(part); // 線も外れて銅線が戻る

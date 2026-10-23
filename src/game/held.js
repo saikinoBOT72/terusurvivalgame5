@@ -10,6 +10,7 @@ import { ITEMS } from '../survival/items.js';
 import { itemMesh, gripOf } from '../survival/itemShapes.js';
 import { rng } from '../style/lowpoly.js';
 import { campfire } from '../world/props.js';
+import { lightSource } from '../world/lightPool.js';
 
 export function createHeld({ inventory, player, build, onMessage }) {
   let heldId = null, torchFire = null, torchT = 0;
@@ -33,10 +34,11 @@ export function createHeld({ inventory, player, build, onMessage }) {
     }
     if (id === 'glowShroom') { // 光るキノコ: 青緑の弱い光（松明の半分）。ひだは光の影響を受けない材質
       mesh.add(new THREE.Mesh(glowShroomGill(rng(4)), GLOW_MAT));
-      const light = new THREE.PointLight(P.magic[2], 1.5, 7, 1.6);
-      light.position.y = 0.2;
-      mesh.add(light);
-      torchFire = { root: light, update() {} };
+      const at = new THREE.Object3D();
+      at.position.y = 0.2;
+      mesh.add(at);
+      lightSource(at, { color: P.magic[2], intensity: 1.5, distance: 7, decay: 1.6 }); // 使い回しの光（world/lightPool.js）
+      torchFire = { root: at, update() {} };
     }
   });
   return {

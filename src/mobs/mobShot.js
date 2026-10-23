@@ -2,6 +2,7 @@
 // 数値は mobTypes.js の攻撃の shot: { speed m/秒（重力があれば横の速さ）, r 半径 m, range 消えるまでの m, g 重力（m/秒²、なければまっすぐ） }
 // 見た目は攻撃の fx で: 'wind' 白い渦（windFx.js）、'mud' 泥の玉としずく（mudFx.js）
 import * as THREE from 'three';
+const _d = new THREE.Vector3();
 import { P } from '../style/palette.js';
 
 const BODY_LO = 0.1, BODY_HI = 1.2, BODY_R = 0.3; // プレイヤーの体（足から上の高さ、太さ）
@@ -45,7 +46,7 @@ export function createMobShots({ wind, mud }) {
         if (s.a.shot.g) s.v.y -= s.a.shot.g * dt;
         s.p.addScaledVector(s.v, dt); s.went += s.v.length() * dt;
         s.mesh.position.copy(s.p);
-        const d = s.v.clone().normalize();
+        const d = _d.copy(s.v).normalize(); // 使い回し（毎フレーム作らない）
         if (s.mud) { s.o.rotation.x += dt * 7; s.o.rotation.z += dt * 4; mud?.trail(s.p, dt); } // 転がりながら飛び、しずくを落とす
         else { s.o.rotation.y += dt * 9; s.o.rotation.x += dt * 5; s.i.rotation.z -= dt * 14; wind?.swirl(s.p, d, dt); } // 渦を巻く
         // プレイヤー: 体（縦の線）との近さ

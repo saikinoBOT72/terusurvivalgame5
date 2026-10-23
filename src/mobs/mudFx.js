@@ -3,6 +3,7 @@
 // 泥と土のかけらは低分割の球。重力で落ち、地面で止まって小さくなって消える。色は palette.js の fx.mud・fx.dust
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
+import { particles, thin } from '../style/lowpoly.js';
 
 const MAX = 260;
 const G = 9.8;
@@ -20,7 +21,8 @@ export function createMudFx({ scene, fx = null }) {
 
   // かけらを 1 つ。p: 位置、v: 速さ、s: 大きさ、life: 秒、cols: 色
   function bit(p, v, s, life, cols = mud) {
-    if (list.length >= MAX) list.shift();
+    if (thin()) return;
+    if (list.length >= MAX * particles.k) list.shift();
     list.push({ p: p.clone(), v, s, life, max: life, c: cols[Math.floor(Math.random() * cols.length)], r: rand(0, 6), rest: false });
   }
   const fwd = (m) => new THREE.Vector3(Math.sin(m.yaw), 0, Math.cos(m.yaw));

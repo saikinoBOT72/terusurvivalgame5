@@ -105,6 +105,7 @@ export function placeSpots(base) {
     const geo = new THREE.IcosahedronGeometry(1, 0), puffs = [];
     for (let k = 0; k < 9; k++) {
       const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: P.fx.smoke[2], transparent: true, depthWrite: false, flatShading: true }));
+      m.userData.moves = true; // 毎フレーム動く（island.js が行列を止めない）
       group.add(m);
       puffs.push(m);
     }

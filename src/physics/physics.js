@@ -1,6 +1,7 @@
 // 物理の世界（docs/rules/physics.md）: 物と乗り物だけ。プレイヤーは自前の仕組みのまま
 // 固定の歩みで進め、表示は前の歩みとの間をなめらかにつなぐ。世界ごとに 1 つ作る。
 import * as THREE from 'three';
+const _q = new THREE.Quaternion();
 import RAPIER from '@dimforge/rapier3d-compat';
 import { createStaticSync, hullDesc } from './colliders.js';
 import { applyWater, LOST } from './buoyancy.js';
@@ -148,7 +149,7 @@ export function createPhysics(world, structures) {
       if (Math.hypot(t.x, t.z) > LOST) { remove(h); h.onLost?.(); continue; }
       h.p.set(t.x, t.y, t.z).lerp(h.prev.p, 1 - alpha);
       h.q.set(q.x, q.y, q.z, q.w);
-      h.q.slerpQuaternions(h.prev.q, h.q.clone(), alpha);
+      h.q.slerpQuaternions(h.prev.q, _q.copy(h.q), alpha); // 使い回し（毎フレーム作らない）
       if (h.mesh) { h.mesh.position.copy(h.p); h.mesh.quaternion.copy(h.q); }
       h.onMove?.(h.p, h.q);
     }

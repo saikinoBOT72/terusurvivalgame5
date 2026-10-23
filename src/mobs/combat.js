@@ -18,6 +18,7 @@ const DUMMY_BACK = 3; // 練習用の的が HP 0 から戻るまで
 const LOG_N = 10;
 const SLEEP = 80; // これより遠くて気づいていない敵は休む（islands.md「敵の出方」）
 const Z_SEE = 15; // 寝ている番人の「z」が見える距離（enemies.md「番人」）
+const FAR_THINK = 40; // これより遠い敵・生き物は 4 フレームに 1 回だけ考える（ためた秒を渡す。PLAN.md「軽くする」）
 const between = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 
 // 体の当たり: 待機のポーズの見た目の箱（種類ごとに 1 回だけ作る）
@@ -52,7 +53,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
   const list = [], log = [];
   const shots = createMobShots({ wind, mud }); // 敵の弾（風の弾・泥）
   const mfx = createMobFx({ fx }); // 白煙・傷み・土ぼこり・外れた部品
-  let playerSpeed = 0, lastP = null; // プレイヤーの水平の速さ（寝ている番人が起きる。brain.js）
+  let playerSpeed = 0, lastP = null, frameN = 0; // プレイヤーの水平の速さ（寝ている番人が起きる。brain.js）
   const o = new THREE.Vector3(), d = new THREE.Vector3(), inv = new THREE.Matrix4(), ray = new THREE.Ray(), hit = new THREE.Vector3(), sph = new THREE.Sphere(), wp = new THREE.Vector3();
 
   const groundY = (m) => (m.def.hover ? steer.flyY(m) : world.terrain.floorAt(m.x, m.y + 1, m.z)) + (m.hopY ?? 0); // 足元の床（洞窟の中でも）
@@ -244,6 +245,8 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
     list, log, shots, mfx,
     setWorld(w) { clear(); world = w; mfx.setWorld(w); mud?.setWorld(w); rock?.setWorld(w); sand?.setWorld(w); steer = w?.terrain ? createSteer({ terrain: w.terrain, blockers }) : null; for (const at of w?.dummies ?? (w?.dummyAt ? [w.dummyAt] : [])) { const m = spawn('dummy', at.x, at.z); m.yaw = Math.atan2(w.spawn.x - m.x, w.spawn.z - m.z); m.fixed = true; } }, // 練習用の的は島の決まった場所に（訓練島は射撃の道に並べる。fixed: 全部消すで消さない）
     spawn, remove, stash, clear, rayMob, damageMob, barrierMob,
+    // 材質を先に作るための見本: 種類ごとに 1 つ形を作ってとっておき（出すときに使い回す）、その形を返す（main.js）
+    samples() { return Object.keys(MOBS).map((k) => { const m = MOBS[k].make(); (pool[k] ??= []).push(m); return m.root; }); },
     // 敵の体（プレイヤーの当たり判定に足す。firstPerson.js）。倒れた敵は通り抜ける
     bodies(x, z, r) {
       const out = [];
@@ -292,7 +295,9 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
       if (!world) return;
       const ps = player.state;
       if (lastP && dt > 0) playerSpeed = Math.hypot(ps.x - lastP.x, ps.z - lastP.z) / dt;
-      lastP = { x: ps.x, z: ps.z };
+      lastP ??= {};
+      lastP.x = ps.x; lastP.z = ps.z;
+      frameN++;
       for (const m of [...list]) {
         if (m.state === 'down') {
           if (m.def.dummy) { // 的: 倒れず、3 秒で戻る
@@ -302,13 +307,18 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
           if (m.state === 'flinch' && (m.t -= dt) <= 0) { m.state = 'idle'; m.model.setPose('idle'); }
         } else if (active) {
           if (m.aware === 'none' && Math.hypot(m.x - player.state.x, m.z - player.state.z) > SLEEP) continue; // 遠くて気づいていない敵は休む
-          m.moved = false;
-          m.model.setHealth?.(m.hp / m.maxHp);
-          if (m.def.camera) thinkCamera(m, dt, ctx(m)); else if (m.def.creature) thinkAnimal(m, dt, ctx(m)); else think(m, dt, ctx(m));
-          if (!list.includes(m)) continue; // 逃げ切った
-          if (!m.moved && !m.def.camera) steer.coast(m, dt); // 慣性で少し流れて止まる
-          m.y += (groundY(m) - m.y) * Math.min(1, dt * (m.hopY ? 20 : 6));
-          apart(m);
+          m.thinkT = Math.min(0.2, (m.thinkT ?? 0) + dt);
+          if (Math.hypot(m.x - ps.x, m.z - ps.z) <= FAR_THINK || ((frameN + (m.slot ??= Math.floor(Math.random() * 4))) & 3) === 0) {
+            const d = m.thinkT;
+            m.thinkT = 0;
+            m.moved = false;
+            m.model.setHealth?.(m.hp / m.maxHp);
+            if (m.def.camera) thinkCamera(m, d, ctx(m)); else if (m.def.creature) thinkAnimal(m, d, ctx(m)); else think(m, d, ctx(m));
+            if (!list.includes(m)) continue; // 逃げ切った
+            if (!m.moved && !m.def.camera) steer.coast(m, d); // 慣性で少し流れて止まる
+            m.y += (groundY(m) - m.y) * Math.min(1, d * (m.hopY ? 20 : 6));
+            apart(m);
+          }
         }
         m.flash = Math.max(0, m.flash - dt);
         m.model.root.position.set(m.x, m.y, m.z);
@@ -325,7 +335,7 @@ export function createCombat({ camera, inventory, player, playerDead = () => fal
       mud?.update(dt);
       rock?.update(dt); sand?.update(dt);
       mfx.update(dt);
-      hud?.setMarks(list.filter((m) => m.state !== 'down' && (m.aware === 'sus' || m.alertT > 0 || (m.asleep && Math.hypot(m.x - ps.x, m.z - ps.z) < Z_SEE)) && markSeen(m)).map((m) => ({ p: new THREE.Vector3(m.x, m.y + bodyBox(m.kind).max.y + 0.15, m.z), kind: m.aware === 'sus' ? '?' : m.alertT > 0 ? '!' : 'z' })));
+      hud?.setMarks(list.filter((m) => m.state !== 'down' && (m.aware === 'sus' || m.alertT > 0 || (m.asleep && Math.hypot(m.x - ps.x, m.z - ps.z) < Z_SEE)) && markSeen(m)).map((m) => ({ p: (m.markP ??= new THREE.Vector3()).set(m.x, m.y + bodyBox(m.kind).max.y + 0.15, m.z), kind: m.aware === 'sus' ? '?' : m.alertT > 0 ? '!' : 'z' }))); // 位置は敵ごとに使い回す
     },
   };
 }

@@ -3,7 +3,7 @@
 // 数字と照準の × は画面表示（ui/combatHud.js）へ渡す
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
-import { glowMat } from '../style/lowpoly.js';
+import { glowMat, particles, thin } from '../style/lowpoly.js';
 import { bodyBox } from './combat.js';
 import { createBarrierFx } from './barrierFx.js';
 
@@ -71,19 +71,22 @@ export function createHitFx({ scene, hud = null }) {
   }
 
   function addSparks(p, n, speed, pal = P.fx.spark) {
-    for (let i = 0; i < n && sparks.length < MAX_SPARK; i++) {
+    for (let i = 0; i < n && sparks.length < MAX_SPARK * particles.k; i++) {
+      if (thin()) continue;
       const v = new THREE.Vector3(rand(-1, 1), rand(-0.2, 1), rand(-1, 1)).normalize().multiplyScalar(speed * rand(0.5, 1));
       sparks.push({ p: p.clone(), v, life: rand(0.2, 0.5), c: col(pal), bounce: 1 });
     }
   }
   function addEmbers(p, n) {
     for (let i = 0; i < n; i++) {
-      if (embers.length >= MAX_EMBER) embers.shift();
+      if (thin()) continue;
+      if (embers.length >= MAX_EMBER * particles.k) embers.shift();
       embers.push({ p: p.clone(), v: new THREE.Vector3(rand(-1.5, 1.5), rand(0.5, 2.5), rand(-1.5, 1.5)), s: rand(0.012, 0.022), life: EMBER_SECS * rand(0.7, 1.1), max: EMBER_SECS, c: HOT[i % HOT.length].clone() });
     }
   }
   function addBits(p, n, size, speed, pals, life) {
-    for (let i = 0; i < n && bits.length < MAX_BIT; i++) {
+    for (let i = 0; i < n && bits.length < MAX_BIT * particles.k; i++) {
+      if (thin()) continue;
       bits.push({
         p: p.clone(), v: new THREE.Vector3(rand(-1, 1), rand(0.4, 1.2), rand(-1, 1)).multiplyScalar(speed),
         r: new THREE.Vector3(rand(0, 6), rand(0, 6), rand(0, 6)), rv: new THREE.Vector3(rand(-12, 12), rand(-12, 12), rand(-12, 12)),
@@ -92,7 +95,8 @@ export function createHitFx({ scene, hud = null }) {
     }
   }
   function addPuff(p) {
-    if (puffs.length >= MAX_PUFF) puffs.shift();
+    if (thin()) return;
+    if (puffs.length >= MAX_PUFF * particles.k) puffs.shift();
     puffs.push({ p: p.clone().add(_p.set(rand(-0.1, 0.1), 0, rand(-0.1, 0.1))), s: rand(0.04, 0.07), life: 1.2, max: 1.2, c: col(P.fx.smoke) });
   }
 

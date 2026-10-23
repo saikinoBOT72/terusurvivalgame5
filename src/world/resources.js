@@ -1,5 +1,6 @@
 // 拾える物・採れる物の登録（島）。同じ形はまとめて描いてあるので、インスタンスを1つずつ消したり戻したりする
 import * as THREE from 'three';
+import { shadowDirty } from '../style/lowpoly.js';
 
 const CELL = 8;
 const _m = new THREE.Matrix4(), _r = new THREE.Matrix4(), _back = new THREE.Matrix4(), _axis = new THREE.Vector3(), ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -28,6 +29,7 @@ export function createResources() {
   }
   function setShown(e, on) {
     e.ready = on;
+    shadowDirty.v = true;
     for (const p of e.parts) {
       p.mesh.setMatrixAt(p.index, on ? p.matrix : ZERO);
       p.mesh.instanceMatrix.needsUpdate = true;

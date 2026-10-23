@@ -127,6 +127,11 @@ export const MAT = {
 export const GLOW = 5; // 日なたの砂（1.16）より十分明るく、ブルームのしきい値（postfx.js の 1.7）を超える
 // 光る物が描かれたフレームだけブルームを作る（postfx.js が毎フレーム false に戻し、描いた後に見る）
 export const glowSeen = { v: false };
+// 影の作り直しの合図（影の品質 中・低で間を空けているとき、すぐ作り直す。建てた・壊した・採った。game/renderer.js）
+export const shadowDirty = { v: false };
+// パーティクルの量（設定「パーティクル」ui.md「画質」。少ない = k 0.5）。演出の粒の上限に k をかけ、thin() が true の粒は作らない（2 つに 1 つ）
+export const particles = { k: 1, n: 0 };
+export const thin = () => particles.k < 1 && (++particles.n & 1) === 0;
 // 光る材質に印をつける。on(): いま光っているか（透明・数 0・大きさ 0 の物は数えない）
 export function markGlow(m, on = () => m.opacity > 0.01) {
   m.onBeforeRender = (r, sc, cam, geo, obj) => { if (on() && obj.scale.x !== 0 && !(obj.isInstancedMesh && obj.count === 0)) glowSeen.v = true; };

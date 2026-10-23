@@ -116,3 +116,34 @@ export function createDebug(g) {
     return lines.join('\n');
   };
 }
+
+// 重さを測る（PLAN.md「軽くする」）: __game.measure('mid') で、自動の解像度を切り、描く倍率 1・はじめの浜の場所と向き・昼 12 時にそろえて、
+// 20 フレーム空回し → 60 フレームを 1 つずつ readPixels で GPU を待って測る（中央値と平均。影の作り直しは平均に出る）。inland: 島の中を向く（ふだんは海の方）。終わったら元の動きに戻す
+export function createMeasure(g) {
+  return async (q = 'mid', { inland = false, n = 60, force = false } = {}) => { // force: ペインが隠れていても測る（描く回数だけ見るとき。時間は当てにならない）
+    if (g.mode !== 'fps') return '1人称で遊んでいるときに測る（タイトルの景色では測らない）';
+    let ticks = 0; const tick = () => { if (++ticks < 3) requestAnimationFrame(tick); }; requestAnimationFrame(tick);
+    await new Promise((ok) => setTimeout(ok, 150));
+    if (ticks < 2 && !force) return 'ペインが隠れている（画面が回っていないので測れない）';
+    const r = g.renderer, gl = r.getContext(), px = new Uint8Array(4), s = g.player.state, prev = { ...g.settings };
+    g.quality(q);
+    g.post.setOptions({ autoRes: false });
+    const pr = r.getPixelRatio();
+    r.setPixelRatio(1);
+    r.setAnimationLoop(null);
+    const step = () => { Object.assign(s, { x: -50, z: 166, yaw: inland ? 0 : Math.PI, pitch: 0 }); g.time.state.sec = 360; g.frame(1 / 60); }; // 360 秒 = 12 時
+    for (let i = 0; i < 20; i++) step();
+    const tot = [], cpu = [];
+    for (let i = 0; i < n; i++) {
+      const t0 = performance.now(); step(); const t1 = performance.now();
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      tot.push(performance.now() - t0); cpu.push(t1 - t0);
+    }
+    const med = (a) => a.sort((x, y) => x - y)[a.length >> 1].toFixed(1), mean = (a) => (a.reduce((x, y) => x + y, 0) / a.length).toFixed(1), i = r.info.render, sz = r.getDrawingBufferSize(new THREE.Vector2()), sc = g.post.scale;
+    r.setPixelRatio(pr);
+    Object.assign(g.settings, prev);
+    g.quality(prev.fxq);
+    r.setAnimationLoop(() => g.frame());
+    return `${q}${inland ? '（島の中）' : ''}: 全体 ${med(tot)}ms（平均 ${mean(tot)}）CPU ${med(cpu)}ms 描画 ${i.calls} 回 三角形 ${i.triangles} 画面 ${sz.x}x${sz.y} 細かさ ${sc}`;
+  };
+}

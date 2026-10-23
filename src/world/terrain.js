@@ -7,6 +7,9 @@ import { P } from '../style/palette.js';
 import { rng, pick, paint, makeMesh } from '../style/lowpoly.js';
 import { meshTriangles, surf, FULL, VH } from './voxelMesh.js';
 
+// 地形が影を落とすか（影の品質「低」で切る。game/renderer.js が変える）
+export const terrainShadow = { on: true };
+
 export const STEP = VH;
 
 // tile(tx, tz) → [角0, 角1, 角2, 角3] の高さ（タイルごと。崖ではとなりと違ってよい）
@@ -182,6 +185,8 @@ export function createTerrain({
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     const r = rng(seed + tx0 * 131 + tz0 * 7);
     const mesh = makeMesh(paint(geo, (f) => colorOf(f, r), r, 0.04));
+    mesh.castShadow = terrainShadow.on;
+    mesh.userData.terrain = true;
 
     const lg = new THREE.BufferGeometry();
     lg.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));

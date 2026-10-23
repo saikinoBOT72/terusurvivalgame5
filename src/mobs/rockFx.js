@@ -4,7 +4,7 @@
 // 破片は低分割の球、火の粉は光る球、柱は四角すい、ひびは地面に沿った細い板（中が赤く光る）。色は palette.js の fx.rock・fx.crack・fx.heat・fx.dust
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
-import { glowMat } from '../style/lowpoly.js';
+import { glowMat, particles, thin } from '../style/lowpoly.js';
 import { createShockFx } from './shockFx.js';
 
 const MAX = 320, EMBERS = 120, SPIKES = 70, CRACKS = 160;
@@ -29,7 +29,8 @@ export function createRockFx({ scene, fx = null, player = null }) {
 
   function bit(p, v, s, life, cols = rockC) {
     const glow = cols === heat, list = glow ? embers : bits;
-    if (list.length >= (glow ? EMBERS : MAX)) list.shift();
+    if (thin()) return;
+    if (list.length >= (glow ? EMBERS : MAX) * particles.k) list.shift();
     list.push({ p: p.clone(), v, s, life, max: life, c: pick(cols), r: rand(0, 6), rest: false });
   }
   const worldOf = (obj) => (obj?.parent ? obj.getWorldPosition(_p).clone() : null);

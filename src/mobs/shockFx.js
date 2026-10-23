@@ -2,7 +2,7 @@
 // rockFx.js の中から使う。輪と斬撃は光る半透明の板（加算）、噴射は低分割の球。色は palette.js の fx.shock・fx.steam・fx.smoke
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
-import { glowMat } from '../style/lowpoly.js';
+import { glowMat, particles, thin } from '../style/lowpoly.js';
 
 const RINGS = 8, SLASHES = 4, PUFFS = 220;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -41,7 +41,8 @@ export function createShockFx({ scene }) {
     // 噴射: p から dir の向きへ n 個（dark: 黒煙を混ぜる割合）
     jet(p, dir, n, dark = 0.3, sp = 3) {
       for (let i = 0; i < n; i++) {
-        if (puffs.length >= PUFFS) puffs.shift();
+        if (thin()) continue;
+        if (puffs.length >= PUFFS * particles.k) puffs.shift();
         const v = dir.clone().multiplyScalar(sp * rand(0.6, 1.2)).add(new THREE.Vector3(rand(-0.5, 0.5), rand(-0.2, 0.6), rand(-0.5, 0.5)));
         const life = rand(0.5, 0.9);
         puffs.push({ p: p.clone(), v, s: rand(0.05, 0.1), life, max: life, c: (Math.random() < dark ? smoke : steam)[Math.floor(Math.random() * 3)], r: rand(0, 6) });

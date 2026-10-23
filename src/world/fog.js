@@ -1,7 +1,7 @@
 // 霧（docs/rules/style.md「画面の効果」）: three の霧のシェーダーを差し替える。どの材質にも同じ霧がかかる
 // ① ふつうのかすみ（今までどおり、遠いほど濃い）② 低い所ほど濃い霧（谷・沼・朝もや。濃さがゆっくり揺れる）③ 太陽の方を向くと霧が明るく暖かい色
 // 値は sky.js が毎フレーム入れる（FOG）。読み込んだ時点で差し替わるので、main.js の最初の方で import する
-// 計算の細かさ（ui.md「画質」の霧の計算）: high = 画素ごと、mid = 揺れを単純にした安い計算、low = ②③を頂点ごと。濃さはどれも同じ
+// 計算の細かさ（ui.md「画質」の霧の計算）: high = 画素ごと、mid = 揺れ（単純にした式）と太陽の方の色は頂点ごと・濃さは画素ごと、low = ②③を頂点ごと。濃さはどれも同じ
 import * as THREE from 'three';
 
 export const FOG = {
@@ -13,22 +13,24 @@ export const FOG = {
 
 const UNI = 'uniform vec3 fogSunDir; uniform float fogSun; uniform vec4 fogHeight;';
 // 低い所の霧で残る割合（0〜1）と、太陽の方の色の強さ。高さで指数に薄くなる霧を、目から物までの道のりで足し合わせる（目が霧の底より下なら底にいるとみなす）
-const calc = (cheap) => `
-  vec3 fogRay = fogW - cameraPosition;
-  float fogDist = length( fogRay );
+const RAY = 'vec3 fogRay = fogW - cameraPosition; float fogDist = length( fogRay );';
+const WOB = { // 濃さの揺れ
+  cheap: '0.8 + 0.2 * sin( ( fogW.x * 0.06 + fogW.z * 0.05 ) + fogHeight.w * 0.15 )',
+  full: '0.75 + 0.25 * sin( fogW.x * 0.06 + fogHeight.w * 0.15 ) * sin( fogW.z * 0.05 - fogHeight.w * 0.11 )',
+};
+const SUNK = { // 太陽の方の色の強さ fogSunK
+  cheap: 'float fogS = max( dot( fogRay / max( fogDist, 1e-3 ), fogSunDir ), 0.0 ); fogS *= fogS; fogS *= fogS; fogS *= fogS; float fogSunK = fogSun * fogS;',
+  full: 'float fogSunK = fogSun * pow( max( dot( fogRay / max( fogDist, 1e-3 ), fogSunDir ), 0.0 ), 8.0 );',
+};
+const KEEP = (wob) => `
   float fogKeep = 1.0;
   if ( fogHeight.x > 0.0 ) {
     float camH = max( cameraPosition.y, fogHeight.y );
     float hc = ( camH - fogHeight.y ) / fogHeight.z, dy = ( fogW.y - camH ) / fogHeight.z;
     float along = abs( dy ) > 0.01 ? ( 1.0 - exp( - dy ) ) / dy : 1.0;
-    ${cheap
-    ? 'float wob = 0.8 + 0.2 * sin( ( fogW.x * 0.06 + fogW.z * 0.05 ) + fogHeight.w * 0.15 );'
-    : 'float wob = 0.75 + 0.25 * sin( fogW.x * 0.06 + fogHeight.w * 0.15 ) * sin( fogW.z * 0.05 - fogHeight.w * 0.11 );'}
-    fogKeep = exp( - fogHeight.x * wob * exp( - hc ) * along * fogDist );
-  }
-  ${cheap
-    ? 'float fogS = max( dot( fogRay / max( fogDist, 1e-3 ), fogSunDir ), 0.0 ); fogS *= fogS; fogS *= fogS; fogS *= fogS; float fogSunK = fogSun * fogS;'
-    : 'float fogSunK = fogSun * pow( max( dot( fogRay / max( fogDist, 1e-3 ), fogSunDir ), 0.0 ), 8.0 );'}`;
+    fogKeep = exp( - fogHeight.x * ( ${wob} ) * exp( - hc ) * along * fogDist );
+  }`;
+const calc = (cheap) => RAY + KEEP(cheap ? WOB.cheap : WOB.full) + (cheap ? SUNK.cheap : SUNK.full);
 const BASE = `#ifdef FOG_EXP2
     float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
   #else
@@ -58,7 +60,28 @@ const CHUNKS = {
     f: `#ifdef USE_FOG\n ${BASE}\n fogFactor = 1.0 - ( 1.0 - fogFactor ) * vFogHS.x;\n gl_FragColor.rgb = mix( gl_FragColor.rgb, mix( fogColor, fogSunColor, vFogHS.y ), fogFactor );\n#endif`,
   },
 };
-CHUNKS.mid = { ...CHUNKS.high, f: CHUNKS.high.f.replace(calc(false), calc(true)) };
+CHUNKS.mid = { // 揺れと太陽の方の色は頂点で（ゆっくり変わる物なので）、濃さは画素で
+  pv: `#ifdef USE_FOG
+ varying float vFogDepth;
+ varying vec3 vFogWorld;
+ varying vec2 vFogWS;
+ ${UNI}
+#endif`,
+  v: `#ifdef USE_FOG
+ vFogDepth = - mvPosition.z;
+ ${WORLD}
+ vFogWorld = fogW;
+ ${RAY} ${SUNK.cheap}
+ vFogWS = vec2( ${WOB.cheap}, fogSunK );
+#endif`,
+  pf: PARS_F(`varying vec3 vFogWorld; varying vec2 vFogWS; ${UNI}`),
+  f: `#ifdef USE_FOG
+ ${BASE}
+ vec3 fogW = vFogWorld; ${RAY} ${KEEP('vFogWS.x')}
+ fogFactor = 1.0 - ( 1.0 - fogFactor ) * fogKeep;
+ gl_FragColor.rgb = mix( gl_FragColor.rgb, mix( fogColor, fogSunColor, vFogWS.y ), fogFactor );
+#endif`,
+};
 
 let quality = '';
 // 計算の細かさを変える。scenes の材質を作り直す（three はシェーダーを覚えているので、覚える名前にも細かさを入れる）

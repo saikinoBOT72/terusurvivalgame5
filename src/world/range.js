@@ -110,7 +110,7 @@ export function buildRange(act) {
     group.add(c.mesh, c.grid, c.steep);
     chunks.push(c);
   }
-  const sea = water(-HALF - 20, -HALF - 20, HALF * 2 + 40, HALF * 2 + 40, 0, 0.35);
+  const sea = water(0);
   const far = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshLambertMaterial({ color: P.water[1] }));
   far.rotation.x = -Math.PI / 2;
   far.position.y = -0.15;
@@ -222,9 +222,9 @@ export function buildRange(act) {
     refill, // 物理ができてから main.js が 1 回呼ぶ
     setGrid(on) { for (const c of chunks) c.grid.visible = on; },
     setDebug(on) { for (const c of chunks) c.steep.visible = on; },
-    update(t) {
+    update(t, cam) {
       const dt = 1 / 60;
-      sea.userData.update?.(t);
+      sea.userData.update?.(t, cam);
       resources.update(dt);
       for (const u of updates) u(t, dt);
     },

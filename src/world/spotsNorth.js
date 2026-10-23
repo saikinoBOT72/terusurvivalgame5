@@ -5,6 +5,7 @@ import { shape, pick } from '../style/lowpoly.js';
 import { rock } from './nature.js';
 import { crate } from './wreck.js';
 import { DAY_LEN } from './dayNight.js';
+import { lightSource } from './lightPool.js';
 import { mossBoulder, glowShrooms, GLOW_MAT } from './spotNature.js';
 import { deadRobot } from './spotAI.js';
 import { createMining } from '../mobs/mining.js';
@@ -31,13 +32,12 @@ export function placeNorth(ctx) {
     glow.material = GLOW_MAT;
     list.forEach((it, k) => resources.add({ kind: 'glowShroom', x: it.x, y: it.y, z: it.z, r: 0.3, h: 0.35, regrow: DAY_LEN,
       parts: [{ mesh: body, index: k }, { mesh: glow, index: k }] }));
-    const lights = [list.slice(0, 4), list.slice(4)].map((g) => {
-      const l = new THREE.PointLight(P.magic[2], 0, 14, 1.6);
-      l.position.set(g.reduce((a, o) => a + o.x, 0) / g.length, H(s.x, s.z) + 1.2, g.reduce((a, o) => a + o.z, 0) / g.length);
-      group.add(l);
-      return l;
-    });
-    updates.push((t, cam) => { for (const l of lights) l.intensity = cam && Math.hypot(cam.x - l.position.x, cam.z - l.position.z) < 45 ? 2.2 + Math.sin(t * 1.3) * 0.3 : 0; });
+    for (const g of [list.slice(0, 4), list.slice(4)]) { // 使い回しの光（lightPool.js。近いときだけ割り当たる）
+      const at = new THREE.Object3D();
+      at.position.set(g.reduce((a, o) => a + o.x, 0) / g.length, H(s.x, s.z) + 1.2, g.reduce((a, o) => a + o.z, 0) / g.length);
+      group.add(at);
+      lightSource(at, { color: P.magic[2], intensity: (t) => 2.2 + Math.sin(t * 1.3) * 0.3, distance: 14, decay: 1.6 });
+    }
   }
 
   // ---- 19 見晴らしの岩: 丘の上の、平たい岩の段（0.75m ずつ。跳んで登る）。てっぺんから島が見える ----

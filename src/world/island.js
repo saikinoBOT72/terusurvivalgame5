@@ -20,6 +20,8 @@ import { groundNormal, tiltQuat, trunkBase, placeProp } from './placement.js';
 import { createResources } from './resources.js';
 import { placePickups } from './pickups.js';
 import { placeSpots } from './spots.js';
+import { bakeBatches } from './batch.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // 地面の色: スポットの地面、岩の段の上（上を向いた面に岩と砂利をまぜる）
 const groundColor = (spot, rockAt) => (f, r) => spot(f, r) ?? (f.ny > 0.5 && rockAt(f.x, f.z) && r() < 0.75 ? [P.rockGray[2], P.rockGray[3], P.rockBrown[2], P.grass[1]][Math.floor(r() * 4)] : null);
@@ -27,6 +29,7 @@ const groundColor = (spot, rockAt) => (f, r) => spot(f, r) ?? (f.ny > 0.5 && roc
 const CHUNK = 32;        // 区画の一辺（m）
 const VIEW = 130;        // これより遠い区画は描かない（かすみの奥。islands.md「見通し」）
 const NEAR_VIEW = 40;    // マス目・当たり判定の表示を出す範囲
+const GRASS_VIEW = 40;   // 草はこれより遠い区画を描かない（PLAN.md「軽くする」）
 const CELL = 8;          // 当たり判定の分け方
 const TREE_TOP = 3;      // 木の幹の当たり判定の高さ（上に乗れない）
 // 壊したあと戻る物と秒（islands.md「資源の量」）。ほかの木・岩は戻らない
@@ -67,9 +70,29 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
       chunks.push(c);
     }
   }
+  // 地形の見た目は 2×2 の区画をつないで、64m ごとに 1 回で描く（形は 32m の区画のまま作る。PLAN.md「軽くする」）
+  const lands = [];
+  {
+    const blocks = new Map();
+    for (const c of chunks) {
+      const k = `${Math.floor((c.x + half) / (CHUNK * 2))},${Math.floor((c.z + half) / (CHUNK * 2))}`;
+      if (!blocks.has(k)) blocks.set(k, []);
+      blocks.get(k).push(c);
+    }
+    for (const list of blocks.values()) {
+      const geo = list.length > 1 ? mergeGeometries(list.map((c) => c.mesh.geometry)) : null;
+      const m = list[0].mesh;
+      if (geo) {
+        for (const c of list) { c.mesh.geometry.dispose(); if (c.mesh !== m) group.remove(c.mesh); }
+        m.geometry = geo;
+      }
+      lands.push({ mesh: m, x: list.reduce((a, c) => a + c.x, 0) / list.length, z: list.reduce((a, c) => a + c.z, 0) / list.length, r: geo ? CHUNK : CHUNK / 2 });
+      if (!geo) for (const c of list.slice(1)) lands.push({ mesh: c.mesh, x: c.x, z: c.z, r: CHUNK / 2 }); // つなげなかったときはそのまま
+    }
+  }
 
   // ---- 海: 近くは波打つ水面、その外は動かない水面で地平線まで ----
-  const sea = water(-half - 20, -half - 20, ISLAND + 40, ISLAND + 40, SEA, 0.35);
+  const sea = water(SEA);
   const far = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshLambertMaterial({ color: P.water[1] }));
   far.rotation.x = -Math.PI / 2;
   far.position.y = SEA - 0.15; // 波の一番低い所（-0.05）より十分下に。近いと遠くで重なって濃い点が出る
@@ -176,7 +199,7 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
     meshes[kind] = list.map((it, i) => {
       const m = instanced(protos[kind][i], it, { double: kind === 'grass', shadow: kind !== 'grass' });
       group.add(m);
-      if (kind === 'grass') grass.addInstanced(m, it);
+      if (kind === 'grass') { grass.addInstanced(m, it); m.userData.near = true; } // 近くだけ描く（GRASS_VIEW）
       return m;
     });
   }
@@ -240,7 +263,19 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
   for (const t of gen.def.autoTraces ?? []) placeLoot({ group, terrain, resources }, t.item, t.x, t.z, true, t.dy);
   const planting = createPlanting({ group, terrain, colliders, addCollider, resources, protos, leafCollider, leaves, treeTop: TREE_TOP });
 
+  bakeBatches(group); // 動かない物を区画ごとにまとめて描く（batch.js）。セーブから戻す前・区画を隠す一覧を作る前に
   resources.freeze(); // ここまでが島の最初の姿。あとの変化はセーブで記録する
+  // 動かない物は、毎フレーム行列を作り直さない（PLAN.md「軽くする」）。動く物（海・たき火・滝・userData.moves の印）の中は除く
+  {
+    const moving = new Set([sea, fire.root, fall.root]);
+    const freeze = (o) => {
+      if (moving.has(o) || o.userData.moves) return;
+      o.updateMatrix();
+      o.matrixAutoUpdate = false;
+      for (const c of o.children) freeze(c);
+    };
+    group.children.forEach(freeze);
+  }
   const rings = colliderRings(all);
   group.add(rings);
 
@@ -274,15 +309,15 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
     setGrid(on) { gridOn = on; },
     setDebug(on) { debugOn = on; rings.visible = on; },
     update(t, cam) {
-      sea.userData.update(t);
+      sea.userData.update(t, cam);
       spots.update(t, cam);
       if (Math.hypot(cam.x - gen.def.pond.x, cam.z - gen.def.pond.z) < VIEW) fall.update(t);
       fire.update(t);
       resources.update(t - (lastT ?? t));
       lastT = t;
+      for (const l of lands) l.mesh.visible = Math.hypot(cam.x - l.x, cam.z - l.z) < VIEW + l.r * 2;
       for (const c of chunks) {
         const dist = Math.hypot(cam.x - c.x, cam.z - c.z);
-        c.mesh.visible = dist < VIEW + CHUNK;
         c.grid.visible = gridOn && dist < NEAR_VIEW + CHUNK;
         c.steep.visible = debugOn && dist < NEAR_VIEW + CHUNK;
       }
@@ -290,7 +325,7 @@ export async function buildIsland(id = 'crash', onProgress = () => {}) {
       if (!things) { things = []; group.traverse((o) => { if (o.parent?.isChunked) things.push(o); }); }
       for (const m of things) {
         const b = m.boundingSphere.center;
-        m.visible = Math.hypot(cam.x - b.x, cam.z - b.z) - m.boundingSphere.radius < VIEW;
+        m.visible = Math.hypot(cam.x - b.x, cam.z - b.z) - m.boundingSphere.radius < (m.userData.near || m.parent.userData.near ? GRASS_VIEW : VIEW);
       }
     },
   };

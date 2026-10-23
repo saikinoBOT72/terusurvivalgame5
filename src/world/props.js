@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
 import { pick, shape, merge, makeMesh, glowMat } from '../style/lowpoly.js';
+import { lightSource } from './lightPool.js';
 
 // 炎は光の影響を受けない材質（暗い所でも炎の色のまま見える）
 const FIRE_MAT = glowMat({ vertexColors: true });
@@ -49,10 +50,12 @@ export function campfire(rand, { base = true } = {}) {
   }
   flame(0.1, 0.82, P.fire[2], 0, 0);
 
-  const light = new THREE.PointLight(P.fire[1], 3, 8, 2);
-  light.position.y = 0.6;
-  light.layers.enable(1); // 1人称の腕の層も照らす
-  root.add(light);
+  // まわりを照らす光は使い回しの光（lightPool.js）。近い物から光が割り当たる
+  const at = new THREE.Object3D();
+  at.position.y = 0.6;
+  root.add(at);
+  let glow = 3;
+  lightSource(at, { color: P.fire[1], intensity: () => glow, distance: 8, decay: 2 });
 
   function update(t) {
     for (const m of flames) {
@@ -60,7 +63,7 @@ export function campfire(rand, { base = true } = {}) {
       m.scale.set(1 + Math.sin(t * 9 + p) * 0.08, 1 + Math.sin(t * 13 + p) * 0.15 + Math.sin(t * 5.3 + p) * 0.08, 1 + Math.cos(t * 8 + p) * 0.08);
       m.rotation.y = t * 0.8 + p;
     }
-    light.intensity = 3 + Math.sin(t * 11) * 0.4 + Math.sin(t * 17.3) * 0.3;
+    glow = 3 + Math.sin(t * 11) * 0.4 + Math.sin(t * 17.3) * 0.3;
   }
   return { root, update, radius: 0.5, height: 0.3 }; // 当たり判定: 低いので上に乗れる
 }

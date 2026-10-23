@@ -19,16 +19,37 @@ export const UP = `uniform sampler2D tSrc; uniform vec2 uTexel; varying vec2 vUv
   void main() { vec3 c = tap(vec2(-2.0, 0.0)) + tap(vec2(2.0, 0.0)) + tap(vec2(0.0, -2.0)) + tap(vec2(0.0, 2.0))
     + (tap(vec2(-1.0, -1.0)) + tap(vec2(1.0, -1.0)) + tap(vec2(-1.0, 1.0)) + tap(vec2(1.0, 1.0))) * 2.0;
     gl_FragColor = vec4(c / 12.0, 1.0); }`;
-// まとめ
+// まとめ。FXAA を定義すると（後処理「軽い」）、世界の画面を読むときに FXAA をかける（画面の大きさで描けば拡大も同時。uTexel は世界の画面の 1 画素）
 export const FINAL = `uniform sampler2D tScene, tBloom; uniform float uBloom, uExposure, uContrast, uSat, uVig, uCA, uAspect, uTime, uGrade;
-  uniform vec3 uTint, uLift; varying vec2 vUv;
+  uniform vec3 uTint, uLift; uniform vec2 uTexel; varying vec2 vUv;
   // 1 より下はそのまま。日なたの砂など少し超えた所は今までどおり色ごとに切る（昼の見た目を変えない）。
   // 光る物（1.3 より明るい）は一番強い色で全体を縮めるので、ネオンの色合いが白に飛ばない
   vec3 shoulder(vec3 x) { float m = max(x.r, max(x.g, x.b)); return mix(min(x, 1.0), x / max(m, 1e-4), smoothstep(1.3, 2.5, m)); }
   vec3 toSRGB(vec3 c) { c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+#ifdef FXAA
+  vec3 at(vec2 o) { return texture2D(tScene, vUv + o * uTexel).rgb; }
+  float luma(vec3 c) { return sqrt(dot(clamp(shoulder(c * uExposure), 0.0, 1.0), vec3(0.299, 0.587, 0.114))); } // 見た目に近い明るさ
+  vec3 fxaa() { // 斜め 4 つの明るさの差から輪郭の向きを出し、その向きに 2〜4 回読んでならす
+    vec3 m = at(vec2(0.0));
+    float lm = luma(m), a = luma(at(vec2(-1.0, -1.0))), b = luma(at(vec2(1.0, -1.0))), e = luma(at(vec2(-1.0, 1.0))), f = luma(at(vec2(1.0, 1.0)));
+    float lo = min(lm, min(min(a, b), min(e, f))), hi = max(lm, max(max(a, b), max(e, f)));
+    if (hi - lo < max(0.0312, hi * 0.125)) return m; // 輪郭でない所はそのまま
+    vec2 dir = vec2(-((a + b) - (e + f)), (a + e) - (b + f));
+    float rcp = 1.0 / (min(abs(dir.x), abs(dir.y)) + max((a + b + e + f) * 0.03125, 1.0 / 128.0));
+    dir = clamp(dir * rcp, -8.0, 8.0);
+    vec3 p = 0.5 * (at(dir * (1.0 / 3.0 - 0.5)) + at(dir * (2.0 / 3.0 - 0.5)));
+    vec3 q = p * 0.5 + 0.25 * (at(dir * -0.5) + at(dir * 0.5));
+    float lq = luma(q);
+    return lq < lo || lq > hi ? p : q;
+  }
+#endif
   void main() {
     vec2 d = vUv - 0.5;
+#ifdef FXAA
+    vec3 c = fxaa();
+#else
     vec3 c = texture2D(tScene, vUv).rgb;
+#endif
     if (uCA > 0.0) { vec2 o = d * uCA; c.r = texture2D(tScene, vUv + o).r; c.b = texture2D(tScene, vUv - o).b; } // 色ずれ（端ほど大きい）
     c += texture2D(tBloom, vUv).rgb * uBloom;
     c = toSRGB(shoulder(c * uExposure));

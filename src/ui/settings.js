@@ -14,12 +14,14 @@ export const SETTINGS = [
   // info: 名前の横の ⓘ を押すと出る説明
   { key: 'fxq', tab: 'screen', name: 'グラフィック品質', choice: [['low', '低'], ['mid', '中'], ['high', '高'], ['custom', 'カスタム']], def: 'mid',
     info: '下の項目をまとめて切り替える。1 つでも個別に変えると「カスタム」になる。重いと感じたら「低」から試す。' },
+  { key: 'post', tab: 'screen', name: 'ポストプロセス', choice: [['normal', 'ふつう'], ['light', '軽い']], def: 'normal',
+    info: '描いたあとの画面の仕上げ方。軽い = 色の仕上げ・ふちのギザギザ消し（FXAA）・拡大を 1 回でまとめて描く。軽いときは、アンチエイリアスとシャープネスの欄は効かず、ブルームは小さく粗くなる。' },
   { key: 'aa', tab: 'screen', name: 'アンチエイリアス', choice: [['none', 'オフ'], ['smaa', 'SMAA'], ['msaa2', 'MSAA 2x'], ['msaa4', 'MSAA 4x']], def: 'smaa',
     info: '物のふちのギザギザをなめらかにする。SMAA は描いたあとに輪郭をぼかす方式で軽い（少しぼやける）。MSAA は描く段階で滑らかにする方式でくっきりするが、数字が大きいほど重い。' },
   { key: 'rscale', tab: 'screen', name: '解像度スケール', min: 0.25, max: 4, step: 0.05, def: 1.5, fmt: (v) => `${v.toFixed(2)} 倍`,
     info: '画面の画素数の何倍まで細かく描くか（上限）。下げると軽くなるが、絵がぼやける。端末の画素の倍率（高精細ディスプレイなら 2 など）より大きくしても効かない。' },
   { key: 'autoRes', tab: 'screen', name: '動的解像度', toggle: true, def: true,
-    info: 'オンだと、60fps に間に合わないときだけ、自動で解像度を下げる（上限の 0.6 倍まで）。余裕ができれば戻る。オフなら、いつも上の解像度スケールで描く。' },
+    info: 'オンだと、画面のフレームレートの上限（60fps など）に間に合わないときだけ、自動で解像度を段階的に下げる（上限の 0.6 倍まで）。余裕ができれば戻る。オフなら、いつも上の解像度スケールで描く。' },
   { key: 'hdr', tab: 'screen', name: 'HDR 描画', toggle: true, def: true,
     info: '描く途中の画面を、明るさ 1 を超えられる 16bit にする。オフにすると 8bit で描いて、メモリと処理が軽くなる（目安: 1 フレームの 1 割ほど）。オフのとき、ブルームは働かず、光る物の色は少し白っぽくなる。' },
   { key: 'bloom', tab: 'screen', name: 'ブルーム', toggle: true, def: true,
@@ -30,17 +32,21 @@ export const SETTINGS = [
     info: '時間帯・場所に合わせた画面の色合いと、周辺減光（四すみを暗く）、ディザ（色の縞を消す）。オフにすると、色が単調になり夜や洞窟の雰囲気が薄れるが、少し軽くなる。' },
   { key: 'sharpen', tab: 'screen', name: 'シャープネス', toggle: true, def: true,
     info: '解像度スケールを画面より小さくして描いたとき、拡大でぼやけた輪郭をはっきりさせる。画面と同じ細かさで描いているときは何もしない。' },
+  { key: 'shadowq', tab: 'screen', name: '影の品質', choice: [['high', '高'], ['mid', '中'], ['low', '低'], ['off', 'オフ']], def: 'mid',
+    info: '影の細かさと作り直す回数。高 = 細かい影を毎フレーム作る。中 = 同じ細かさで、0.2 秒ごとか動いたときだけ作り直す（動く物の影が少し遅れる）。低 = 粗い影で、地形（地面の段差）は影を落とさない。オフ = 影なし（いちばん軽い）。' },
+  { key: 'particles', tab: 'screen', name: 'パーティクル', choice: [['many', '多い'], ['few', '少ない']], def: 'many',
+    info: '火花・破片・土ぼこり・砂・煙など、演出の粒の数。少ない = 半分（出せる上限も半分）。戦いの多い場面が軽くなる。' },
   { key: 'fogq', tab: 'screen', name: '霧の品質', choice: [['high', '高'], ['mid', '中'], ['low', '低']], def: 'mid',
-    info: '霧の計算の細かさ。高 = 画素ごとに計算（低い所の霧・太陽の方向の色・ゆらぎ）、中 = ゆらぎを簡単にした計算、低 = 頂点ごとの計算（大きな面で濃さの境目が少し見えることがある）。霧の濃さはどれも同じ。' },
+    info: '霧の計算の細かさ。高 = 画素ごとに計算（低い所の霧・太陽の方向の色・ゆらぎ）、中 = ゆらぎと太陽の方向の色は頂点ごと・濃さは画素ごと、低 = 頂点ごとの計算（大きな面で濃さの境目が少し見えることがある）。霧の濃さはどれも同じ。' },
   { key: 'volume', tab: 'sound', name: '音量', min: 0, max: 1, step: 0.05, def: 0.7, fmt: (v) => `${Math.round(v * 100)}%` }, // 全体（sound.md）
   { key: 'fps', tab: 'screen', name: 'フレームレート表示', toggle: true, def: false },
   ...(import.meta.env.DEV ? [{ key: 'creative', tab: 'screen', name: 'クリエイティブインベントリ（開発用）', toggle: true, def: true }] : []),
 ];
 // 画質ごとの個別の設定（ui.md「画質」の表）
 export const PRESETS = {
-  low: { aa: 'none', rscale: 1, autoRes: true, hdr: false, bloom: false, bloomq: 'low', grade: true, sharpen: true, fogq: 'low' },
-  mid: { aa: 'smaa', rscale: 1.5, autoRes: true, hdr: true, bloom: true, bloomq: 'high', grade: true, sharpen: true, fogq: 'mid' },
-  high: { aa: 'msaa4', rscale: 2, autoRes: false, hdr: true, bloom: true, bloomq: 'high', grade: true, sharpen: true, fogq: 'high' },
+  low: { post: 'light', aa: 'none', rscale: 1, autoRes: true, hdr: false, bloom: false, bloomq: 'low', grade: true, sharpen: true, fogq: 'low', shadowq: 'low', particles: 'few' },
+  mid: { post: 'normal', aa: 'smaa', rscale: 1.5, autoRes: true, hdr: true, bloom: true, bloomq: 'high', grade: true, sharpen: true, fogq: 'mid', shadowq: 'mid', particles: 'many' },
+  high: { post: 'normal', aa: 'msaa4', rscale: 2, autoRes: false, hdr: true, bloom: true, bloomq: 'high', grade: true, sharpen: true, fogq: 'high', shadowq: 'high', particles: 'many' },
 };
 // 画質を選んだら個別の値を入れる。個別を変えたら、合う画質（なければカスタム）にする。ほかの欄が変わったら true
 function syncPreset(v, key) {
@@ -56,7 +62,10 @@ export const vfovOf = (hfov) => 2 * Math.atan(Math.tan(hfov * Math.PI / 360) * 9
 
 export function loadSettings() {
   const v = Object.fromEntries(SETTINGS.map((s) => [s.key, s.def]));
-  try { Object.assign(v, JSON.parse(localStorage.getItem(KEY)) ?? {}); } catch { /* 使えなければはじめの値 */ }
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY)); } catch { /* 使えなければはじめの値 */ }
+  if (saved) Object.assign(v, saved);
+  else if (matchMedia('(pointer: coarse)').matches) v.fxq = 'low'; // はじめての起動で、タッチの端末なら画質「低」（ui.md「画質」。タッチ操作の「自動」と同じ見分け方）
   v.rscale = Number(v.rscale) || 1.5; // 前の版では文字で保存していた
   if (PRESETS[v.fxq]) Object.assign(v, PRESETS[v.fxq]); // 画質と個別の値をそろえる
   return v;

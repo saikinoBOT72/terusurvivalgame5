@@ -2,6 +2,7 @@
 // 煙は低分割の球。出はじめにふくらみ、最後に小さくなって消える。色は palette.js の fx.steam・fx.smoke・fx.dust
 import * as THREE from 'three';
 import { P } from '../style/palette.js';
+import { particles, thin } from '../style/lowpoly.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const G = 9.8;
@@ -31,7 +32,8 @@ export function createMobFx({ fx = null } = {}) {
   // 煙を 1 つ出す。v: 速さ、s: 大きさ、grow: 大きくなる倍率
   function puff(kind, p, v, s, life, grow = 2) {
     const k = kinds[kind];
-    if (k.list.length >= k.max) k.list.shift();
+    if (thin()) return;
+    if (k.list.length >= k.max * particles.k) k.list.shift();
     k.list.push({ p: p.clone(), v, s, grow, life, max: life, c: k.cols[Math.floor(Math.random() * k.cols.length)], r: rand(0, 6) });
   }
   const back = (m) => new THREE.Vector3(-Math.sin(m.yaw), 0, -Math.cos(m.yaw));

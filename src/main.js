@@ -29,6 +29,8 @@ import { perf } from './perf.js';
 import { createRenderer } from './game/renderer.js';
 import { createGrade } from './world/grade.js';
 import { setFogQuality } from './world/fog.js';
+import { createLightPool } from './world/lightPool.js';
+import { particles } from './style/lowpoly.js';
 import { sound } from './audio/sound.js';
 import { createHeld } from './game/held.js';
 import { createBuilding } from './game/building.js';
@@ -61,6 +63,8 @@ scene.add(camera);
 const view = createRenderer(camera), { renderer, dom } = view, lockPointer = view.lockPointer; // game/renderer.js
 const grade = createGrade(view.fx); // 画面の色（world/grade.js）
 const sky = createSky(scene);
+const lights = createLightPool(scene); // 点の光の使い回し（world/lightPool.js）
+view.setArmLights([sky.hemi, sky.sun, ...lights.lights]); // 1人称の腕を照らす光（game/renderer.js）
 // 戦い（敵の動き・スタミナ）は、そのモードが戦う世界を 1人称で遊んでいる間だけ。眠って暗転している間は止める（modes/）
 const fighting = () => mode === 'fps' && modes.cur.fighting(world) && !life.sleeping;
 const player = createFirstPerson({ camera, dom, onLand: (h) => { if (mode === 'fps' && modes.cur.survival(world) && !life.sleeping) stats.fell(h); } });
@@ -113,6 +117,18 @@ function useWorld(w) {
   if (!modes.cur.survival(w)) sky.setHour(w.hour ?? 12); // 島以外は止める（ふつうは昼。射撃訓練島は昼夜切り替えの台で変わる）
   w.applyEnv?.(); // マップ作り: 決めた空と光
   attachWorld(w, { structuresOf, player, build, systems: [gather, combat, spawner, hitFx, ranged, tools], onMessage: (m) => invHud.message(m), gridOn, debugOn }); // game/worlds.js
+  if (!warmed.has(w)) { warmed.add(w); prewarm(); }
+}
+// 材質を先に作る（style.md「描き方の決まり」）: 世界をはじめて出したとき、世界と敵の見本の材質を、裏で全部作っておく（遊んでいる途中で止まらない）
+const warmed = new WeakSet();
+let warmMobs = null;
+function prewarm() {
+  if (!warmMobs) { warmMobs = new THREE.Group(); warmMobs.visible = false; warmMobs.add(...combat.samples()); } // 見えないまま材質だけ作る
+  scene.add(warmMobs);
+  const prev = renderer.getRenderTarget();
+  renderer.setRenderTarget(view.fx.hdr()); // 描く先で材質の作りが変わるので、世界を描く画面（game/postfx.js）で作る
+  renderer.compileAsync(scene, camera).catch(() => {}).finally(() => scene.remove(warmMobs));
+  renderer.setRenderTarget(prev);
 }
 
 // 見本の猫: 島の始まりのそばで円を描いて歩く（1人称では「ほかのプレイヤー」の見え方の確認になる）
@@ -139,7 +155,9 @@ function applySettings(v) {
   document.documentElement.style.setProperty('--ui-zoom', v.ui);
   fpsMeter.setOn(v.fps);
   sound.setVolume(v.volume); // 音量（audio/sound.js）
-  view.fx.setOptions({ aa: v.aa, rscale: v.rscale, autoRes: v.autoRes, hdr: v.hdr, bloom: v.bloom, bloomq: v.bloomq, grade: v.grade, sharpen: v.sharpen }); // 画質の個別の設定（game/postfx.js。ui.md「画質」）
+  view.fx.setOptions({ aa: v.aa, rscale: v.rscale, autoRes: v.autoRes, hdr: v.hdr, bloom: v.bloom, bloomq: v.bloomq, grade: v.grade, sharpen: v.sharpen, post: v.post }); // 画質の個別の設定（game/postfx.js。ui.md「画質」）
+  particles.k = v.particles === 'few' ? 0.5 : 1; // パーティクルの量（style/lowpoly.js）
+  view.setShadows(v.shadowq, sky.sun, scene); // 影の品質（game/renderer.js）
   setFogQuality(v.fogq, [scene]); // 霧の計算の細かさ（world/fog.js）
   creativeInv?.setOn(v.creative);
   setTouchMode(v.touch, v.tsens);
@@ -254,6 +272,7 @@ function frame(step) { // step: 確認用に決まった秒だけ進める（__g
   if (mode === 'fps') held.update(t, dt, life.sleeping);
 
   sky.update(dt, camera.position);
+  lights.update(t, dt, camera.position);
   perf.lap('建築・乗り物・空');
   view.draw(scene, mode === 'fps');
   perf.lap('描画');
@@ -263,7 +282,7 @@ renderer.setAnimationLoop(() => frame());
 // 確認用（開発中だけ）: ブラウザのコンソールから状態を見たり動かしたりする
 if (import.meta.env.DEV) {
   // run(ms): 画面が隠れていても ms だけ進める（確認用）
-  window.__game = { renderer, post: view.fx, grade, sky, quality: (q) => { Object.assign(settings, PRESETS[q] ?? {}, { fxq: q }); applySettings(settings); return view.fx.options; }, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, keyItems, equip, invHud, sleep: life.sleep, saveNow: () => survival.saveNow(), loadGame: () => survival.loadGame(), vitals: stats, time, gather, tools, build, camera, cat, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; }, get gameMode() { return modes.cur.id; }, get map() { return pvp.mapMaker; } };
+  window.__game = { renderer, frame, settings, lights, post: view.fx, grade, sky, quality: (q) => { Object.assign(settings, PRESETS[q] ?? {}, { fxq: q }); applySettings(settings); return view.fx.options; }, perf, fx: hitFx, wind: windFx, pc, ranged, spawner, run: async (ms) => { for (let i = 0; i < ms / 33; i++) { frame(1 / 30); if (i % 10 === 9) await new Promise((ok) => setTimeout(ok, 0)); } }, player, inventory, combat, mob: (kind = 'drone', d = 6) => { const s = player.state; combat.spawn(kind, s.x - Math.sin(s.yaw) * d, s.z - Math.cos(s.yaw) * d); return kind; }, keyItems, equip, invHud, sleep: life.sleep, saveNow: () => survival.saveNow(), loadGame: () => survival.loadGame(), vitals: stats, time, gather, tools, build, camera, cat, get setBuildMenuOpen() { return input.setBuildMenuOpen; }, get world() { return world; }, get st() { return structuresOf.get(world); }, get mode() { return mode; }, get gameMode() { return modes.cur.id; }, get map() { return pvp.mapMaker; } };
   import('./dev/creativeInv.js').then(({ createCreativeInv }) => { creativeInv = createCreativeInv({ inventory, equip, invHud }); creativeInv.setOn(settings.creative); }).catch(console.error); // 開発用クリエイティブ（消すときは src/dev/ とこの行）
-  import('./debug.js').then(({ createDebug, modelStats, createPhysicsTest }) => { window.__game.debug = createDebug(window.__game); window.__game.stats = modelStats; window.__game.physics = createPhysicsTest(window.__game); });
+  import('./debug.js').then(({ createDebug, modelStats, createPhysicsTest, createMeasure }) => { window.__game.debug = createDebug(window.__game); window.__game.measure = createMeasure(window.__game); window.__game.stats = modelStats; window.__game.physics = createPhysicsTest(window.__game); });
 }

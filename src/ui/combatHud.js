@@ -21,7 +21,7 @@ export function createCombatHud({ camera }) {
   const cd = el(`<div style="position:fixed;left:50%;top:calc(50% + 18px);width:36px;height:3px;transform:translateX(-50%);background:${hexA(P.ui.cooldown, 0.25)};pointer-events:none" hidden><i style="display:block;height:100%;width:0;background:${P.ui.cooldown}"></i></div>`, layer);
   const cdBar = cd.firstChild;
   const stance = el('<div class="sub stance" hidden></div>', layer); // 動き方の札（忍び足・しゃがみ。ui.md）
-  let stanceText = null;
+  let stanceText = null, ammoKey, cdW; // 前に書いた値（同じなら書かない）
   const vig = el(`<div style="position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center, transparent 62%, ${hexA(P.ui.lowHp, 0.35)} 84%, ${hexA(P.ui.lowHp, 0.9)} 100%)"></div>`);
   // 画面のふちの泥（ui.md「泥」）: しみ 4〜6 個。ふちから内側へ 25% くらいまで、真ん中にはかけない
   const mudLayer = el('<div style="position:fixed;inset:0;pointer-events:none;opacity:0;overflow:hidden"></div>');
@@ -53,7 +53,10 @@ export function createCombatHud({ camera }) {
       arcs.push({ e: el('<div class="hurt-arc"></div>', layer), p: p.clone(), t: 0 });
     },
     // 弾数（null で隠す）。reload: 込め直しの進み 0〜1（込め直していなければ null）
-    setAmmo(text, reload = null) {
+    setAmmo(text, reload = null) { // 変わったときだけ書く（毎フレーム呼ばれる）
+      const key = text == null ? null : `${text}|${reload == null ? '' : reload.toFixed(2)}`;
+      if (key === ammoKey) return;
+      ammoKey = key;
       ammo.hidden = text == null;
       if (text == null) return;
       ammo.querySelector('span').textContent = text;
@@ -66,17 +69,23 @@ export function createCombatHud({ camera }) {
       while (marks.length < list.length) marks.push(el('<div class="mob-mark"></div>', layer));
       marks.forEach((e, i) => {
         const it = list[i], s = it && screen(it.p);
-        e.hidden = !s;
+        if (e.hidden !== !s) e.hidden = !s;
         if (!s) return;
-        e.textContent = it.kind === '?' ? '？' : it.kind === 'z' ? 'z' : '！';
-        e.className = `mob-mark ${it.kind === '?' ? 'aware' : it.kind === 'z' ? 'sleep' : 'alert'}`;
+        if (e.dataset.k !== it.kind) { // 印の種類が変わったときだけ書く
+          e.dataset.k = it.kind;
+          e.textContent = it.kind === '?' ? '？' : it.kind === 'z' ? 'z' : '！';
+          e.className = `mob-mark ${it.kind === '?' ? 'aware' : it.kind === 'z' ? 'sleep' : 'alert'}`;
+        }
         e.style.transform = `translate(${s[0]}px, ${s[1]}px) translate(-50%, -100%)`;
       });
     },
     // 攻撃間隔の満ち具合 0〜1（満ちていれば null で隠す）
     setCooldown(k) {
+      const w = k == null ? null : Math.round(Math.min(1, k) * 100); // 変わったときだけ書く
+      if (w === cdW) return;
+      cdW = w;
       cd.hidden = k == null;
-      if (k != null) cdBar.style.width = `${Math.min(1, k) * 100}%`;
+      if (k != null) cdBar.style.width = `${w}%`;
     },
     // 照準の下の動き方の札（null で隠す）
     setStance(text) {
