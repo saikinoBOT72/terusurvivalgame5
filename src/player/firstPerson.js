@@ -1,6 +1,7 @@
 // 1人称の視点と移動。
 // state（位置・向き・動き）は見た目と分けて持つ。あとでマルチプレイで同期する情報。
-import { createFpHands } from '../avatar/simple.js'; // 仮のキャラ。猫に戻すときは cat.js（git の最初のコミット）の createFpArms
+import { createFpHands } from '../avatar/fpHands.js';
+import { CHARA_SIZE } from '../avatar/chara.js';
 import { down, pressed, releaseAll } from '../input/keymap.js';
 import { touch, stick, takeLook, SNEAK_AT, RUN_AT } from '../input/touch.js';
 import { GAIT, SWIM, EYE_CROUCH, HEAD_CROUCH, CROUCH_SECS } from './gait.js';
@@ -9,16 +10,16 @@ export const BODY = 0.8; // 体の大きさ（2026-10-16 に 1 → 0.8。跳ぶ�
 const FLY = 3.6 * BODY * 3;   // 開発用の飛行の速さ（m/秒）
 const GRAVITY = 14;
 const JUMP = 5.2 * Math.sqrt(BODY); // 約 0.8m 跳べる（跳ぶ高さは速さの 2 乗に比例）
-const RADIUS = 0.3 * BODY;    // 体の太さ（木や岩との当たり判定）
+const RADIUS = CHARA_SIZE.radius * BODY; // 体の太さ（木や岩との当たり判定）。本番キャラの大きさから（chara.js）
 const STEP_UP = 0.5;   // これ以下の高さの物には、歩くだけで乗れる（docs/rules/player.md）
-const HEAD = 1.3 * BODY;      // 頭の高さ（これより上にある物の下はくぐれる）
-const DEEP = 1.2 * BODY;      // これより深い水では泳ぐ（player.md「泳ぐ」）
-const FLOAT = 1.1 * BODY - 0.15; // 浮いているときの、水面から足元までの深さ（目が水面の 0.15m 上）
+const HEAD = CHARA_SIZE.head * BODY;     // 頭の高さ（これより上にある物の下はくぐれる）
+const DEEP = HEAD;            // これより深い水では泳ぐ（player.md「泳ぐ」）
+const FLOAT = CHARA_SIZE.eye * BODY - 0.15; // 浮いているときの、水面から足元までの深さ（目が水面の 0.15m 上）
 const SWIM_STEP = 1.2; // 泳いでいるときに上がれる高さ（岸・いかだ・土台）
 export const VIEW_LAYER = 1; // 1人称の腕と持つ物の描画の層
 
 // onLand(h): 着地したとき。h は落ちた高さ（宙にいる間の一番高い所から）
-export function createFirstPerson({ camera, dom, eyeHeight = 1.1 * BODY, onLand = () => {} }) {
+export function createFirstPerson({ camera, dom, eyeHeight = CHARA_SIZE.eye * BODY, onLand = () => {} }) {
   // wish: 歩こうとしている向き（単位ベクトル。止まっていれば 0）。いかだを押すのに使う（vehicles.js）
   // ride: 舵を持っている・小舟に座っている間 {v, kind}。その間は歩かず、位置は乗り物が決める（vehicles.js）
   // swimming: 深い水で泳いでいる、underwater: 目が水の中（息が減る。stats.js）

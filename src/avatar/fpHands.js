@@ -1,15 +1,14 @@
 // 1人称で画面の下に見える両手（仮のキャラ。docs/rules/avatar.md、動きは weapons.md「武器の動きと演出」）。カメラの子にして使う
 // 動きの表は fpMotion.js、銃は fpGun.js（ガラクタ拳銃）と gunAnim.js（クリップで動く銃）、振りの軌跡は combat/swingFx.js。ここでは全部を足して手の位置と向きを決める
 import * as THREE from 'three';
-import { P } from '../style/palette.js';
-import { rng, shape, makeMesh } from '../style/lowpoly.js';
+import { rng, makeMesh } from '../style/lowpoly.js';
 import { MOTIONS, swingPose, chargePose, strikeDir, pose0 } from './fpMotion.js';
 import { createGunMotion } from './fpGun.js';
 import { createClipGun } from './gunAnim.js';
 import { createSlingMotion } from './fpSling.js';
+import { handGeo } from './chara.js'; // 体の手と同じ丸い手
 import { createSwingFx } from '../combat/swingFx.js';
 
-export const handGeo = (r) => shape(new THREE.IcosahedronGeometry(0.075, 0).scale(1, 0.9, 1.1), P.catWhite[1], r, { jit: 0.008 });
 
 // ばね（揺れて戻る）。k 硬さ、c 止まりやすさ
 const spring = (k, c) => ({ x: 0, v: 0, step(dt) { this.v += (-k * this.x - c * this.v) * dt; this.x += this.v * dt; } });

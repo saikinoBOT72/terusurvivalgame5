@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createSky } from './world/sky.js';
 import { loadSettings, sensRad, vfovOf, PRESETS } from './ui/settings.js';
-import { createSimple } from './avatar/simple.js'; // 仮のキャラ。猫に戻すときは cat.js（git の最初のコミット）の createCat
+import { createChara } from './avatar/chara.js';
 import { createFirstPerson } from './player/firstPerson.js';
 import { createInventory } from './survival/inventory.js';
 import { createGather } from './survival/gather.js';
@@ -132,7 +132,8 @@ function prewarm() {
 }
 
 // 見本の猫: 島の始まりのそばで円を描いて歩く（1人称では「ほかのプレイヤー」の見え方の確認になる）
-const cat = createSimple();
+const cat = createChara();
+cat.root.scale.setScalar(0.8); // 体の大きさ（firstPerson.js の BODY）
 scene.add(cat.root);
 const RADIUS = 2;
 let angle = 0;

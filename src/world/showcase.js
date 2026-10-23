@@ -12,7 +12,7 @@ import { stick, pebble, berryBush, sack } from './pickups.js';
 import { fallenLog, birdNest, bambooGrove, palmTree, sapling } from './flora.js';
 import { purifierGeo, purifierWater, purifierWaterY } from '../build/furniture.js';
 import { campfire, mushrooms, barrel, boat } from './props.js';
-import { createSimple } from '../avatar/simple.js';
+import { createChara } from '../avatar/chara.js';
 import { createDrone } from '../mobs/drone.js';
 import { createDog } from '../mobs/dog.js';
 import { createGangi } from '../mobs/gangi.js';
@@ -46,7 +46,7 @@ export const BUDGET = [
   ['大', 10, [250, 700], [2, 12]],
   ['特大', Infinity, [250, 1000], [1, 6]],
 ];
-const CHARA = ['キャラ', 0, [1000, 2000], [1, 99]];
+const CHARA = ['キャラ', 0, [300, 2000], [1, 99]];
 const GUN = ['銃', 0, [300, 700], [10, 36]]; // 銃は細かく作る（style.md「銃（例外）」）
 const REALGUN = ['実銃', 0, [600, 2000], [15, 80]]; // 前の FPS の銃の作り直し（style.md「実銃（例外）」）
 const CYBERGUN = ['サイバーガン', 0, [600, 1500], [15, 60]]; // サイバーガンシリーズ（style.md「サイバーガン（例外）」）
@@ -170,8 +170,9 @@ function catalog() {
     return { obj: g, update: f.update };
   };
   list.push({ name: '浄水器', ...purifier(0, false) }, { name: '浄水器（火にかけた）', ...purifier(0.6, true) });
-  const simple = createSimple();
-  list.push({ name: '仮のキャラ', obj: simple.root, update: (t, dt) => simple.update(dt, {}) }); // 仮なので例外にしない
+  const chara = createChara();
+  let walkT = 0; // 6 秒ごとに、3 秒歩いて 3 秒立ち止まる
+  list.push({ name: '本番キャラ', obj: chara.root, chara: true, update: (t, dt) => { walkT += dt; chara.update(dt, { moving: walkT % 6 < 3 }); } });
   // 敵の見本: ポーズごとに 1 体ずつ並べる
   const POSE_NAMES = { idle: '待機', move: '移動', windup: 'ため', attack: '攻撃', stagger: '隙', crouch: '突進のため', charge: '突進', windupSpin: 'つむじ風のため', spin: 'つむじ風', windupShot: '風の弾のため', shoot: '風の弾', disguise: '岩のふり', down: '撃墜',
     windupBite: 'かみつきのため', bite: 'かみつき', bite2: 'かみつき 2', windupPounce: '跳びかかりのため', pounce: '跳びかかり', windupMud: '泥飛ばしのため', mud: '泥飛ばし', stumble: 'つんのめる',

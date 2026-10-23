@@ -91,7 +91,7 @@
 | `player/firstPerson.js` | 1人称の視点と移動（足元の床・壁・天井はブロックの地形から）、泳ぐ（スタミナ 0 で沈む）、走る・忍び足・しゃがみ（state.gait・目と頭の高さ）、体の大きさ BODY（state は見た目と分ける）、開発用の飛行（F） |
 | `player/gait.js` | 動き方の数字の表: 速さ・後ろでも気づく距離・sight 倍率・「！」までの秒・手の揺れ（GAIT）、泳ぐ速さ（SWIM）、走る・泳ぐのスタミナ（COST）、しゃがみの高さ、敵へ渡す `awareness(state)` |
 | **avatar/** | |
-| `avatar/simple.js` | 仮のキャラ（今はこちらを使う）。1人称の両手は fpHands.js から出す |
+| `avatar/chara.js` | 本番キャラ（ロフト。胴・頭・目・手・足、歩き／立ち止まりの update。確認島と views.js の chara・showRow で見る） |
 | `avatar/fpHands.js` | 1人称の両手: 持つ、振り（構え→振り→戻り・つなぎ）、ため、ガード、当てた跳ね返り・振り抜け、歩く揺れ・見回しの遅れ、持ち替え、銃の反動。開発用 preview（振りを止めて見る）・previewReload・motions |
 | `avatar/fpMotion.js` | 武器ごとの手のポーズの表（斧・やり・ナイフ・素手・スリング）と weaponMotion（持ち物 → 振り方・重さ） |
 | `avatar/fpGun.js` | ガラクタ拳銃の動き（込め直しの音の出来事も）: 撃鉄・回転弾倉（5 発で 1/5 回る）、リロードの動き（左手が弾倉・撃鉄へ） |
